@@ -14,10 +14,10 @@ const menuItems = {
     { id: 3, name: "Bruschetta", description: "Toasted bread, tomato, basil", price: 12.00 * 2400, rating: 4.5, orders: 167, available: false },
   ],
   mains: [
-    { id: 4, name: "Grilled Salmon", description: "Atlantic salmon, lemon butter sauce", price: 32.00 * 2400, rating: 4.9, orders: 312, available: true },
-    { id: 5, name: "Ribeye Steak", description: "12oz prime ribeye, herb butter", price: 45.00 * 2400, rating: 4.8, orders: 287, available: true },
-    { id: 6, name: "Chicken Parmesan", description: "Breaded chicken, marinara, mozzarella", price: 26.00 * 2400, rating: 4.7, orders: 198, available: true },
-    { id: 7, name: "Pasta Carbonara", description: "Spaghetti, pancetta, egg, parmesan", price: 22.00 * 2400, rating: 4.6, orders: 234, available: true },
+    { id: 4, name: "Grilled Salmon", description: "Atlantic salmon, lemon butter sauce", price: 32.00 * 2400, rating: 4.9, orders: 312, available: true, requiresSideDish: false },
+    { id: 5, name: "Ribeye Steak", description: "12oz prime ribeye, herb butter", price: 45.00 * 2400, rating: 4.8, orders: 287, available: true, requiresSideDish: true },
+    { id: 6, name: "Chicken Parmesan", description: "Breaded chicken, marinara, mozzarella", price: 26.00 * 2400, rating: 4.7, orders: 198, available: true, requiresSideDish: true },
+    { id: 7, name: "Pasta Carbonara", description: "Spaghetti, pancetta, egg, parmesan", price: 22.00 * 2400, rating: 4.6, orders: 234, available: true, requiresSideDish: false },
   ],
   desserts: [
     { id: 8, name: "Tiramisu", description: "Classic Italian coffee dessert", price: 10.00 * 2400, rating: 4.9, orders: 156, available: true },
@@ -29,7 +29,16 @@ const menuItems = {
   ],
 };
 
-function MenuCard({ item }: { item: typeof menuItems.appetizers[0] }) {
+const sideDishes = [
+  { id: 101, name: "Garlic Mashed Potatoes", price: 5.99 * 2400, description: "Creamy mashed potatoes with roasted garlic" },
+  { id: 102, name: "Seasonal Vegetables", price: 4.99 * 2400, description: "Fresh seasonal vegetables with herbs" },
+  { id: 103, name: "Truffle Fries", price: 6.99 * 2400, description: "Crispy fries with truffle oil and parmesan" },
+  { id: 104, name: "House Salad", price: 4.99 * 2400, description: "Mixed greens with house dressing" },
+  { id: 105, name: "Grilled Asparagus", price: 5.99 * 2400, description: "Fresh asparagus grilled to perfection" },
+  { id: 106, name: "Rice Pilaf", price: 3.99 * 2400, description: "Fragrant rice with herbs and vegetables" },
+];
+
+function MenuCard({ item }: { item: typeof menuItems.appetizers[0] | typeof menuItems.mains[0] }) {
   return (
     <div className={cn(
       "bg-card rounded-xl p-5 shadow-card border border-border/50 hover:shadow-card-hover transition-all duration-300 hover-lift",
@@ -45,7 +54,7 @@ function MenuCard({ item }: { item: typeof menuItems.appetizers[0] }) {
           </div>
           <p className="text-sm text-muted-foreground mt-1">{item.description}</p>
         </div>
-        <span className="text-lg font-bold text-primary">{item.price.toLocaleString('en-US', )}</span>
+        <span className="text-lg font-bold text-primary">{item.price.toLocaleString('en-US')}</span>
       </div>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4 text-sm text-muted-foreground">
@@ -64,6 +73,13 @@ function MenuCard({ item }: { item: typeof menuItems.appetizers[0] }) {
           </Button>
         </div>
       </div>
+      {'requiresSideDish' in item && item.requiresSideDish && (
+        <div className="mt-2">
+          <Badge variant="secondary" className="text-xs">
+            Comes with side dish
+          </Badge>
+        </div>
+      )}
     </div>
   );
 }
