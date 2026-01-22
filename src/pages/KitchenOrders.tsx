@@ -2,85 +2,84 @@ import { MainLayout } from "@/components/layout/MainLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Clock, ChefHat, CheckCircle2, AlertCircle, Play, Bell, Utensils } from "lucide-react";
-import { useState } from "react";
+import { Clock, ChefHat, CheckCircle2, AlertCircle, Play, Bell, Utensils, PlusCircle } from "lucide-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { OrderService } from "@/services/orderService";
+import { toast } from "@/components/ui/use-toast";
 
 // Define the KitchenOrderStatus enum
 enum KitchenOrderStatus {
-  PENDING = "pending",
-  PREPARING = "preparing",
-  READY = "ready"
+  PENDING = "PENDING",
+  PREPARING = "PREPARING",
+  READY = "READY"
 }
 
-// Define the BarOrderStatus enum
-enum BarOrderStatus {
-  PENDING = "pending",
-  READY = "ready"
+// Define interfaces for our enhanced kitchen order data
+interface MenuAddon {
+  id: number;
+  name: string;
+  price: number;
+  isAvailable: boolean;
+}
+
+interface MenuSideDish {
+  id: number;
+  name: string;
+  price: number;
+  isAvailable: boolean;
+}
+
+interface MenuItem {
+  id: number;
+  name: string;
+  hasAddons: boolean;
+  requiresSideDish: boolean;
+  addons: MenuAddon[];
+  sideDishes: MenuSideDish[];
 }
 
 interface OrderItem {
-  id: string;
-  name: string;
+  id: number;
+  orderId: number;
+  menuItemId: number;
   quantity: number;
-  modifications: string;
+  price: number;
+  notes: string | null;
+  prepArea: string;
   status: KitchenOrderStatus;
+  selectedSideDishes: number[];
+  selectedAddons: number[];
+  menuItem: MenuItem;
+  createdAt: string;
+  updatedAt: string;
+  kitchenOrderId: number | null;
+  barOrderId: number | null;
 }
 
 interface KitchenOrder {
-  id: string;
-  table: string;
+  id: number;
+  orderId: number;
+  status: KitchenOrderStatus;
+  createdAt: string;
+  updatedAt: string;
   items: OrderItem[];
-  time: string;
-  priority: "high" | "normal";
-  course: "starter" | "main" | "dessert";
+  order: {
+    id: number;
+    orderNumber: number;
+    tableNumber: number | null;
+    status: string;
+    customerName: string | null;
+    waiter: string | null;
+    guestCount: number | null;
+    total: number;
+    orderItems: {
+      id: number;
+      menuItem: {
+        name: string;
+      };
+    }[];
+  };
 }
-
-const kitchenOrders: KitchenOrder[] = [
-  {
-    id: "ORD-001",
-    table: "Table 5",
-    items: [
-      { id: "item-1", name: "Grilled Salmon", quantity: 2, modifications: "No butter", status: KitchenOrderStatus.PREPARING },
-      { id: "item-2", name: "Caesar Salad", quantity: 1, modifications: "", status: KitchenOrderStatus.PENDING },
-    ],
-    time: "12 min",
-    priority: "high",
-    course: "main",
-  },
-  {
-    id: "ORD-002",
-    table: "Table 12",
-    items: [
-      { id: "item-3", name: "Mushroom Risotto", quantity: 1, modifications: "Extra parmesan", status: KitchenOrderStatus.PENDING },
-      { id: "item-4", name: "Garlic Bread", quantity: 2, modifications: "", status: KitchenOrderStatus.PENDING },
-    ],
-    time: "5 min",
-    priority: "normal",
-    course: "starter",
-  },
-  {
-    id: "ORD-003",
-    table: "Table 8",
-    items: [
-      { id: "item-5", name: "Chocolate Lava Cake", quantity: 3, modifications: "", status: KitchenOrderStatus.READY },
-      { id: "item-6", name: "Tiramisu", quantity: 2, modifications: "No alcohol", status: KitchenOrderStatus.READY },
-    ],
-    time: "2 min",
-    priority: "normal",
-    course: "dessert",
-  },
-  {
-    id: "ORD-004",
-    table: "Table 3",
-    items: [
-      { id: "item-7", name: "Beef Wellington", quantity: 1, modifications: "Medium rare", status: KitchenOrderStatus.PENDING },
-      { id: "item-8", name: "Truffle Mash", quantity: 1, modifications: "", status: KitchenOrderStatus.PENDING },
-    ],
-    time: "0 min",
-    priority: "high",
-    course: "main",
-  },
-];
 
 const statusStyles = {
   [KitchenOrderStatus.PENDING]: "bg-amber-500/10 text-amber-500 border-amber-500/20",
@@ -101,24 +100,125 @@ const courseColors = {
 };
 
 export default function KitchenOrders() {
-  const [orders, setOrders] = useState<KitchenOrder[]>(kitchenOrders);
+  const queryClient = useQueryClient();
 
-  const updateItemStatus = (orderId: string, itemId: string, newStatus: KitchenOrderStatus) => {
-    setOrders(orders.map(order => {
-      if (order.id === orderId) {
-        return {
-          ...order,
-          items: order.items.map(item =>
-            item.id === itemId ? { ...item, status: newStatus } : item
-          )
+  // Fetch kitchen orders using React Query
+  const {
+    data: orders = [],
+    isLoading,
+    isError,
+    error,
+    refetch
+  } = useQuery({
+    queryKey: ['kitchenOrders'],
+    queryFn: async () => {
+      const kitchenOrders = await OrderService.getAllKitchenOrders();
+      // Convert the kitchen orders to our enhanced format
+      return kitchenOrders.map(order => {
+        // Convert status from string to KitchenOrderStatus enum
+        const statusMap: Record<string, KitchenOrderStatus> = {
+          PENDING: KitchenOrderStatus.PENDING,
+          PREPARING: KitchenOrderStatus.PREPARING,
+          READY: KitchenOrderStatus.READY
         };
-      }
-      return order;
-    }));
 
-    // In a real app, this would call an API to update the item status
-    console.log(`Updated item ${itemId} in order ${orderId} to ${newStatus}`);
-  };
+        return {
+          id: order.id,
+          orderId: order.orderId,
+          status: statusMap[order.status] || KitchenOrderStatus.PENDING,
+          createdAt: order.createdAt,
+          updatedAt: order.updatedAt,
+          items: order.items.map(item => {
+            // Extract enhanced data from the item
+            const enhancedItem = item as any;
+            return {
+              id: item.id,
+              orderId: item.orderId,
+              menuItemId: item.menuItemId,
+              quantity: item.quantity,
+              price: item.price,
+              notes: item.notes,
+              prepArea: item.prepArea,
+              status: statusMap[item.status] || KitchenOrderStatus.PENDING,
+              createdAt: item.createdAt,
+              updatedAt: item.updatedAt,
+              kitchenOrderId: item.kitchenOrderId,
+              barOrderId: item.barOrderId,
+              selectedSideDishes: enhancedItem.selectedSideDishes || [],
+              selectedAddons: enhancedItem.selectedAddons || [],
+              menuItem: enhancedItem.menuItem || {
+                id: item.menuItemId,
+                name: 'Unknown Item',
+                hasAddons: false,
+                requiresSideDish: false,
+                addons: [],
+                sideDishes: []
+              }
+            };
+          }),
+          order: order.order || {
+            id: order.orderId,
+            orderNumber: 0,
+            tableNumber: null,
+            status: 'PENDING',
+            customerName: null,
+            waiter: null,
+            guestCount: null,
+            total: 0,
+            orderItems: []
+          }
+        };
+      });
+    },
+    refetchInterval: 30000, // Auto-refresh every 30 seconds
+  });
+
+  // Mutation for updating order item status
+  const updateItemStatusMutation = useMutation({
+    mutationFn: async ({ orderId, itemId, newStatus }: { orderId: number, itemId: number, newStatus: KitchenOrderStatus }) => {
+      return OrderService.updateOrderItemStatus(itemId, { status: newStatus });
+    },
+    onMutate: async ({ orderId, itemId, newStatus }) => {
+      // Cancel any outgoing refetches to avoid overwriting optimistic update
+      await queryClient.cancelQueries({ queryKey: ['kitchenOrders'] });
+
+      // Snapshot the previous value
+      const previousOrders = queryClient.getQueryData<KitchenOrder[]>(['kitchenOrders']);
+
+      // Optimistically update the UI
+      queryClient.setQueryData<KitchenOrder[]>(['kitchenOrders'], (oldOrders = []) =>
+        oldOrders.map(order => {
+          if (order.id === orderId) {
+            return {
+              ...order,
+              items: order.items.map(item =>
+                item.id === itemId ? { ...item, status: newStatus } : item
+              )
+            };
+          }
+          return order;
+        })
+      );
+
+      return { previousOrders };
+    },
+    onError: (err, { orderId, itemId }, context) => {
+      // Rollback to previous state on error
+      if (context?.previousOrders) {
+        queryClient.setQueryData(['kitchenOrders'], context.previousOrders);
+      }
+
+      toast({
+        title: "Update failed",
+        description: "Failed to update item status. Please try again.",
+        variant: "destructive",
+      });
+    },
+    onSettled: () => {
+      // Always refetch after error or success to ensure data consistency
+      queryClient.invalidateQueries({ queryKey: ['kitchenOrders'] });
+    }
+  });
 
   const getOrderStatus = (order: KitchenOrder): KitchenOrderStatus => {
     // Determine overall order status based on individual items
@@ -140,7 +240,12 @@ export default function KitchenOrders() {
           <Button
             size="sm"
             className="h-8 bg-primary hover:bg-primary/90"
-            onClick={() => updateItemStatus(order.id, item.id, KitchenOrderStatus.PREPARING)}
+            onClick={() => updateItemStatusMutation.mutate({
+              orderId: order.id,
+              itemId: item.id,
+              newStatus: KitchenOrderStatus.PREPARING
+            })}
+            disabled={updateItemStatusMutation.isPending}
           >
             <Play className="h-3 w-3 mr-1" /> Start
           </Button>
@@ -150,7 +255,12 @@ export default function KitchenOrders() {
           <Button
             size="sm"
             className="h-8 bg-success hover:bg-success/90 text-success-foreground"
-            onClick={() => updateItemStatus(order.id, item.id, KitchenOrderStatus.READY)}
+            onClick={() => updateItemStatusMutation.mutate({
+              orderId: order.id,
+              itemId: item.id,
+              newStatus: KitchenOrderStatus.READY
+            })}
+            disabled={updateItemStatusMutation.isPending}
           >
             <CheckCircle2 className="h-3 w-3 mr-1" /> Ready
           </Button>
@@ -160,7 +270,12 @@ export default function KitchenOrders() {
           <Button
             size="sm"
             className="h-8 bg-sidebar/70 hover:bg-sidebar/50"
-            onClick={() => updateItemStatus(order.id, item.id, KitchenOrderStatus.PENDING)}
+            onClick={() => updateItemStatusMutation.mutate({
+              orderId: order.id,
+              itemId: item.id,
+              newStatus: KitchenOrderStatus.PENDING
+            })}
+            disabled={updateItemStatusMutation.isPending}
           >
             <Bell className="h-3 w-3 mr-1" /> Served
           </Button>
@@ -169,6 +284,86 @@ export default function KitchenOrders() {
         return null;
     }
   };
+
+  const getCourseFromItems = (items: OrderItem[]): "starter" | "main" | "dessert" => {
+    // Simple heuristic to determine course based on item names
+    const itemNames = items.map(item => item.menuItem.name.toLowerCase());
+
+    if (itemNames.some(name => name.includes('salad') || name.includes('soup') || name.includes('bread'))) {
+      return "starter";
+    } else if (itemNames.some(name => name.includes('cake') || name.includes('tiramisu') || name.includes('dessert'))) {
+      return "dessert";
+    } else {
+      return "main";
+    }
+  };
+
+  const getPriorityFromItems = (items: OrderItem[]): "high" | "normal" => {
+    // Simple heuristic to determine priority
+    const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
+    return totalQuantity >= 4 || items.length >= 3 ? "high" : "normal";
+  };
+
+  const getTimeAgo = (createdAt: string): string => {
+    const now = new Date();
+    const createdDate = new Date(createdAt);
+    const minutesAgo = Math.floor((now.getTime() - createdDate.getTime()) / (1000 * 60));
+
+    if (minutesAgo < 1) return "just now";
+    if (minutesAgo < 60) return `${minutesAgo} min ago`;
+    const hoursAgo = Math.floor(minutesAgo / 60);
+    return `${hoursAgo} hour${hoursAgo > 1 ? 's' : ''} ago`;
+  };
+
+  if (isLoading) {
+    return (
+      <MainLayout title="Kitchen Orders">
+        <div className="space-y-6">
+          <div>
+            <h1 className="text-3xl font-bold text-foreground">Kitchen Orders</h1>
+            <p className="text-muted-foreground mt-1">Loading orders...</p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {[...Array(4)].map((_, i) => (
+              <Card key={i} className="glass-card h-24 animate-pulse" />
+            ))}
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {[...Array(6)].map((_, i) => (
+              <Card key={i} className="glass-card h-64 animate-pulse" />
+            ))}
+          </div>
+        </div>
+      </MainLayout>
+    );
+  }
+
+  if (isError) {
+    return (
+      <MainLayout title="Kitchen Orders">
+        <div className="space-y-6">
+          <div>
+            <h1 className="text-3xl font-bold text-foreground">Kitchen Orders</h1>
+            <p className="text-muted-foreground mt-1">Manage incoming food orders</p>
+          </div>
+          <div className="flex items-center justify-center h-64">
+            <div className="text-center">
+              <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
+              <h2 className="text-xl font-semibold text-destructive mb-2">Error Loading Orders</h2>
+              <p className="text-muted-foreground">{error?.message || 'Unknown error'}</p>
+              <Button
+                className="mt-4"
+                onClick={() => refetch()}
+                disabled={updateItemStatusMutation.isPending}
+              >
+                {updateItemStatusMutation.isPending ? 'Retrying...' : 'Retry'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      </MainLayout>
+    );
+  }
 
   return (
     <MainLayout title="Kitchen Orders">
@@ -242,59 +437,119 @@ export default function KitchenOrders() {
 
         {/* Orders Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {orders.map((order) => {
-            const orderStatus = getOrderStatus(order);
-            const StatusIcon = statusIcons[orderStatus];
-            return (
-              <Card key={order.id} className={`glass-card ${order.priority === "high" ? "ring-2 ring-destructive/50" : ""}`}>
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <CardTitle className="text-lg">{order.table}</CardTitle>
-                      {order.priority === "high" && (
-                        <AlertCircle className="h-4 w-4 text-destructive" />
-                      )}
-                    </div>
-                    <Badge className={statusStyles[orderStatus]}>
-                      <StatusIcon className="h-3 w-3 mr-1" />
-                      {orderStatus}
-                    </Badge>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <span>{order.id}</span>
-                    <span>•</span>
-                    <Badge variant="secondary" className={courseColors[order.course]}>
-                      {order.course}
-                    </Badge>
-                    <span>•</span>
-                    <span>{order.time} ago</span>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="space-y-2">
-                    {order.items.map((item) => (
-                      <div key={item.id} className="flex justify-between items-start p-2 rounded-lg bg-muted/30">
-                        <div className="flex-1">
-                          <p className="font-medium">{item.quantity}x {item.name}</p>
-                          {item.modifications && (
-                            <p className="text-xs text-muted-foreground italic">{item.modifications}</p>
-                          )}
-                          <div className="mt-1">
-                            <Badge className={statusStyles[item.status]}>
-                              {item.status}
-                            </Badge>
-                          </div>
-                        </div>
-                        <div className="ml-2">
-                          {getActionButtons(order, item)}
-                        </div>
+          {orders.length > 0 ? (
+            orders.map((order) => {
+              const orderStatus = getOrderStatus(order);
+              const StatusIcon = statusIcons[orderStatus];
+              const course = getCourseFromItems(order.items);
+              const priority = getPriorityFromItems(order.items);
+              const timeAgo = getTimeAgo(order.createdAt);
+
+              return (
+                <Card key={order.id} className={`glass-card ${priority === "high" ? "ring-2 ring-destructive/50" : ""}`}>
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <CardTitle className="text-lg">Table {order.order.tableNumber || 'N/A'}</CardTitle>
+                        {priority === "high" && (
+                          <AlertCircle className="h-4 w-4 text-destructive" />
+                        )}
                       </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
+                      <Badge className={statusStyles[orderStatus]}>
+                        <StatusIcon className="h-3 w-3 mr-1" />
+                        {orderStatus}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <span>Order #{order.order.orderNumber}</span>
+                      <span>•</span>
+                      <span>{timeAgo}</span>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="space-y-2">
+                      {order.items.map((item) => {
+                        // Get selected addons and side dishes details
+                        const selectedAddons = item.selectedAddons.map(addonId =>
+                          item.menuItem.addons.find(addon => addon.id === addonId)
+                        ).filter(Boolean) as MenuAddon[];
+
+                        const selectedSideDishes = item.selectedSideDishes.map(sideDishId =>
+                          item.menuItem.sideDishes.find(side => side.id === sideDishId)
+                        ).filter(Boolean) as MenuSideDish[];
+
+                        return (
+                          <div key={item.id} className="flex flex-col gap-2 p-2 rounded-lg bg-muted/30">
+                            <div className="flex justify-between items-start">
+                              <div className="flex-1">
+                                <p className="font-medium">{item.quantity}x {item.menuItem.name}</p>
+                                {item.notes && (
+                                  <p className="text-xs text-muted-foreground italic">{item.notes}</p>
+                                )}
+                                <div className="mt-1">
+                                  <Badge className={statusStyles[item.status]}>
+                                    {item.status}
+                                  </Badge>
+                                </div>
+                              </div>
+                              <div className="ml-2">
+                                {getActionButtons(order, item)}
+                              </div>
+                            </div>
+
+                            {/* Display selected addons */}
+                            {selectedAddons.length > 0 && (
+                              <div className="ml-4 mt-1">
+                                <p className="text-xs font-medium text-muted-foreground mb-1">ADDONS:</p>
+                                <div className="flex flex-wrap gap-1">
+                                  {selectedAddons.map((addon) => (
+                                    <Badge key={addon.id} variant="secondary" className="text-xs">
+                                      <PlusCircle className="h-3 w-3 mr-1 text-green-500" />
+                                      {addon.name}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Display selected side dishes */}
+                            {selectedSideDishes.length > 0 && (
+                              <div className="ml-4 mt-1">
+                                <p className="text-xs font-medium text-muted-foreground mb-1">SIDES:</p>
+                                <div className="flex flex-wrap gap-1">
+                                  {selectedSideDishes.map((side) => (
+                                    <Badge key={side.id} variant="secondary" className="text-xs">
+                                      <PlusCircle className="h-3 w-3 mr-1 text-blue-500" />
+                                      {side.name} 
+                                    </Badge>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })
+          ) : (
+            <div className="col-span-full flex items-center justify-center h-64">
+              <div className="text-center">
+                <Utensils className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <h2 className="text-xl font-semibold text-muted-foreground mb-2">No Orders Found</h2>
+                <p className="text-muted-foreground">There are no active kitchen orders at the moment.</p>
+                <Button
+                  className="mt-4"
+                  onClick={() => refetch()}
+                  disabled={updateItemStatusMutation.isPending}
+                >
+                  Refresh
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </MainLayout>
