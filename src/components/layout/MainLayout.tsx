@@ -94,7 +94,7 @@ export function MainLayout({ children, title, subtitle }: MainLayoutProps) {
         </header>
 
         {/* Page Content */}
-        <main className="p-6">
+        <main className="px-6 py-3">
           {children}
         </main>
       </div>

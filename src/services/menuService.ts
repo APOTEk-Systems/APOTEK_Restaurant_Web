@@ -58,10 +58,14 @@ interface MenuCategory {
   id: number;
   name: string;
   description: string;
+  prepArea: string;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
 }
+
+// Export types for use in components
+export type { MenuItem, MenuAddon, MenuSideDish, MenuCategory };
 
 export const MenuService = {
   // Menu Items
