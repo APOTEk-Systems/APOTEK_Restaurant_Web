@@ -405,14 +405,14 @@ export default function KitchenMenu() {
               onValueChange={setActiveTab}
               className="w-full"
             >
-              <TabsList className="bg-muted/50 p-1 mb-6">
-                <TabsTrigger value="items">
+              <TabsList className="bg-muted/50 p-1 mb-6 flex">
+                <TabsTrigger value="items" className="flex-1">
                   <Utensils className="h-4 w-4 mr-2" /> Menu Items
                 </TabsTrigger>
-                <TabsTrigger value="sides">
+                <TabsTrigger value="sides" className="flex-1">
                   <PlusCircle className="h-4 w-4 mr-2" /> Side Dishes
                 </TabsTrigger>
-                <TabsTrigger value="addons">
+                <TabsTrigger value="addons" className="flex-1">
                   <GlassWater className="h-4 w-4 mr-2" /> Addons
                 </TabsTrigger>
               </TabsList>
