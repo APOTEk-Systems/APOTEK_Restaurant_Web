@@ -399,7 +399,7 @@ export default function KitchenMenu() {
           </div>
         ) : (
           <>
-            {/* Main Tabs Navigation */}
+            {/* Main Tabs Navigationss */}
             <Tabs
               value={activeTab}
               onValueChange={setActiveTab}
