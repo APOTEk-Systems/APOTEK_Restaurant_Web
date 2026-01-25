@@ -7,6 +7,13 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { OrderService } from "@/services/orderService";
 import { toast } from "@/components/ui/use-toast";
 
+enum OrderItemStatus {
+  PENDING = "PENDING",
+  PREPARING = "PREPARING",
+  READY = "READY",
+  CANCELED = "CANCELED"
+}
+
 // Define the KitchenOrderStatus enum
 enum KitchenOrderStatus {
   PENDING = "PENDING",
@@ -46,7 +53,7 @@ interface OrderItem {
   price: number;
   notes: string | null;
   prepArea: string;
-  status: KitchenOrderStatus;
+  status: OrderItemStatus;
   selectedSideDishes: number[];
   selectedAddons: number[];
   menuItem: MenuItem;
@@ -85,6 +92,7 @@ const statusStyles = {
   [KitchenOrderStatus.PENDING]: "bg-amber-500/10 text-amber-500 border-amber-500/20",
   [KitchenOrderStatus.PREPARING]: "bg-blue-500/10 text-blue-500 border-blue-500/20",
   [KitchenOrderStatus.READY]: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20",
+  [OrderItemStatus.CANCELED]: "bg-red-500/10 text-red-500 border-red-500/20",
 };
 
 const statusIcons = {
@@ -102,7 +110,6 @@ const courseColors = {
 export default function KitchenOrders() {
   const queryClient = useQueryClient();
 
-  // Fetch kitchen orders using React Query
   const {
     data: orders = [],
     isLoading,
@@ -113,23 +120,26 @@ export default function KitchenOrders() {
     queryKey: ['kitchenOrders'],
     queryFn: async () => {
       const kitchenOrders = await OrderService.getAllKitchenOrders();
-      // Convert the kitchen orders to our enhanced format
       return kitchenOrders.map(order => {
-        // Convert status from string to KitchenOrderStatus enum
-        const statusMap: Record<string, KitchenOrderStatus> = {
+        const kitchenStatusMap: Record<string, KitchenOrderStatus> = {
           PENDING: KitchenOrderStatus.PENDING,
           PREPARING: KitchenOrderStatus.PREPARING,
           READY: KitchenOrderStatus.READY
+        };
+        const itemStatusMap: Record<string, OrderItemStatus> = {
+          PENDING: OrderItemStatus.PENDING,
+          PREPARING: OrderItemStatus.PREPARING,
+          READY: OrderItemStatus.READY,
+          CANCELED: OrderItemStatus.CANCELED
         };
 
         return {
           id: order.id,
           orderId: order.orderId,
-          status: statusMap[order.status] || KitchenOrderStatus.PENDING,
+          status: kitchenStatusMap[order.status] || KitchenOrderStatus.PENDING,
           createdAt: order.createdAt,
           updatedAt: order.updatedAt,
           items: order.items.map(item => {
-            // Extract enhanced data from the item
             const enhancedItem = item as any;
             return {
               id: item.id,
@@ -139,7 +149,7 @@ export default function KitchenOrders() {
               price: item.price,
               notes: item.notes,
               prepArea: item.prepArea,
-              status: statusMap[item.status] || KitchenOrderStatus.PENDING,
+              status: itemStatusMap[item.status] || OrderItemStatus.PENDING,
               createdAt: item.createdAt,
               updatedAt: item.updatedAt,
               kitchenOrderId: item.kitchenOrderId,
@@ -170,44 +180,107 @@ export default function KitchenOrders() {
         };
       });
     },
-    refetchInterval: 30000, // Auto-refresh every 30 seconds
+    refetchInterval: 30000,
   });
 
-  // Mutation for updating order item status
+  const updateOrderStatusMutation = useMutation({
+    mutationFn: ({ orderId, status }: { orderId: number, status: string }) => OrderService.updateOrder(orderId, { status }),
+    onSuccess: () => {
+        toast({
+            title: "Order Completed",
+            description: "The order has been marked as completed.",
+        });
+        queryClient.invalidateQueries({ queryKey: ['kitchenOrders'] });
+    },
+    onError: () => {
+        toast({
+            title: "Update failed",
+            description: "Failed to update order status.",
+            variant: "destructive",
+        });
+    }
+  });
+
+  const checkMainOrderStatus = async (orderId: number) => {
+    try {
+        
+        const mainOrder = await OrderService.getOrderById(orderId);
+        const allItemsReady = mainOrder.orderItems.every(
+            (item: any) => item.status === OrderItemStatus.READY || item.status === OrderItemStatus.CANCELED
+        );
+        
+        if (allItemsReady && mainOrder.status !== 'COMPLETED') {
+            updateOrderStatusMutation.mutate({ orderId, status: 'COMPLETED' });
+        }
+    } catch (error) {
+        console.error("Failed to check main order status", error);
+        toast({
+            title: "Error",
+            description: "Could not verify the main order status.",
+            variant: "destructive",
+        });
+    }
+  };
+
+  const updateKitchenOrderStatusMutation = useMutation({
+    mutationFn: async ({ kitchenOrderId, newStatus }: { kitchenOrderId: number; mainOrderId: number; newStatus: KitchenOrderStatus }) => {
+      // @ts-ignore
+      return OrderService.updateKitchenOrderStatus(kitchenOrderId, { status: newStatus });
+    },
+    onSuccess: (data, { mainOrderId, newStatus }) => {
+      queryClient.invalidateQueries({ queryKey: ['kitchenOrders'] });
+      if (newStatus === KitchenOrderStatus.READY) {
+        checkMainOrderStatus(mainOrderId);
+      }
+    },
+    onError: () => {
+      toast({
+        title: "Update failed",
+        description: "Failed to update kitchen order status.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const updateItemStatusMutation = useMutation({
-    mutationFn: async ({ orderId, itemId, newStatus }: { orderId: number, itemId: number, newStatus: KitchenOrderStatus }) => {
+    mutationFn: async ({ itemId, newStatus }: { orderId: number, itemId: number, newStatus: OrderItemStatus }) => {
       return OrderService.updateOrderItemStatus(itemId, { status: newStatus });
     },
     onMutate: async ({ orderId, itemId, newStatus }) => {
-      // Cancel any outgoing refetches to avoid overwriting optimistic update
       await queryClient.cancelQueries({ queryKey: ['kitchenOrders'] });
-
-      // Snapshot the previous value
       const previousOrders = queryClient.getQueryData<KitchenOrder[]>(['kitchenOrders']);
-
-      // Optimistically update the UI
       queryClient.setQueryData<KitchenOrder[]>(['kitchenOrders'], (oldOrders = []) =>
-        oldOrders.map(order => {
-          if (order.id === orderId) {
-            return {
-              ...order,
-              items: order.items.map(item =>
-                item.id === itemId ? { ...item, status: newStatus } : item
-              )
-            };
-          }
-          return order;
-        })
+        oldOrders.map(order =>
+          order.id === orderId
+            ? {
+                ...order,
+                items: order.items.map(item =>
+                  item.id === itemId ? { ...item, status: newStatus } : item
+                ),
+              }
+            : order
+        )
       );
-
       return { previousOrders };
     },
-    onError: (err, { orderId, itemId }, context) => {
-      // Rollback to previous state on error
+    onSuccess: (data, { orderId }) => {
+      const orders = queryClient.getQueryData<KitchenOrder[]>(['kitchenOrders']);
+      const order = orders?.find(o => o.id === orderId);
+
+      if (order) {
+        const allItemsReady = order.items.every(
+          item => item.status === OrderItemStatus.READY || item.status === OrderItemStatus.CANCELED
+        );
+
+        if (allItemsReady && order.status !== KitchenOrderStatus.READY) {
+          updateKitchenOrderStatusMutation.mutate({ kitchenOrderId: order.id, mainOrderId: order.orderId, newStatus: KitchenOrderStatus.READY });
+        }
+      }
+    },
+    onError: (err, variables, context) => {
       if (context?.previousOrders) {
         queryClient.setQueryData(['kitchenOrders'], context.previousOrders);
       }
-
       toast({
         title: "Update failed",
         description: "Failed to update item status. Please try again.",
@@ -215,27 +288,23 @@ export default function KitchenOrders() {
       });
     },
     onSettled: () => {
-      // Always refetch after error or success to ensure data consistency
       queryClient.invalidateQueries({ queryKey: ['kitchenOrders'] });
     }
   });
 
   const getOrderStatus = (order: KitchenOrder): KitchenOrderStatus => {
-    // Determine overall order status based on individual items
-    const hasPending = order.items.some(item => item.status === KitchenOrderStatus.PENDING);
-    const hasPreparing = order.items.some(item => item.status === KitchenOrderStatus.PREPARING);
-    const hasReady = order.items.some(item => item.status === KitchenOrderStatus.READY);
-
-    if (hasPending) return KitchenOrderStatus.PENDING;
+    const hasPreparing = order.items.some(item => item.status === OrderItemStatus.PREPARING);
     if (hasPreparing) return KitchenOrderStatus.PREPARING;
-    if (hasReady) return KitchenOrderStatus.READY;
+
+    const allReadyOrCancelled = order.items.every(item => item.status === OrderItemStatus.READY || item.status === OrderItemStatus.CANCELED);
+    if (allReadyOrCancelled) return KitchenOrderStatus.READY;
 
     return KitchenOrderStatus.PENDING;
   };
 
   const getActionButtons = (order: KitchenOrder, item: OrderItem) => {
     switch (item.status) {
-      case KitchenOrderStatus.PENDING:
+      case OrderItemStatus.PENDING:
         return (
           <Button
             size="sm"
@@ -243,14 +312,14 @@ export default function KitchenOrders() {
             onClick={() => updateItemStatusMutation.mutate({
               orderId: order.id,
               itemId: item.id,
-              newStatus: KitchenOrderStatus.PREPARING
+              newStatus: OrderItemStatus.PREPARING
             })}
             disabled={updateItemStatusMutation.isPending}
           >
             <Play className="h-3 w-3 mr-1" /> Start
           </Button>
         );
-      case KitchenOrderStatus.PREPARING:
+      case OrderItemStatus.PREPARING:
         return (
           <Button
             size="sm"
@@ -258,24 +327,19 @@ export default function KitchenOrders() {
             onClick={() => updateItemStatusMutation.mutate({
               orderId: order.id,
               itemId: item.id,
-              newStatus: KitchenOrderStatus.READY
+              newStatus: OrderItemStatus.READY
             })}
             disabled={updateItemStatusMutation.isPending}
           >
             <CheckCircle2 className="h-3 w-3 mr-1" /> Ready
           </Button>
         );
-      case KitchenOrderStatus.READY:
+      case OrderItemStatus.READY:
         return (
           <Button
             size="sm"
             className="h-8 bg-sidebar/70 hover:bg-sidebar/50"
-            onClick={() => updateItemStatusMutation.mutate({
-              orderId: order.id,
-              itemId: item.id,
-              newStatus: KitchenOrderStatus.PENDING
-            })}
-            disabled={updateItemStatusMutation.isPending}
+            disabled
           >
             <Bell className="h-3 w-3 mr-1" /> Served
           </Button>
@@ -286,9 +350,7 @@ export default function KitchenOrders() {
   };
 
   const getCourseFromItems = (items: OrderItem[]): "starter" | "main" | "dessert" => {
-    // Simple heuristic to determine course based on item names
     const itemNames = items.map(item => item.menuItem.name.toLowerCase());
-
     if (itemNames.some(name => name.includes('salad') || name.includes('soup') || name.includes('bread'))) {
       return "starter";
     } else if (itemNames.some(name => name.includes('cake') || name.includes('tiramisu') || name.includes('dessert'))) {
@@ -299,7 +361,6 @@ export default function KitchenOrders() {
   };
 
   const getPriorityFromItems = (items: OrderItem[]): "high" | "normal" => {
-    // Simple heuristic to determine priority
     const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
     return totalQuantity >= 4 || items.length >= 3 ? "high" : "normal";
   };
@@ -381,9 +442,7 @@ export default function KitchenOrders() {
                 <div>
                   <p className="text-sm text-muted-foreground">Pending</p>
                   <p className="text-2xl font-bold text-amber-500">
-                    {orders.filter((o) =>
-                      o.items.some(item => item.status === KitchenOrderStatus.PENDING)
-                    ).length}
+                    {orders.filter((o) => getOrderStatus(o) === KitchenOrderStatus.PENDING).length}
                   </p>
                 </div>
                 <Clock className="h-8 w-8 text-amber-500" />
@@ -396,9 +455,7 @@ export default function KitchenOrders() {
                 <div>
                   <p className="text-sm text-muted-foreground">Cooking</p>
                   <p className="text-2xl font-bold text-blue-500">
-                    {orders.filter((o) =>
-                      o.items.some(item => item.status === KitchenOrderStatus.PREPARING)
-                    ).length}
+                    {orders.filter((o) => getOrderStatus(o) === KitchenOrderStatus.PREPARING).length}
                   </p>
                 </div>
                 <ChefHat className="h-8 w-8 text-blue-500" />
@@ -411,9 +468,7 @@ export default function KitchenOrders() {
                 <div>
                   <p className="text-sm text-muted-foreground">Ready</p>
                   <p className="text-2xl font-bold text-emerald-500">
-                    {orders.filter((o) =>
-                      o.items.some(item => item.status === KitchenOrderStatus.READY)
-                    ).length}
+                    {orders.filter((o) => getOrderStatus(o) === KitchenOrderStatus.READY).length}
                   </p>
                 </div>
                 <CheckCircle2 className="h-8 w-8 text-emerald-500" />
@@ -441,7 +496,6 @@ export default function KitchenOrders() {
             orders.map((order) => {
               const orderStatus = getOrderStatus(order);
               const StatusIcon = statusIcons[orderStatus];
-              const course = getCourseFromItems(order.items);
               const priority = getPriorityFromItems(order.items);
               const timeAgo = getTimeAgo(order.createdAt);
 

@@ -158,6 +158,11 @@ export const OrderService = {
     return response.data;
   },
 
+  updateOrderStatus: async (orderId: number, status: { status: string }): Promise<Order> => {
+    const response = await api.patch(`/order/${orderId}/status`, status);
+    return response.data;
+  },
+
   deleteOrder: async (id: number): Promise<void> => {
     await api.delete(`/order/${id}`);
   },
