@@ -1,24 +1,14 @@
+import { useQuery } from "@tanstack/react-query";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Search, Package, AlertTriangle, TrendingDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Link } from "react-router-dom";
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@/components/ui/table";
-
-const inventoryItems = [
-  { id: 1, name: "Fresh Salmon", category: "Seafood", quantity: 25, unit: "lbs", minStock: 30, maxStock: 100, price: 15.00 * 2400, unitPrice: "TZS/lb", status: "low" },
-  { id: 2, name: "Ribeye Steak", category: "Meat", quantity: 45, unit: "lbs", minStock: 20, maxStock: 80, price: 28.00 * 2400, unitPrice: "TZS/lb", status: "normal" },
-  { id: 3, name: "Romaine Lettuce", category: "Vegetables", quantity: 8, unit: "heads", minStock: 15, maxStock: 50, price: 2.50 * 2400, unitPrice: "TZS/head", status: "critical" },
-  { id: 4, name: "Parmesan Cheese", category: "Dairy", quantity: 12, unit: "lbs", minStock: 10, maxStock: 40, price: 18.00 * 2400, unitPrice: "TZS/lb", status: "normal" },
-  { id: 5, name: "Olive Oil", category: "Pantry", quantity: 5, unit: "gal", minStock: 8, maxStock: 25, price: 35.00 * 2400, unitPrice: "TZS/gal", status: "low" },
-  { id: 6, name: "House Red Wine", category: "Beverages", quantity: 48, unit: "bottles", minStock: 24, maxStock: 100, price: 12.00 * 2400, unitPrice: "TZS/bottle", status: "normal" },
-  { id: 7, name: "Chicken Breast", category: "Meat", quantity: 35, unit: "lbs", minStock: 25, maxStock: 80, price: 8.00 * 2400, unitPrice: "TZS/lb", status: "normal" },
-  { id: 8, name: "Heavy Cream", category: "Dairy", quantity: 6, unit: "qt", minStock: 10, maxStock: 30, price: 5.00 * 2400, unitPrice: "TZS/qt", status: "low" },
-];
+import { InventoryService } from "@/services/inventoryService";
 
 const statusStyles = {
   normal: "bg-success/10 text-success border-success/20",
@@ -33,7 +23,47 @@ const statusIcons = {
 };
 
 export default function Inventory() {
-  const lowStockItems = inventoryItems.filter(item => item.status !== "normal").length;
+  const { data: inventoryItems = [], isLoading, error } = useQuery({
+    queryKey: ['inventoryItems'],
+    queryFn: InventoryService.getAllInventoryItems,
+  });
+
+  const { data: categories = [] } = useQuery({
+    queryKey: ['inventoryCategories'],
+    queryFn: InventoryService.getAllInventoryCategories,
+  });
+
+  const lowStockItems = inventoryItems.filter((item: { status: string }) => item.status.toLocaleLowerCase() !== "normal").length;
+
+  const getStatus = (item: { quantity: number; minStock: number }) => {
+    if (item.quantity <= item.minStock * 0.5) return "critical";
+    if (item.quantity <= item.minStock) return "low";
+    return "normal";
+  };
+
+  if (isLoading) {
+    return (
+      <MainLayout title="Inventory" subtitle="Track and manage your stock levels">
+        <div className="space-y-6 animate-fade-in">
+          <div className="flex items-center justify-center h-64">
+            <p className="text-muted-foreground">Loading inventory...</p>
+          </div>
+        </div>
+      </MainLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <MainLayout title="Inventory" subtitle="Track and manage your stock levels">
+        <div className="space-y-6 animate-fade-in">
+          <div className="flex items-center justify-center h-64">
+            <p className="text-destructive">Error loading inventory data</p>
+          </div>
+        </div>
+      </MainLayout>
+    );
+  }
 
   return (
     <MainLayout title="Inventory" subtitle="Track and manage your stock levels">
@@ -69,7 +99,7 @@ export default function Inventory() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Categories</p>
-                <p className="text-2xl font-bold text-foreground">6</p>
+                <p className="text-2xl font-bold text-foreground">{categories.length}</p>
               </div>
             </div>
           </div>
@@ -88,12 +118,11 @@ export default function Inventory() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Categories</SelectItem>
-                <SelectItem value="meat">Meat</SelectItem>
-                <SelectItem value="seafood">Seafood</SelectItem>
-                <SelectItem value="vegetables">Vegetables</SelectItem>
-                <SelectItem value="dairy">Dairy</SelectItem>
-                <SelectItem value="pantry">Pantry</SelectItem>
-                <SelectItem value="beverages">Beverages</SelectItem>
+                {categories.map((category: { id: number; name: string }) => (
+                  <SelectItem key={category.id} value={category.id.toString()}>
+                    <>{category.name}</>
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -113,35 +142,35 @@ export default function Inventory() {
               <TableHead>Category</TableHead>
               <TableHead>Current Stock</TableHead>
               <TableHead>Status</TableHead>
-              {/* <TableHead>Stock Range</TableHead> */}
-              <TableHead>Unit Price</TableHead>
+              <TableHead className="text-right">Unit Price</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {inventoryItems.map((item) => {
-              const StatusIcon = statusIcons[item.status as keyof typeof statusIcons];
+            {inventoryItems.map((item: { id: number; name: string; category?: { name: string }; unit: string; quantity: number; minStock: number; maxStock: number; price: number; status: string; storageLocation: string | null }) => {
+              const status = getStatus(item);
+              const StatusIcon = statusIcons[status as keyof typeof statusIcons];
               const percentage = (item.quantity / item.maxStock) * 100;
 
               return (
                 <TableRow key={item.id}>
                   <TableCell>
                     <div className="font-medium text-foreground">{item.name}</div>
+                  
                   </TableCell>
                   <TableCell>
-                    <div className="text-sm text-muted-foreground">{item.category}</div>
+                    <div className="text-sm text-muted-foreground">{item.category?.name || 'N/A'}</div>
                   </TableCell>
                   <TableCell>
-                    <div className="font-medium text-foreground">{item.quantity} {item.unit}</div>
+                    <div className="font-medium text-foreground">{item.quantity} {item.unit}{item.quantity > 1 ? "s" :""}</div>
                   </TableCell>
                   <TableCell>
-                    <Badge className={cn("capitalize", statusStyles[item.status as keyof typeof statusStyles])}>
+                    <Badge className={cn("capitalize", statusStyles[status as keyof typeof statusStyles])}>
                       <StatusIcon className="h-3 w-3 mr-1" />
-                      {item.status}
+                      {status}
                     </Badge>
                   </TableCell>
-                  
                   <TableCell>
-                    <div className="font-semibold text-primary">{item.price.toLocaleString('en-US', )} {item.unitPrice}</div>
+                    <div className="font-semibold text-primary text-right">{item.price.toLocaleString('en-US', { })}</div>
                   </TableCell>
                 </TableRow>
               );
