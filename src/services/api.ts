@@ -1,7 +1,12 @@
 import axios from 'axios';
 
+// Live server URL or fallback to localhost
+//http://212.115.110.115:8080
+
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
+
+
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
