@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -11,6 +12,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, Package, AlertTriangle } from "lucide-react";
 import { Link } from "react-router-dom";
 import { InventoryService, Supplier } from "@/services/inventoryService";
+
+const DEPARTMENTS = [
+  { id: "KITCHEN", label: "Kitchen" },
+  { id: "BAR", label: "Bar" },
+  { id: "SERVICE", label: "Service" },
+  { id: "OPERATIONS", label: "Operations" },
+  { id: "MANAGEMENT", label: "Management" },
+];
 
 export default function InventoryNew() {
   const navigate = useNavigate();
@@ -27,6 +36,7 @@ export default function InventoryNew() {
     supplier: "",
     storageLocation: "",
   });
+  const [selectedDepartments, setSelectedDepartments] = useState<string[]>(["KITCHEN"]);
 
   // Fetch categories
   const { data: categories = [], isLoading: categoriesLoading } = useQuery({
@@ -64,6 +74,14 @@ export default function InventoryNew() {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
+  const handleDepartmentChange = (deptId: string, checked: boolean) => {
+    if (checked) {
+      setSelectedDepartments((prev) => [...prev, deptId]);
+    } else {
+      setSelectedDepartments((prev) => prev.filter((d) => d !== deptId));
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -84,6 +102,7 @@ export default function InventoryNew() {
       price: parseFloat(formData.price),
       supplier: formData.supplier || undefined,
       storageLocation: formData.storageLocation || undefined,
+      department: selectedDepartments,
     };
 
     createMutation.mutate(data);
@@ -276,7 +295,7 @@ export default function InventoryNew() {
               <CardTitle className="text-lg">Additional Settings</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 gap-4">
+              <div className="grid grid-rows-1 md:grid-rows-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="storageLocation">Storage Location</Label>
                   <Input
@@ -285,6 +304,26 @@ export default function InventoryNew() {
                     value={formData.storageLocation}
                     onChange={(e) => handleChange("storageLocation", e.target.value)}
                   />
+                </div>
+                <div className="space-y-2">
+                  <Label>Departments</Label>
+                  <div className="flex flex-wrap gap-3 mt-2">
+                    {DEPARTMENTS.map((dept) => (
+                      <div key={dept.id} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`dept-${dept.id}`}
+                          checked={selectedDepartments.includes(dept.id)}
+                          onCheckedChange={(checked) => handleDepartmentChange(dept.id, checked as boolean)}
+                        />
+                        <Label
+                          htmlFor={`dept-${dept.id}`}
+                          className="text-sm font-normal cursor-pointer"
+                        >
+                          {dept.label}
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             </CardContent>
