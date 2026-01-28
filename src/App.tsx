@@ -13,6 +13,7 @@ import KitchenOrders from "./pages/KitchenOrders";
 import KitchenMenu from "./pages/KitchenMenu";
 import KitchenInventory from "./pages/KitchenInventory";
 import KitchenDissatisfactions from "./pages/KitchenDissatisfactions";
+import StockRequest from "./pages/StockRequest";
 import Bar from "./pages/Bar";
 import BarOrders from "./pages/BarOrders";
 import BarMenu from "./pages/BarMenu";
@@ -26,6 +27,7 @@ import Inventory from "./pages/Inventory";
 import InventoryNew from "./pages/InventoryNew";
 import InventoryAdjustments from "./pages/InventoryAdjustments";
 import InventoryRequests from "./pages/InventoryRequests";
+import InventoryRequestDetail from "./pages/InventoryRequestDetail";
 import ExpiringProducts from "./pages/ExpiringProducts";
 import Purchases from "./pages/Purchases";
 import PurchaseOrderNew from "./pages/PurchaseOrderNew";
@@ -68,6 +70,7 @@ const App = () => (
           <Route path="/kitchen/menu" element={<KitchenMenu />} />
           <Route path="/kitchen/inventory" element={<KitchenInventory />} />
           <Route path="/kitchen/dissatisfactions" element={<KitchenDissatisfactions />} />
+          <Route path="/stock-request" element={<StockRequest />} />
           <Route path="/bar" element={<Bar />} />
           <Route path="/bar/orders" element={<BarOrders />} />
           <Route path="/bar/menu" element={<BarMenu />} />
@@ -81,6 +84,7 @@ const App = () => (
           <Route path="/inventory/new" element={<InventoryNew />} />
           <Route path="/inventory/adjustments" element={<InventoryAdjustments />} />
           <Route path="/inventory/requests" element={<InventoryRequests />} />
+          <Route path="/inventory/requests/:id" element={<InventoryRequestDetail />} />
           <Route path="/inventory/expiring" element={<ExpiringProducts />} />
           <Route path="/purchases" element={<Purchases />} />
           <Route path="/purchases/receiving" element={<GoodsReceiving />} />

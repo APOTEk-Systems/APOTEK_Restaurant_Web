@@ -57,8 +57,48 @@ interface Supplier {
   inventoryCategories: InventoryCategory[];
 }
 
+interface DepartmentInventory {
+  id: number;
+  name: string;
+  categoryName: string;
+  currentStock: number;
+  departmentInventoryId: number | null;
+  unit: string;
+  department: string;
+}
+
+interface StockRequest {
+  id: number;
+  requestId: string;
+  status: 'pending' | 'approved' | 'rejected' | 'fulfilled';
+  requestedBy: string | null;
+  requestedFrom: string;
+  requestedAt: string;
+  approvedAt: string | null;
+  fulfilledAt: string | null;
+  requestItems: StockRequestItem[];
+}
+
+interface StockRequestItem {
+  id: number;
+  requestId: number;
+  itemId: number;
+  quantity: number;
+  status: string;
+  item?: InventoryItem;
+}
+
+interface CreateStockRequestInput {
+  requestedBy?: string;
+  requestedFrom: 'KITCHEN' | 'BAR';
+  requestItems: {
+    itemId: number;
+    quantity: number;
+  }[];
+}
+
 // Export types for use in components
-export type { InventoryItem, InventoryCategory, InventoryUnit, Supplier };
+export type { InventoryItem, InventoryCategory, InventoryUnit, Supplier, DepartmentInventory, StockRequest, StockRequestItem, CreateStockRequestInput };
 
 export const InventoryService = {
   // Inventory Items
@@ -159,5 +199,39 @@ export const InventoryService = {
 
   deleteSupplier: async (id: number): Promise<void> => {
     await api.delete(`/suppliers/${id}`);
+  },
+
+  // Department Inventory
+  getDepartmentInventory: async (department: string): Promise<DepartmentInventory[]> => {
+    const response = await api.get(`/department-inventory?department=${department}`);
+    return response.data;
+  },
+
+  updateDepartmentInventory: async (id: number, data: { quantity: number }): Promise<DepartmentInventory> => {
+    const response = await api.patch(`/department-inventory/${id}`, data);
+    return response.data;
+  },
+
+  // Stock Requests
+  getStockRequests: async (department?: string): Promise<StockRequest[]> => {
+    const url = department ? `/stock-request?department=${department}` : '/stock-request';
+    const response = await api.get(url);
+    return response.data;
+  },
+
+  getAllStockRequests: async (status?: string): Promise<StockRequest[]> => {
+    const url = status ? `/stock-request?status=${status}` : '/stock-request';
+    const response = await api.get(url);
+    return response.data;
+  },
+
+  createStockRequest: async (data: CreateStockRequestInput): Promise<StockRequest> => {
+    const response = await api.post('/stock-request', data);
+    return response.data;
+  },
+
+  updateStockRequestStatus: async (id: number, status: string): Promise<StockRequest> => {
+    const response = await api.patch(`/stock-request/${id}/status`, { status });
+    return response.data;
   },
 };
