@@ -11,7 +11,7 @@ import OrdersHistory from './pages/OrdersHistory';
 import Kitchen from './pages/Kitchen';
 import KitchenOrders from './pages/KitchenOrders';
 import KitchenMenu from './pages/KitchenMenu';
-import MenuEdit from './pages/kitchen/MenuEdit';
+import KitchenMenuEdit from './pages/kitchen/MenuEdit';
 import AddonEdit from './pages/kitchen/AddonEdit';
 import SideDishEdit from './pages/kitchen/SideDishEdit';
 import KitchenInventory from './pages/KitchenInventory';
@@ -23,6 +23,7 @@ import BarMenuEdit from './pages/bar/MenuEdit';
 import BarInventory from './pages/BarInventory';
 import BarReturns from './pages/BarReturns';
 import Menu from './pages/Menu';
+import MenuEdit from './pages/MenuEdit';
 import MenuNew from './pages/MenuNew';
 import Reservations from './pages/Reservations';
 import ReservationNew from './pages/ReservationNew';
@@ -96,7 +97,7 @@ const App = () => (
 					/>
 					<Route
 						path='/kitchen/menu/:id'
-						element={<MenuEdit />}
+						element={<KitchenMenuEdit />}
 					/>
 					<Route
 						path='/kitchen/menu/addons/:id'
@@ -141,6 +142,10 @@ const App = () => (
 					<Route
 						path='/menu'
 						element={<Menu />}
+					/>
+					<Route
+						path='/menu/:id'
+						element={<MenuEdit />}
 					/>
 					<Route
 						path='/menu/new'
