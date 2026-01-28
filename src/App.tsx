@@ -19,6 +19,7 @@ import KitchenDissatisfactions from './pages/KitchenDissatisfactions';
 import Bar from './pages/Bar';
 import BarOrders from './pages/BarOrders';
 import BarMenu from './pages/BarMenu';
+import BarMenuEdit from './pages/bar/MenuEdit';
 import BarInventory from './pages/BarInventory';
 import BarReturns from './pages/BarReturns';
 import Menu from './pages/Menu';
@@ -124,6 +125,10 @@ const App = () => (
 					<Route
 						path='/bar/menu'
 						element={<BarMenu />}
+					/>
+					<Route
+						path='/bar/menu/:id'
+						element={<BarMenuEdit />}
 					/>
 					<Route
 						path='/bar/inventory'
