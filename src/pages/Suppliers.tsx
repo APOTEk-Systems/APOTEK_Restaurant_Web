@@ -47,7 +47,11 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { SupplierService } from '@/services/supplierService';
-import { Supplier, CreateSupplierDto } from '@/types/supplier.types';
+import {
+	Supplier,
+	CreateSupplierDto,
+	UpdateSupplierDto,
+} from '@/types/supplier.types';
 import { useToast } from '@/hooks/use-toast';
 
 // status styles removed (backend doesn't use supplier status)
@@ -103,26 +107,18 @@ function SupplierCard({
 					<Edit className='h-4 w-4 mr-1' />
 					Edit
 				</Button>
-				<DropdownMenu>
-					<DropdownMenuTrigger asChild>
-						<Button
-							variant='ghost'
-							size='icon'
-							className='h-8 w-8'>
-							<MoreHorizontal className='h-4 w-4' />
-						</Button>
-					</DropdownMenuTrigger>
-					<DropdownMenuContent align='end'>
-						<DropdownMenuItem onClick={() => onToggleStatus(supplier.id)}>
-							{supplier.isActive ? 'Deactivate' : 'Activate'}
-						</DropdownMenuItem>
-						<DropdownMenuItem
-							className='text-destructive focus:text-destructive'
-							onClick={() => onDelete(supplier.id)}>
-							Delete
-						</DropdownMenuItem>
-					</DropdownMenuContent>
-				</DropdownMenu>
+				<Button
+					variant={supplier.isActive ? 'ghost' : 'secondary'}
+					size='sm'
+					onClick={() => onToggleStatus(supplier.id)}>
+					{supplier.isActive ? 'Deactivate' : 'Activate'}
+				</Button>
+				<Button
+					variant='destructive'
+					size='sm'
+					onClick={() => onDelete(supplier.id)}>
+					Delete
+				</Button>
 			</div>
 		</div>
 	);
@@ -130,6 +126,9 @@ function SupplierCard({
 
 export default function Suppliers() {
 	const [isModalOpen, setIsModalOpen] = useState(false);
+	const [editingSupplierId, setEditingSupplierId] = useState<number | null>(
+		null,
+	);
 	const [searchQuery, setSearchQuery] = useState('');
 	const [selectedCategory, setSelectedCategory] = useState('all');
 	const [displayCount, setDisplayCount] = useState(9);
@@ -156,6 +155,19 @@ export default function Suppliers() {
 	});
 
 	const suppliers = useMemo(() => suppliersData || [], [suppliersData]);
+
+	useEffect(() => {
+		if (!isModalOpen) {
+			setEditingSupplierId(null);
+			setNewSupplier({
+				name: '',
+				contactPerson: '',
+				phone: '',
+				email: '',
+				address: '',
+			});
+		}
+	}, [isModalOpen]);
 
 	// Get unique inventory categories from all suppliers
 	const categories = useMemo(() => {
@@ -228,13 +240,16 @@ export default function Suppliers() {
 		},
 	});
 
-	// Delete supplier mutation
+	// Delete supplier mutation (variables used to show name in toast)
 	const deleteMutation = useMutation({
-		mutationFn: (id: number) => SupplierService.deleteSupplier(id),
-		onSuccess: () => {
+		mutationFn: ({ id }: { id: number }) => SupplierService.deleteSupplier(id),
+		onSuccess: (_data, variables) => {
+			const name = suppliers.find((s) => s.id === variables?.id)?.name;
 			toast({
 				title: 'Success',
-				description: 'Supplier deleted successfully',
+				description: name
+					? `Supplier ${name} deleted successfully`
+					: 'Supplier deleted successfully',
 				variant: 'default',
 			});
 			queryClient.invalidateQueries({ queryKey: ['suppliers'] });
@@ -249,17 +264,16 @@ export default function Suppliers() {
 		},
 	});
 
+	// status toggle removed — backend/status toggle not used here
+
 	// Toggle status mutation
 	const toggleStatusMutation = useMutation({
-		mutationFn: (id: number) => {
-			const supplier = suppliers.find((s) => s.id === id);
-			if (!supplier) throw new Error('Supplier not found');
-			return SupplierService.updateSupplierStatus(id, !supplier.isActive);
-		},
-		onSuccess: (data) => {
+		mutationFn: ({ id, isActive }: { id: number; isActive: boolean }) =>
+			SupplierService.updateSupplierStatus(id, isActive),
+		onSuccess: (data: Supplier) => {
 			toast({
 				title: 'Success',
-				description: `Supplier ${data.isActive ? 'activated' : 'deactivated'} successfully`,
+				description: `Supplier ${data.name} ${data.isActive ? 'activated' : 'deactivated'} successfully`,
 				variant: 'default',
 			});
 			queryClient.invalidateQueries({ queryKey: ['suppliers'] });
@@ -268,6 +282,29 @@ export default function Suppliers() {
 			toast({
 				title: 'Error',
 				description: error.message || 'Failed to update supplier status',
+				variant: 'destructive',
+			});
+		},
+	});
+
+	// Update supplier mutation (edit)
+	const updateMutation = useMutation({
+		mutationFn: ({ id, data }: { id: number; data: UpdateSupplierDto }) =>
+			SupplierService.updateSupplier(id, data),
+		onSuccess: (data: Supplier) => {
+			toast({
+				title: 'Success',
+				description: `Supplier ${data.name} updated successfully`,
+				variant: 'default',
+			});
+			queryClient.invalidateQueries({ queryKey: ['suppliers'] });
+			setIsModalOpen(false);
+			setEditingSupplierId(null);
+		},
+		onError: (error: Error) => {
+			toast({
+				title: 'Error',
+				description: error.message || 'Failed to update supplier',
 				variant: 'destructive',
 			});
 		},
@@ -293,15 +330,32 @@ export default function Suppliers() {
 			});
 			return;
 		}
-		createMutation.mutate(newSupplier);
+		if (editingSupplierId) {
+			updateMutation.mutate({ id: editingSupplierId, data: newSupplier });
+		} else {
+			createMutation.mutate(newSupplier);
+		}
 	};
 
 	const handleEdit = (id: number) => {
-		// Navigate to edit page or open edit dialog
-		// For now, show toast - can be implemented later
-		toast({
-			description: 'Edit supplier feature coming soon',
+		const s = suppliers.find((x) => x.id === id);
+		if (!s) {
+			toast({
+				title: 'Error',
+				description: 'Supplier not found',
+				variant: 'destructive',
+			});
+			return;
+		}
+		setEditingSupplierId(id);
+		setNewSupplier({
+			name: s.name || '',
+			contactPerson: s.contactPerson || '',
+			phone: s.phone || '',
+			email: s.email || '',
+			address: s.address || '',
 		});
+		setIsModalOpen(true);
 	};
 
 	const handleDelete = (id: number) => {
@@ -309,12 +363,24 @@ export default function Suppliers() {
 	};
 
 	const handleToggleStatus = (id: number) => {
-		toggleStatusMutation.mutate(id);
+		const s = suppliers.find((x) => x.id === id);
+		if (!s) {
+			toast({
+				title: 'Error',
+				description: 'Supplier not found',
+				variant: 'destructive',
+			});
+			return;
+		}
+		toggleStatusMutation.mutate({ id, isActive: !s.isActive });
 	};
+
+	// status toggle handler removed
 
 	const confirmDelete = () => {
 		if (deleteItem) {
-			deleteMutation.mutate(deleteItem);
+			const name = suppliers.find((s) => s.id === deleteItem)?.name;
+			deleteMutation.mutate({ id: deleteItem });
 		}
 	};
 
@@ -406,7 +472,7 @@ export default function Suppliers() {
 						<DialogContent className='sm:max-w-[600px]'>
 							<DialogHeader>
 								<DialogTitle className='text-xl font-bold'>
-									Add New Supplier
+									{editingSupplierId ? 'Edit Supplier' : 'Add New Supplier'}
 								</DialogTitle>
 							</DialogHeader>
 							<form
@@ -512,9 +578,20 @@ export default function Suppliers() {
 									</Button>
 									<Button
 										type='submit'
-										disabled={createMutation.isPending}
+										disabled={
+											createMutation.isPending || updateMutation.isPending
+										}
 										className='gradient-primary text-primary-foreground shadow-glow hover:shadow-lg transition-shadow'>
-										{createMutation.isPending ? (
+										{editingSupplierId ? (
+											updateMutation.isPending ? (
+												<>
+													<Loader2 className='h-4 w-4 mr-2 animate-spin' />
+													Updating...
+												</>
+											) : (
+												'Update Supplier'
+											)
+										) : createMutation.isPending ? (
 											<>
 												<Loader2 className='h-4 w-4 mr-2 animate-spin' />
 												Creating...

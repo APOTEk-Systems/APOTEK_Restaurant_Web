@@ -55,13 +55,13 @@ export const SupplierService = {
 		}
 	},
 
-	// Update supplier
+	// Update supplier (use PATCH — backend expects partial updates)
 	updateSupplier: async (
 		id: number,
 		supplierData: UpdateSupplierDto,
 	): Promise<Supplier> => {
 		try {
-			const response = await api.put(`/suppliers/${id}`, supplierData);
+			const response = await api.patch(`/suppliers/${id}`, supplierData);
 			return response.data;
 		} catch (error: unknown) {
 			const message = getErrorMessage(error, 'Failed to update supplier');
@@ -75,23 +75,6 @@ export const SupplierService = {
 			await api.delete(`/suppliers/${id}`);
 		} catch (error: unknown) {
 			const message = getErrorMessage(error, 'Failed to delete supplier');
-			throw new Error(message);
-		}
-	},
-
-	// Update supplier status
-	updateSupplierStatus: async (
-		id: number,
-		isActive: boolean,
-	): Promise<Supplier> => {
-		try {
-			const response = await api.patch(`/suppliers/${id}/status`, { isActive });
-			return response.data;
-		} catch (error: unknown) {
-			const message = getErrorMessage(
-				error,
-				'Failed to update supplier status',
-			);
 			throw new Error(message);
 		}
 	},
