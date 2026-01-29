@@ -12,7 +12,7 @@ import { BarReturn, BarReturnStatus } from "@/types/barReturn";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
-import StatCard from "@/components/dashboard/StatCard";
+import { StatCard } from "@/components/dashboard/StatCard";
 
 // Define status styles and icons locally as they are presentation specific
 const statusStyles: Record<BarReturnStatus, string> = {
