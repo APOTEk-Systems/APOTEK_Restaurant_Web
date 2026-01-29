@@ -57,10 +57,12 @@ function SupplierCard({
 	supplier,
 	onEdit,
 	onDelete,
+	onToggleStatus,
 }: {
 	supplier: Supplier;
 	onEdit: (id: number) => void;
 	onDelete: (id: number) => void;
+	onToggleStatus: (id: number) => void;
 }) {
 	return (
 		<div className='bg-card rounded-xl p-5 shadow-card border border-border/50 hover:shadow-lg transition-all'>
@@ -71,6 +73,11 @@ function SupplierCard({
 						{supplier.contactPerson}
 					</p>
 				</div>
+				<Badge
+					variant={supplier.isActive ? 'default' : 'secondary'}
+					className='text-xs'>
+					{supplier.isActive ? 'Active' : 'Inactive'}
+				</Badge>
 			</div>
 
 			<div className='space-y-3 mb-4'>
@@ -106,6 +113,9 @@ function SupplierCard({
 						</Button>
 					</DropdownMenuTrigger>
 					<DropdownMenuContent align='end'>
+						<DropdownMenuItem onClick={() => onToggleStatus(supplier.id)}>
+							{supplier.isActive ? 'Deactivate' : 'Activate'}
+						</DropdownMenuItem>
 						<DropdownMenuItem
 							className='text-destructive focus:text-destructive'
 							onClick={() => onDelete(supplier.id)}>
@@ -165,7 +175,9 @@ export default function Suppliers() {
 				supplier.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
 				supplier.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
 				supplier.phone.toLowerCase().includes(searchQuery.toLowerCase()) ||
-				supplier.address.toLowerCase().includes(searchQuery.toLowerCase());
+				supplier.contactPerson
+					.toLowerCase()
+					.includes(searchQuery.toLowerCase());
 
 			// Filter by category if selected (by inventory categories)
 			const matchesCategory =
@@ -237,6 +249,30 @@ export default function Suppliers() {
 		},
 	});
 
+	// Toggle status mutation
+	const toggleStatusMutation = useMutation({
+		mutationFn: (id: number) => {
+			const supplier = suppliers.find((s) => s.id === id);
+			if (!supplier) throw new Error('Supplier not found');
+			return SupplierService.updateSupplierStatus(id, !supplier.isActive);
+		},
+		onSuccess: (data) => {
+			toast({
+				title: 'Success',
+				description: `Supplier ${data.isActive ? 'activated' : 'deactivated'} successfully`,
+				variant: 'default',
+			});
+			queryClient.invalidateQueries({ queryKey: ['suppliers'] });
+		},
+		onError: (error: Error) => {
+			toast({
+				title: 'Error',
+				description: error.message || 'Failed to update supplier status',
+				variant: 'destructive',
+			});
+		},
+	});
+
 	const handleInputChange = (field: string, value: string) => {
 		setNewSupplier((prev) => ({ ...prev, [field]: value }));
 	};
@@ -261,7 +297,8 @@ export default function Suppliers() {
 	};
 
 	const handleEdit = (id: number) => {
-		// TODO: Implement edit navigation
+		// Navigate to edit page or open edit dialog
+		// For now, show toast - can be implemented later
 		toast({
 			description: 'Edit supplier feature coming soon',
 		});
@@ -269,6 +306,10 @@ export default function Suppliers() {
 
 	const handleDelete = (id: number) => {
 		setDeleteItem(id);
+	};
+
+	const handleToggleStatus = (id: number) => {
+		toggleStatusMutation.mutate(id);
 	};
 
 	const confirmDelete = () => {
@@ -531,6 +572,7 @@ export default function Suppliers() {
 									supplier={supplier}
 									onEdit={handleEdit}
 									onDelete={handleDelete}
+									onToggleStatus={handleToggleStatus}
 								/>
 							))}
 						</div>

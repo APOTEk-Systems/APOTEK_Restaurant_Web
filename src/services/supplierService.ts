@@ -79,6 +79,23 @@ export const SupplierService = {
 		}
 	},
 
+	// Update supplier status
+	updateSupplierStatus: async (
+		id: number,
+		isActive: boolean,
+	): Promise<Supplier> => {
+		try {
+			const response = await api.patch(`/suppliers/${id}/status`, { isActive });
+			return response.data;
+		} catch (error: unknown) {
+			const message = getErrorMessage(
+				error,
+				'Failed to update supplier status',
+			);
+			throw new Error(message);
+		}
+	},
+
 	// Calculate supplier statistics
 	calculateStats: (suppliers: Supplier[]): SupplierStats => {
 		const uniqueInventoryCategories = new Set<string>();
@@ -90,7 +107,7 @@ export const SupplierService = {
 
 		return {
 			totalSuppliers: suppliers.length,
-			activeSuppliers: suppliers.length, // All suppliers are active
+			activeSuppliers: suppliers.filter((s) => s.isActive).length,
 			topRated: suppliers.length, // No rating system in new schema
 			categories: uniqueInventoryCategories.size,
 		};

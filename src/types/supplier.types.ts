@@ -5,6 +5,7 @@ export interface Supplier {
 	email: string;
 	phone: string;
 	address: string;
+	isActive: boolean;
 	createdAt: string;
 	updatedAt: string;
 	inventoryCategories?: Array<{
