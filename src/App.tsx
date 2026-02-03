@@ -26,6 +26,8 @@ import Inventory from "./pages/Inventory";
 import InventoryNew from "./pages/InventoryNew";
 import InventoryAdjustments from "./pages/InventoryAdjustments";
 import InventoryRequests from "./pages/InventoryRequests";
+import InventoryRequestDetail from "./pages/InventoryRequestDetail";
+import StockRequestNew from "./pages/StockRequestNew";
 import ExpiringProducts from "./pages/ExpiringProducts";
 import Purchases from "./pages/Purchases";
 import PurchaseOrderNew from "./pages/PurchaseOrderNew";
@@ -81,6 +83,8 @@ const App = () => (
           <Route path="/inventory/new" element={<InventoryNew />} />
           <Route path="/inventory/adjustments" element={<InventoryAdjustments />} />
           <Route path="/inventory/requests" element={<InventoryRequests />} />
+          <Route path="/inventory/requests/:id" element={<InventoryRequestDetail />} />
+          <Route path="/inventory-requests/new" element={<StockRequestNew />} />
           <Route path="/inventory/expiring" element={<ExpiringProducts />} />
           <Route path="/purchases" element={<Purchases />} />
           <Route path="/purchases/receiving" element={<GoodsReceiving />} />

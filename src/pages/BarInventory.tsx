@@ -4,89 +4,170 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, ArrowUpDown, Wine, CheckCircle2, Plus, X } from "lucide-react";
+import { Search, Wine, AlertCircle, Calendar } from "lucide-react";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-
-const inventoryItems = [
-  { id: 1, name: "Vodka", category: "Spirits", quantity: 12, unit: "bottles" },
-  { id: 2, name: "Rum", category: "Spirits", quantity: 8, unit: "bottles" },
-  { id: 3, name: "Tequila", category: "Spirits", quantity: 3, unit: "bottles" },
-  { id: 4, name: "House Red Wine", category: "Wine", quantity: 24, unit: "bottles" },
-  { id: 5, name: "Prosecco", category: "Wine", quantity: 6, unit: "bottles" },
-  { id: 6, name: "Fresh Limes", category: "Garnishes", quantity: 50, unit: "pcs" },
-  { id: 7, name: "Fresh Mint", category: "Garnishes", quantity: 10, unit: "bunches" },
-  { id: 8, name: "Simple Syrup", category: "Mixers", quantity: 2, unit: "L" },
-];
-
-const requestItems = [
-  { id: "REQ-001", items: ["Vodka", "Fresh Limes"], count: 2, requestedAt: "2024-01-15 02:45 PM", status: "pending" },
-  { id: "REQ-002", items: ["Rum", "Prosecco"], count: 2, requestedAt: "2024-01-14 11:20 AM", status: "approved" },
-];
-
-// Available inventory items for requesting
-const availableItems = [
-  { id: 1, name: "Vodka", category: "Spirits", unit: "bottles" },
-  { id: 2, name: "Rum", category: "Spirits", unit: "bottles" },
-  { id: 3, name: "Tequila", category: "Spirits", unit: "bottles" },
-  { id: 4, name: "House Red Wine", category: "Wine", unit: "bottles" },
-  { id: 5, name: "Prosecco", category: "Wine", unit: "bottles" },
-  { id: 6, name: "Fresh Limes", category: "Garnishes", unit: "pcs" },
-  { id: 7, name: "Fresh Mint", category: "Garnishes", unit: "bunches" },
-  { id: 8, name: "Simple Syrup", category: "Mixers", unit: "L" },
-];
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { DepartmentInventoryService, DepartmentInventoryItem } from "@/services/departmentInventoryService";
+import { StockRequestService, StockRequest } from "@/services/stockRequestService";
+import { toast } from "@/components/ui/use-toast";
+import { format, subDays } from "date-fns";
 
 export default function BarInventory() {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("items");
-  const [selectedItem, setSelectedItem] = useState<any>(null);
+  const [selectedItem, setSelectedItem] = useState<DepartmentInventoryItem | null>(null);
   const [updateAmount, setUpdateAmount] = useState("");
   const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
-  const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
-  const [requestItemsList, setRequestItemsList] = useState<any[]>([]);
-  const [searchItemQuery, setSearchItemQuery] = useState("");
-  const [autocompleteItems, setAutocompleteItems] = useState<any[]>([]);
+  const [dateRange, setDateRange] = useState({
+    startDate: format(subDays(new Date(), 7), 'yyyy-MM-dd'),
+    endDate: format(new Date(), 'yyyy-MM-dd'),
+  });
+  const queryClient = useQueryClient();
 
-  const filteredItems = inventoryItems.filter((item) =>
+  // Fetch bar inventory
+  const { data: inventoryItems = [], isLoading: isLoadingInventory, error: inventoryError } = useQuery({
+    queryKey: ['department-inventory', 'BAR'],
+    queryFn: async () => {
+      const items = await DepartmentInventoryService.getDepartmentInventory('BAR');
+      return items;
+    },
+  });
+
+  // Fetch bar stock requests
+  const { data: stockRequests = [], isLoading: isLoadingRequests } = useQuery({
+    queryKey: ['stock-requests', 'BAR', dateRange.startDate, dateRange.endDate],
+    queryFn: async () => {
+      const requests = await StockRequestService.getAllStockRequests({
+        department: 'BAR',
+        startDate: dateRange.startDate,
+        endDate: dateRange.endDate,
+      });
+      return requests;
+    },
+  });
+
+  const filteredItems = (inventoryItems as DepartmentInventoryItem[]).filter((item) =>
     item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    item.category.toLowerCase().includes(searchQuery.toLowerCase())
+    (item.categoryName && item.categoryName.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
-  const filteredRequests = requestItems.filter((item) =>
-    item.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    item.items.join(", ").toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Update inventory mutation
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, quantity }: { id: number; quantity: number }) => {
+      return DepartmentInventoryService.updateDepartmentInventory(id, { quantity });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Inventory Updated",
+        description: "The inventory quantity has been updated.",
+      });
+      queryClient.invalidateQueries({ queryKey: ['department-inventory', 'BAR'] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update inventory.",
+        variant: "destructive",
+      });
+    },
+  });
 
-  const handleUpdateClick = (item: any) => {
+  const handleUpdateClick = (item: DepartmentInventoryItem) => {
     setSelectedItem(item);
-    setUpdateAmount("");
+    setUpdateAmount(item.currentStock.toString());
     setIsUpdateModalOpen(true);
   };
 
   const handleUpdateSubmit = () => {
-    if (!updateAmount || isNaN(parseFloat(updateAmount)) || parseFloat(updateAmount) <= 0) {
-      alert("Please enter a valid amount");
+    if (!selectedItem || !selectedItem.departmentInventoryId) return;
+    
+    const newQuantity = parseFloat(updateAmount);
+    if (isNaN(newQuantity) || newQuantity < 0) {
+      toast({
+        title: "Invalid Input",
+        description: "Please enter a valid quantity.",
+        variant: "destructive",
+      });
       return;
     }
 
-    console.log(`Updating inventory for ${selectedItem.name}: used ${updateAmount} ${selectedItem.unit}`);
-    // In a real app, this would call an API to update the inventory
+    updateMutation.mutate({
+      id: selectedItem.departmentInventoryId,
+      quantity: newQuantity,
+    });
     setIsUpdateModalOpen(false);
   };
 
+  // Calculate stats
+  const totalItems = inventoryItems.length;
+  const lowStockItems = (inventoryItems as DepartmentInventoryItem[]).filter(item => item.currentStock <= 5 && item.currentStock > 0).length;
+  const outOfStockItems = (inventoryItems as DepartmentInventoryItem[]).filter(item => item.currentStock === 0).length;
+
+  if (isLoadingInventory) {
+    return (
+      <MainLayout title="Bar Inventory">
+        <div className="space-y-6">
+          <div className="text-center py-8">Loading inventory...</div>
+        </div>
+      </MainLayout>
+    );
+  }
+
+  if (inventoryError) {
+    return (
+      <MainLayout title="Bar Inventory">
+        <div className="space-y-6">
+          <div className="text-center py-8 text-destructive">
+            Error loading inventory: {(inventoryError as Error)?.message || 'Unknown error'}
+          </div>
+        </div>
+      </MainLayout>
+    );
+  }
+
   return (
     <MainLayout title="Bar Inventory">
-      <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          {/* <div>
-            <h1 className="text-3xl font-bold text-foreground">Bar Inventory</h1>
-            <p className="text-muted-foreground mt-1">Track bar stock levels</p>
-          </div> */}
-          <div className="flex gap-2">
-            {/* Request button moved to Requests tab */}
-          </div>
+      <div className="space-y-4">
+        {/* Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Card className="glass-card">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Total Items</p>
+                  <p className="text-2xl font-bold">{totalItems}</p>
+                </div>
+                <Wine className="h-8 w-8 text-muted-foreground" />
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="glass-card">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Low Stock</p>
+                  <p className="text-2xl font-bold text-amber-500">{lowStockItems}</p>
+                </div>
+                <AlertCircle className="h-8 w-8 text-amber-500" />
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="glass-card">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Out of Stock</p>
+                  <p className="text-2xl font-bold text-red-500">{outOfStockItems}</p>
+                </div>
+                <AlertCircle className="h-8 w-8 text-red-500" />
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Tabs */}
@@ -121,26 +202,45 @@ export default function BarInventory() {
                         <TableHead>Name</TableHead>
                         <TableHead>Category</TableHead>
                         <TableHead>Quantity</TableHead>
+                        <TableHead>Status</TableHead>
                         <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredItems.map((item) => (
-                        <TableRow key={item.id}>
-                          <TableCell className="font-medium">{item.name}</TableCell>
-                          <TableCell>{item.category}</TableCell>
-                          <TableCell>{item.quantity} {item.unit}</TableCell>
-                          <TableCell className="text-right">
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => handleUpdateClick(item)}
-                            >
-                              Update
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                      {filteredItems.map((item) => {
+                        const isDisabled = item.currentStock === 0 || item.departmentInventoryId === null;
+                        const getStatusBadge = () => {
+                          if (item.currentStock === 0) {
+                            return <Badge variant="destructive" className="text-xs">Out of Stock</Badge>;
+                          }
+                          if (item.currentStock <= 5) {
+                            return <Badge variant="outline" className="text-xs text-amber-500 border-amber-500">Low Stock</Badge>;
+                          }
+                          return <Badge variant="secondary" className="text-xs bg-green-500/10 text-green-500 border-green-500/20">In Stock</Badge>;
+                        };
+                        return (
+                          <TableRow key={item.id}>
+                            <TableCell className="font-medium">{item.name}</TableCell>
+                            <TableCell>{item.categoryName || 'N/A'}</TableCell>
+                            <TableCell>
+                              <span className={item.currentStock === 0 ? "text-red-500 font-medium" : ""}>
+                                {item.currentStock} {item.unit}
+                              </span>
+                            </TableCell>
+                            <TableCell>{getStatusBadge()}</TableCell>
+                            <TableCell className="text-right">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleUpdateClick(item)}
+                                disabled={isDisabled || updateMutation.isPending}
+                              >
+                                Update
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 </CardContent>
@@ -150,55 +250,75 @@ export default function BarInventory() {
 
           <TabsContent value="requests" className="mt-6">
             <div className="space-y-6">
-              {/* Request Stock Button */}
-              <div className="flex justify-end">
-                <Button variant="outline" onClick={() => setIsRequestModalOpen(true)}>
-                  <ArrowUpDown className="h-4 w-4 mr-2" />
-                  Request Stock
+              {/* Date Filter and New Request Button */}
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="h-4 w-4 text-muted-foreground" />
+                    <Input
+                      type="date"
+                      value={dateRange.startDate}
+                      onChange={(e) => setDateRange(prev => ({ ...prev, startDate: e.target.value }))}
+                      className="w-40"
+                    />
+                    <span className="text-muted-foreground">to</span>
+                    <Input
+                      type="date"
+                      value={dateRange.endDate}
+                      onChange={(e) => setDateRange(prev => ({ ...prev, endDate: e.target.value }))}
+                      className="w-40"
+                    />
+                  </div>
+                </div>
+                <Button onClick={() => navigate('/inventory-requests/new')} className="flex items-center gap-2">
+                  New Request
                 </Button>
               </div>
 
-              {/* Search */}
-              <div className="relative max-w-md">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search requests..."
-                  className="pl-10"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-              </div>
-
-              {/* Requests Table */}
+              {/* Stock Requests List */}
               <Card className="glass-card">
                 <CardHeader>
                   <CardTitle>Stock Requests</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Request ID</TableHead>
-                        <TableHead>Requested At</TableHead>
-                        <TableHead>Items Count</TableHead>
-                        <TableHead>Status</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredRequests.map((item) => (
-                        <TableRow key={item.id}>
-                          <TableCell className="font-medium">{item.id}</TableCell>
-                          <TableCell>{item.requestedAt}</TableCell>
-                          <TableCell>{item.count} items</TableCell>
-                          <TableCell>
-                            <Badge variant={item.status === "approved" ? "default" : "secondary"}>
-                              {item.status}
-                            </Badge>
-                          </TableCell>
+                  {isLoadingRequests ? (
+                    <div className="text-center py-8">Loading requests...</div>
+                  ) : stockRequests.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      No stock requests found for the selected date range.
+                    </div>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Request ID</TableHead>
+                          <TableHead>Date</TableHead>
+                          <TableHead>Items</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Requested By</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                      </TableHeader>
+                      <TableBody>
+                        {stockRequests.map((request: StockRequest) => (
+                          <TableRow key={request.id}>
+                            <TableCell className="font-mono text-sm">{request.requestId}</TableCell>
+                            <TableCell>{format(new Date(request.requestedAt), 'MMM d, yyyy')}</TableCell>
+                            <TableCell>{request.requestItems.length} items</TableCell>
+                            <TableCell>
+                              <Badge variant={
+                                request.status === 'fulfilled' ? 'default' :
+                                request.status === 'approved' ? 'default' :
+                                request.status === 'rejected' ? 'destructive' : 'secondary'
+                              }>
+                                {request.status}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>{request.requestedBy || '-'}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
                 </CardContent>
               </Card>
             </div>
@@ -209,7 +329,7 @@ export default function BarInventory() {
         <Dialog open={isUpdateModalOpen} onOpenChange={setIsUpdateModalOpen}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Update Inventory Usage</DialogTitle>
+              <DialogTitle>Update Inventory Quantity</DialogTitle>
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div className="grid grid-cols-2 gap-4">
@@ -218,24 +338,24 @@ export default function BarInventory() {
                   <p className="font-medium">{selectedItem?.name}</p>
                 </div>
                 <div>
-                  <Label className="text-sm text-muted-foreground">Current Quantity</Label>
-                  <p className="font-medium">{selectedItem?.quantity} {selectedItem?.unit}</p>
+                  <Label className="text-sm text-muted-foreground">Unit</Label>
+                  <p className="font-medium">{selectedItem?.unit}</p>
                 </div>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="update-amount">Amount Used</Label>
+                <Label htmlFor="update-amount">Quantity</Label>
                 <Input
                   id="update-amount"
                   type="number"
                   min="0"
-                  step="0.1"
-                  placeholder={`Enter amount in ${selectedItem?.unit}`}
+                  step="0.01"
+                  placeholder={`Enter quantity in ${selectedItem?.unit}`}
                   value={updateAmount}
                   onChange={(e) => setUpdateAmount(e.target.value)}
                 />
                 <p className="text-sm text-muted-foreground">
-                  Enter the amount of {selectedItem?.name} that was used
+                  Update the quantity of {selectedItem?.name} in bar inventory
                 </p>
               </div>
             </div>
@@ -243,132 +363,11 @@ export default function BarInventory() {
               <Button variant="outline" onClick={() => setIsUpdateModalOpen(false)}>
                 Cancel
               </Button>
-              <Button onClick={handleUpdateSubmit}>
-                Update Inventory
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        {/* Stock Request Modal */}
-        <Dialog open={isRequestModalOpen} onOpenChange={setIsRequestModalOpen}>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle>Create Stock Request</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              {/* Search and Add Items */}
-              <div className="space-y-3">
-                <Label>Search and Add Items</Label>
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search items by name..."
-                    className="pl-10"
-                    value={searchItemQuery}
-                    onChange={(e) => {
-                      setSearchItemQuery(e.target.value);
-                      if (e.target.value.length > 0) {
-                        setAutocompleteItems(availableItems.filter(item =>
-                          item.name.toLowerCase().includes(e.target.value.toLowerCase())
-                        ));
-                      } else {
-                        setAutocompleteItems([]);
-                      }
-                    }}
-                  />
-                </div>
-
-                {/* Search Results */}
-                {searchItemQuery.length > 0 && autocompleteItems.length > 0 && (
-                  <div className="border rounded-lg max-h-48 overflow-y-auto">
-                    {autocompleteItems.map(item => (
-                      <div
-                        key={item.id}
-                        className="flex items-center justify-between p-3 hover:bg-muted/30 cursor-pointer"
-                        onClick={() => {
-                          const existing = requestItemsList.find(req => req.id === item.id);
-                          if (!existing) {
-                            setRequestItemsList([...requestItemsList, { ...item, quantity: 1 }]);
-                          }
-                          setSearchItemQuery("");
-                          setAutocompleteItems([]);
-                        }}
-                      >
-                        <div>
-                          <p className="font-medium">{item.name}</p>
-                          <p className="text-sm text-muted-foreground">{item.category}</p>
-                        </div>
-                        <Plus className="h-4 w-4 text-muted-foreground" />
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Selected Items */}
-              {requestItemsList.length > 0 ? (
-                <div className="space-y-3">
-                  <Label>Requested Items ({requestItemsList.length})</Label>
-                  <div className="space-y-2">
-                    {requestItemsList.map(item => (
-                      <div key={item.id} className="flex items-center gap-3 p-3 border rounded-lg bg-muted/30">
-                        <div className="flex-1">
-                          <p className="font-medium">{item.name}</p>
-                          <p className="text-sm text-muted-foreground">{item.category}</p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Input
-                            type="number"
-                            min="1"
-                            className="w-20 h-8"
-                            value={item.quantity}
-                            onChange={(e) => {
-                              const value = parseInt(e.target.value) || 1;
-                              setRequestItemsList(requestItemsList.map(req =>
-                                req.id === item.id ? { ...req, quantity: value } : req
-                              ));
-                            }}
-                          />
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={() => setRequestItemsList(requestItemsList.filter(req => req.id !== item.id))}
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ) : (
-                <div className="text-center py-8">
-                  <p className="text-muted-foreground">No items added yet</p>
-                  <p className="text-sm text-muted-foreground mt-1">Search for items above to add them to your request</p>
-                </div>
-              )}
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsRequestModalOpen(false)}>
-                Cancel
-              </Button>
-              <Button
-                onClick={() => {
-                  if (requestItemsList.length === 0) {
-                    alert("Please add at least one item");
-                    return;
-                  }
-                  console.log("Submitting stock request:", requestItemsList);
-                  // In a real app, this would call an API to create the request
-                  setIsRequestModalOpen(false);
-                  setRequestItemsList([]);
-                  setSearchItemQuery("");
-                  setAutocompleteItems([]);
-                }}
+              <Button 
+                onClick={handleUpdateSubmit}
+                disabled={updateMutation.isPending || !selectedItem?.departmentInventoryId}
               >
-                Submit Request
+                {updateMutation.isPending ? "Updating..." : "Update Quantity"}
               </Button>
             </DialogFooter>
           </DialogContent>

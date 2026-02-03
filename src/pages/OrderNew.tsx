@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { MenuService } from "@/services/menuService";
 import { OrderService } from "@/services/orderService";
+import { TableService } from "@/services/tableService";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 
@@ -86,13 +87,12 @@ interface Addon {
   updatedAt?: string;
 }
 
-const tables = ["Table 1", "Table 2", "Table 3", "Table 4", "Table 5", "Table 6", "Table 7", "Table 8", "Table 9", "Table 10", "Table 11", "Table 12"];
 const waiters = ["Sarah M.", "Mike R.", "James T.", "Emily W."];
 
 export default function OrderNew() {
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedTable, setSelectedTable] = useState("");
+  const [selectedTable, setSelectedTable] = useState<string>("");
   const [selectedWaiter, setSelectedWaiter] = useState("");
   const [customerName, setCustomerName] = useState("");
   const [showExtrasDialog, setShowExtrasDialog] = useState(false);
@@ -104,6 +104,12 @@ export default function OrderNew() {
   const { data: menuItems, isLoading: isMenuLoading, error: menuError } = useQuery({
     queryKey: ['menuItems'],
     queryFn: MenuService.getAllMenuItems,
+  });
+
+  // Fetch tables from backend
+  const { data: tables, isLoading: isTablesLoading } = useQuery({
+    queryKey: ['tables'],
+    queryFn: TableService.getAllTables,
   });
 
   // Fetch side dishes
@@ -256,8 +262,8 @@ export default function OrderNew() {
       return;
     }
 
-    // Extract table number from selectedTable (e.g., "Table 5" -> 5)
-    const tableNumber = parseInt(selectedTable.replace('Table ', ''));
+    // selectedTable is now just the table number as a string
+    const tableNumber = parseInt(selectedTable);
 
     const orderData = {
       tableNumber,
@@ -282,11 +288,11 @@ export default function OrderNew() {
     return sum + itemTotal;
   }, 0);
 
-  if (isMenuLoading || isSidesLoading || isAddonsLoading) {
+  if (isMenuLoading || isSidesLoading || isAddonsLoading || isTablesLoading) {
     return (
       <MainLayout title="New Order" subtitle="Create a new customer order">
         <div className="space-y-6 animate-fade-in">
-          <div className="text-center py-8">Loading menu data...</div>
+          <div className="text-center py-8">Loading data...</div>
         </div>
       </MainLayout>
     );
@@ -493,8 +499,10 @@ export default function OrderNew() {
                           <SelectValue placeholder="Select table" />
                         </SelectTrigger>
                         <SelectContent>
-                          {tables.map(table => (
-                            <SelectItem key={table} value={table}>{table}</SelectItem>
+                          {tables?.map(table => (
+                            <SelectItem key={table.id} value={table.number.toString()}>
+                              Table {table.number} (Capacity: {table.capacity})
+                            </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
