@@ -183,65 +183,6 @@ export default function KitchenOrders() {
     refetchInterval: 30000,
   });
 
-  const updateOrderStatusMutation = useMutation({
-    mutationFn: ({ orderId, status }: { orderId: number, status: string }) => OrderService.updateOrder(orderId, { status }),
-    onSuccess: () => {
-        toast({
-            title: "Order Completed",
-            description: "The order has been marked as completed.",
-        });
-        queryClient.invalidateQueries({ queryKey: ['kitchenOrders'] });
-    },
-    onError: () => {
-        toast({
-            title: "Update failed",
-            description: "Failed to update order status.",
-            variant: "destructive",
-        });
-    }
-  });
-
-  const checkMainOrderStatus = async (orderId: number) => {
-    try {
-        
-        const mainOrder = await OrderService.getOrderById(orderId);
-        const allItemsReady = mainOrder.orderItems.every(
-            (item: any) => item.status === OrderItemStatus.READY || item.status === OrderItemStatus.CANCELED
-        );
-        
-        if (allItemsReady && mainOrder.status !== 'COMPLETED') {
-            updateOrderStatusMutation.mutate({ orderId, status: 'COMPLETED' });
-        }
-    } catch (error) {
-        console.error("Failed to check main order status", error);
-        toast({
-            title: "Error",
-            description: "Could not verify the main order status.",
-            variant: "destructive",
-        });
-    }
-  };
-
-  const updateKitchenOrderStatusMutation = useMutation({
-    mutationFn: async ({ kitchenOrderId, newStatus }: { kitchenOrderId: number; mainOrderId: number; newStatus: KitchenOrderStatus }) => {
-      // @ts-ignore
-      return OrderService.updateKitchenOrderStatus(kitchenOrderId, { status: newStatus });
-    },
-    onSuccess: (data, { mainOrderId, newStatus }) => {
-      queryClient.invalidateQueries({ queryKey: ['kitchenOrders'] });
-      if (newStatus === KitchenOrderStatus.READY) {
-        checkMainOrderStatus(mainOrderId);
-      }
-    },
-    onError: () => {
-      toast({
-        title: "Update failed",
-        description: "Failed to update kitchen order status.",
-        variant: "destructive",
-      });
-    },
-  });
-
   const updateItemStatusMutation = useMutation({
     mutationFn: async ({ itemId, newStatus }: { orderId: number, itemId: number, newStatus: OrderItemStatus }) => {
       return OrderService.updateOrderItemStatus(itemId, { status: newStatus });
@@ -263,19 +204,12 @@ export default function KitchenOrders() {
       );
       return { previousOrders };
     },
-    onSuccess: (data, { orderId }) => {
-      const orders = queryClient.getQueryData<KitchenOrder[]>(['kitchenOrders']);
-      const order = orders?.find(o => o.id === orderId);
-
-      if (order) {
-        const allItemsReady = order.items.every(
-          item => item.status === OrderItemStatus.READY || item.status === OrderItemStatus.CANCELED
-        );
-
-        if (allItemsReady && order.status !== KitchenOrderStatus.READY) {
-          updateKitchenOrderStatusMutation.mutate({ kitchenOrderId: order.id, mainOrderId: order.orderId, newStatus: KitchenOrderStatus.READY });
-        }
-      }
+    onSuccess: () => {
+      // Backend now handles all cascading status updates
+      toast({
+        title: "Status Updated",
+        description: "Order item status has been updated.",
+      });
     },
     onError: (err, variables, context) => {
       if (context?.previousOrders) {
