@@ -155,7 +155,7 @@ export default function BarOrders() {
     mutationFn: async ({ itemId, newStatus }: { orderId: number, itemId: number, newStatus: OrderItemStatus }) => {
       return OrderService.updateOrderItemStatus(itemId, { status: newStatus });
     },
-    onMutate: async ({ orderId, itemId, newStatus }) => {
+    onMutate: async ({ orderId, itemId, newStatus }: { orderId: number, itemId: number, newStatus: OrderItemStatus }) => {
       await queryClient.cancelQueries({ queryKey: ['barOrders'] });
       const previousOrders = queryClient.getQueryData<BarOrder[]>(['barOrders']);
       queryClient.setQueryData<BarOrder[]>(['barOrders'], (oldOrders = []) =>
