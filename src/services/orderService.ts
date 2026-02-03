@@ -1,5 +1,19 @@
 import { api } from './api';
 
+export type PaymentMethod = 'CASH' | 'CARD' | 'ONLINE';
+export type PaymentStatus = 'PENDING' | 'COMPLETED' | 'FAILED';
+
+export interface Payment {
+  id: number;
+  orderId: number;
+  amount: number;
+  paymentMethod: PaymentMethod;
+  status: PaymentStatus;
+  transactionId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 interface OrderItem {
   id: number;
   orderId: number;
@@ -13,6 +27,9 @@ interface OrderItem {
   updatedAt: string;
   kitchenOrderId: number | null;
   barOrderId: number | null;
+  menuItem?: {
+    name: string;
+  };
 }
 
 interface KitchenOrder {
@@ -115,7 +132,7 @@ interface BarOrder {
   };
 }
 
-interface Order {
+export interface Order {
   id: number;
   orderNumber: number;
   tableNumber: number;
@@ -129,6 +146,7 @@ interface Order {
   orderItems: OrderItem[];
   kitchenOrder: KitchenOrder | null;
   barOrder: BarOrder | null;
+  payments?: Payment[];
 }
 
 interface CreateOrderData {
