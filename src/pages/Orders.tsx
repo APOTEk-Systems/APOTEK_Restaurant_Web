@@ -5,10 +5,10 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import { Plus, Search, Filter, Eye, MoreHorizontal, Check, DollarSign, X, Ban } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Plus, Search, Filter, Eye, MoreHorizontal, Check, DollarSign, X, Ban, CreditCard } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
-import { OrderService } from "@/services/orderService";
+import { OrderService, Order, Payment } from "@/services/orderService";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 const statusStyles = {
@@ -21,7 +21,8 @@ const statusStyles = {
 };
 
 export default function Orders() {
-  const [selectedOrder, setSelectedOrder] = useState<any>(null);
+  const navigate = useNavigate();
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -60,34 +61,34 @@ export default function Orders() {
     },
   });
 
-  const handleViewOrder = (order: any) => {
+  const handleViewOrder = (order: Order) => {
     setSelectedOrder(order);
     setIsModalOpen(true);
   };
 
-  const handleStatusUpdate = (orderId: string, newStatus: string) => {
-    const numericOrderId = parseInt(orderId.replace('#', ''));
+  const handleStatusUpdate = (orderId: number, newStatus: string) => {
     console.log(`Updating order ${orderId} to status: ${newStatus}`);
 
     if (newStatus === "paid") {
-      // Navigate to payment page for recording payment details
-      window.location.href = `/order/${numericOrderId}/pay`;
+      // Navigate to payment page with order data
+      navigate(`/order/${orderId}/pay`, { 
+        state: { orderId } 
+      });
     } else {
       // Update the order status
-      updateOrderMutation.mutate({ id: numericOrderId, status: newStatus });
+      updateOrderMutation.mutate({ id: orderId, status: newStatus });
     }
     setIsModalOpen(false);
   };
 
-  const handleCancelOrder = (orderId: string) => {
-    const numericOrderId = parseInt(orderId.replace('#', ''));
+  const handleCancelOrder = (orderId: number) => {
     console.log(`Cancelling order ${orderId}`);
-    updateOrderMutation.mutate({ id: numericOrderId, status: "cancelled" });
+    updateOrderMutation.mutate({ id: orderId, status: "cancelled" });
     setIsModalOpen(false);
   };
 
-  const getStatusActions = (status: string, orderId: string) => {
-    switch (status) {
+  const getStatusActions = (status: string, orderId: number) => {
+    switch (status.toLowerCase()) {
       case "completed":
         return (
           <>
@@ -287,16 +288,15 @@ export default function Orders() {
                                 <div>
                                   <p className="text-sm text-muted-foreground mb-2">Items</p>
                                   <div className="space-y-2">
-                                    {selectedOrder?.orderItems.map((item: any, index: number) => (
+                                    {selectedOrder?.orderItems.map((item, index) => (
                                       <div key={index} className="flex justify-between items-center p-2 rounded-lg bg-muted/30">
                                         <div className="flex items-center gap-2">
-                                          <span className="text-sm font-medium">{item.menuItem.name || 'Item'}</span>
+                                          <span className="text-sm font-medium">{item.menuItem?.name || 'Item'}</span>
                                           <span className="text-xs text-muted-foreground">x{item.quantity}</span>
-                                          
                                         </div>
                                         <div className="flex items-center">
-                                        <span className="text-sm font-semibold">${item.price.toFixed(2)}</span>
-                                        {item.status === 'PENDING' && (
+                                          <span className="text-sm font-semibold">${item.price.toFixed(2)}</span>
+                                          {item.status === 'PENDING' && (
                                             <Button
                                               variant="ghost"
                                               size="sm"
@@ -304,7 +304,6 @@ export default function Orders() {
                                               onClick={(e) => {
                                                 e.stopPropagation();
                                                 console.log(`Cancel item ${item.id}`);
-                                                // Add cancel item logic here
                                               }}
                                             >
                                               <Ban className="h-3 w-3" />
@@ -316,13 +315,38 @@ export default function Orders() {
                                   </div>
                                 </div>
 
+                                {/* Payment History */}
+                                {selectedOrder?.payments && selectedOrder.payments.length > 0 && (
+                                  <div>
+                                    <p className="text-sm text-muted-foreground mb-2">Payments</p>
+                                    <div className="space-y-2">
+                                      {selectedOrder.payments.map((payment) => (
+                                        <div key={payment.id} className="flex justify-between items-center p-2 rounded-lg bg-green-500/10">
+                                          <div className="flex items-center gap-2">
+                                            <CreditCard className="h-4 w-4 text-green-600" />
+                                            <span className="text-sm">{payment.paymentMethod}</span>
+                                          </div>
+                                          <div className="flex items-center gap-2">
+                                            <span className="text-sm font-semibold text-green-600">
+                                              ${payment.amount.toFixed(2)}
+                                            </span>
+                                            <span className="text-xs text-muted-foreground">
+                                              {new Date(payment.createdAt).toLocaleTimeString()}
+                                            </span>
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+
                                 <div className="flex justify-between items-center pt-4 border-t border-border">
                                   <p className="text-sm text-muted-foreground">Total</p>
                                   <p className="font-semibold text-lg">${selectedOrder?.total.toFixed(2)}</p>
                                 </div>
                               </div>
                               <DialogFooter className="gap-2">
-                                {getStatusActions(selectedOrder?.status.toLowerCase(), `#${selectedOrder?.orderNumber}`)}
+                                {selectedOrder && getStatusActions(selectedOrder.status, selectedOrder.id)}
                               </DialogFooter>
                             </DialogContent>
                           </Dialog>
