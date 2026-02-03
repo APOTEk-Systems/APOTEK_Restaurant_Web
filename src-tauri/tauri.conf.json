@@ -1,0 +1,41 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "productName": "restaurant_kds_pos",
+  "version": "0.1.0",
+  "identifier": "com.example.tauri",
+  "build": {
+    "frontendDist": "../dist",
+    "devUrl": "http://localhost:8080",
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Restaurant POS",
+        "width": 800,
+        "height": 600,
+        "fullscreen": true,
+        "decorations": false,
+        "resizable": false
+        
+      }
+    ],
+  
+    "security": {
+      "csp": "default-src 'self'; connect-src 'self' http://212.115.110.115:8080"
+    }
+   
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
+  }
+}

@@ -3,75 +3,75 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Clock, Wine, CheckCircle2, AlertCircle, Play, Bell, GlassWater } from "lucide-react";
-import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { OrderService } from "@/services/orderService";
+import { toast } from "@/components/ui/use-toast";
+
+// Define the OrderItemStatus enum
+enum OrderItemStatus {
+  PENDING = "PENDING",
+  PREPARING = "PREPARING",
+  READY = "READY",
+  SERVED = "SERVED",
+  CANCELED = "CANCELED"
+}
 
 // Define the BarOrderStatus enum
 enum BarOrderStatus {
-  PENDING = "pending",
-  READY = "ready"
+  PENDING = "PENDING",
+  READY = "READY",
+  CANCELED = "CANCELED"
 }
 
-interface BarOrderItem {
-  id: string;
+// Define interfaces for enhanced bar order data
+interface MenuItem {
+  id: number;
   name: string;
+}
+
+interface OrderItem {
+  id: number;
+  orderId: number;
+  menuItemId: number;
   quantity: number;
-  modifications: string;
-  status: BarOrderStatus;
+  price: number;
+  notes: string | null;
+  prepArea: string;
+  status: OrderItemStatus;
+  createdAt: string;
+  updatedAt: string;
+  kitchenOrderId: number | null;
+  barOrderId: number | null;
+  selectedSideDishes: number[];
+  selectedAddons: number[];
+  menuItem: MenuItem;
 }
 
 interface BarOrder {
-  id: string;
-  table: string;
-  items: BarOrderItem[];
-  time: string;
-  priority: "high" | "normal";
+  id: number;
+  orderId: number;
+  status: BarOrderStatus;
+  createdAt: string;
+  updatedAt: string;
+  items: OrderItem[];
+  order: {
+    id: number;
+    orderNumber: number;
+    tableNumber: number | null;
+    status: string;
+    customerName: string | null;
+    waiter: string | null;
+    guestCount: number | null;
+    total: number;
+  } | undefined;
 }
 
-const barOrders: BarOrder[] = [
-  {
-    id: "BAR-001",
-    table: "Table 5",
-    items: [
-      { id: "item-1", name: "Mojito", quantity: 2, modifications: "Extra mint", status: BarOrderStatus.PENDING },
-      { id: "item-2", name: "Old Fashioned", quantity: 1, modifications: "", status: BarOrderStatus.READY },
-    ],
-    time: "3 min",
-    priority: "normal",
-  },
-  {
-    id: "BAR-002",
-    table: "Bar Seat 3",
-    items: [
-      { id: "item-3", name: "Espresso Martini", quantity: 2, modifications: "", status: BarOrderStatus.PENDING },
-    ],
-    time: "1 min",
-    priority: "high",
-  },
-  {
-    id: "BAR-003",
-    table: "Table 12",
-    items: [
-      { id: "item-4", name: "House Red Wine", quantity: 1, modifications: "", status: BarOrderStatus.READY },
-      { id: "item-5", name: "Sparkling Water", quantity: 2, modifications: "", status: BarOrderStatus.READY },
-    ],
-    time: "5 min",
-    priority: "normal",
-  },
-  {
-    id: "BAR-004",
-    table: "Table 8",
-    items: [
-      { id: "item-6", name: "Margarita", quantity: 3, modifications: "Salt rim", status: BarOrderStatus.PENDING },
-      { id: "item-7", name: "Corona", quantity: 2, modifications: "", status: BarOrderStatus.PENDING },
-    ],
-    time: "0 min",
-    priority: "normal",
-  },
-];
-
 const statusStyles = {
-  [BarOrderStatus.PENDING]: "bg-amber-500/10 text-amber-500 border-amber-500/20",
-  [BarOrderStatus.READY]: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20",
+  [OrderItemStatus.PENDING]: "bg-amber-500/10 text-amber-500 border-amber-500/20",
+  [OrderItemStatus.PREPARING]: "bg-blue-500/10 text-blue-500 border-blue-500/20",
+  [OrderItemStatus.READY]: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20",
+  [OrderItemStatus.SERVED]: "bg-gray-500/10 text-gray-500 border-gray-500/20",
+  [OrderItemStatus.CANCELED]: "bg-red-500/10 text-red-500 border-red-500/20",
 };
 
 const statusIcons = {
@@ -80,56 +80,238 @@ const statusIcons = {
 };
 
 export default function BarOrders() {
-  const [orders, setOrders] = useState<BarOrder[]>(barOrders);
+  const queryClient = useQueryClient();
 
-  const updateItemStatus = (orderId: string, itemId: string, newStatus: BarOrderStatus) => {
-    setOrders(orders.map(order => {
-      if (order.id === orderId) {
-        return {
-          ...order,
-          items: order.items.map(item =>
-            item.id === itemId ? { ...item, status: newStatus } : item
-          )
+  const {
+    data: orders = [],
+    isLoading,
+    isError,
+    error,
+    refetch
+  } = useQuery({
+    queryKey: ['barOrders'],
+    queryFn: async () => {
+      const barOrders = await OrderService.getAllBarOrders();
+      return barOrders.map(order => {
+        const barStatusMap: Record<string, BarOrderStatus> = {
+          PENDING: BarOrderStatus.PENDING,
+          READY: BarOrderStatus.READY,
+          CANCELLED: BarOrderStatus.CANCELED
         };
-      }
-      return order;
-    }));
+        const itemStatusMap: Record<string, OrderItemStatus> = {
+          PENDING: OrderItemStatus.PENDING,
+          PREPARING: OrderItemStatus.PREPARING,
+          READY: OrderItemStatus.READY,
+          SERVED: OrderItemStatus.SERVED,
+          CANCELED: OrderItemStatus.CANCELED
+        };
 
-    // In a real app, this would call an API to update the item status
-    console.log(`Updated item ${itemId} in order ${orderId} to ${newStatus}`);
+        return {
+          id: order.id,
+          orderId: order.orderId,
+          status: barStatusMap[order.status] || BarOrderStatus.PENDING,
+          createdAt: order.createdAt,
+          updatedAt: order.updatedAt,
+          items: order.items.map(item => {
+            const enhancedItem = item as any;
+            return {
+              id: item.id,
+              orderId: item.orderId,
+              menuItemId: item.menuItemId,
+              quantity: item.quantity,
+              price: item.price,
+              notes: item.notes,
+              prepArea: item.prepArea,
+              status: itemStatusMap[item.status] || OrderItemStatus.PENDING,
+              createdAt: item.createdAt,
+              updatedAt: item.updatedAt,
+              kitchenOrderId: item.kitchenOrderId,
+              barOrderId: item.barOrderId,
+              selectedSideDishes: enhancedItem.selectedSideDishes || [],
+              selectedAddons: enhancedItem.selectedAddons || [],
+              menuItem: enhancedItem.menuItem || {
+                id: item.menuItemId,
+                name: 'Unknown Item'
+              }
+            };
+          }),
+          order: order.order || {
+            id: order.orderId,
+            orderNumber: 0,
+            tableNumber: null,
+            status: 'PENDING',
+            customerName: null,
+            waiter: null,
+            guestCount: null,
+            total: 0
+          }
+        };
+      });
+    },
+    refetchInterval: 30000,
+  });
+
+  const updateItemStatusMutation = useMutation({
+    mutationFn: async ({ itemId, newStatus }: { orderId: number, itemId: number, newStatus: OrderItemStatus }) => {
+      return OrderService.updateOrderItemStatus(itemId, { status: newStatus });
+    },
+    onMutate: async ({ orderId, itemId, newStatus }) => {
+      await queryClient.cancelQueries({ queryKey: ['barOrders'] });
+      const previousOrders = queryClient.getQueryData<BarOrder[]>(['barOrders']);
+      queryClient.setQueryData<BarOrder[]>(['barOrders'], (oldOrders = []) =>
+        oldOrders.map(order =>
+          order.id === orderId
+            ? {
+                ...order,
+                items: order.items.map(item =>
+                  item.id === itemId ? { ...item, status: newStatus } : item
+                ),
+              }
+            : order
+        )
+      );
+      return { previousOrders };
+    },
+    onSuccess: (data, { orderId }) => {
+      const orders = queryClient.getQueryData<BarOrder[]>(['barOrders']);
+      const order = orders?.find(o => o.id === orderId);
+
+      if (order) {
+        const allReadyOrServed = order.items.every(
+          item => item.status === OrderItemStatus.READY || item.status === OrderItemStatus.SERVED || item.status === OrderItemStatus.CANCELED
+        );
+
+        if (allReadyOrServed && order.status !== BarOrderStatus.READY) {
+          // Update bar order status to READY
+          updateBarOrderStatusMutation.mutate({ barOrderId: order.id, mainOrderId: order.orderId, newStatus: BarOrderStatus.READY });
+        }
+      }
+    },
+    onError: (err, variables, context) => {
+      if (context?.previousOrders) {
+        queryClient.setQueryData(['barOrders'], context.previousOrders);
+      }
+      toast({
+        title: "Update failed",
+        description: "Failed to update item status. Please try again.",
+        variant: "destructive",
+      });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['barOrders'] });
+    }
+  });
+
+  const checkMainOrderStatus = async (orderId: number) => {
+    try {
+      const mainOrder = await OrderService.getOrderById(orderId);
+      const allItemsReady = mainOrder.orderItems.every(
+        (item: any) => item.status === OrderItemStatus.READY || item.status === OrderItemStatus.SERVED || item.status === OrderItemStatus.CANCELED
+      );
+      
+      if (allItemsReady && mainOrder.status !== 'SERVED') {
+        updateOrderStatusMutation.mutate({ orderId, status: 'SERVED' });
+      }
+    } catch (error) {
+      console.error("Failed to check main order status", error);
+      toast({
+        title: "Error",
+        description: "Could not verify the main order status.",
+        variant: "destructive",
+      });
+    }
   };
 
-  const getOrderStatus = (order: BarOrder): BarOrderStatus => {
-    // Determine overall order status based on individual items
-    const hasPending = order.items.some(item => item.status === BarOrderStatus.PENDING);
-    const hasReady = order.items.some(item => item.status === BarOrderStatus.READY);
+  const updateOrderStatusMutation = useMutation({
+    mutationFn: ({ orderId, status }: { orderId: number, status: string }) => OrderService.updateOrder(orderId, { status }),
+    onSuccess: () => {
+      toast({
+        title: "Order Served",
+        description: "The order has been marked as served.",
+      });
+      queryClient.invalidateQueries({ queryKey: ['barOrders'] });
+    },
+    onError: () => {
+      toast({
+        title: "Update failed",
+        description: "Failed to update order status.",
+        variant: "destructive",
+      });
+    }
+  });
 
-    if (hasPending) return BarOrderStatus.PENDING;
-    if (hasReady) return BarOrderStatus.READY;
+  const updateBarOrderStatusMutation = useMutation({
+    mutationFn: async ({ barOrderId, newStatus }: { barOrderId: number; mainOrderId: number; newStatus: BarOrderStatus }) => {
+      return OrderService.updateBarOrderStatus(barOrderId, { status: newStatus });
+    },
+    onSuccess: (data, { mainOrderId, newStatus }) => {
+      queryClient.invalidateQueries({ queryKey: ['barOrders'] });
+      if (newStatus === BarOrderStatus.READY) {
+        checkMainOrderStatus(mainOrderId);
+      }
+    },
+    onError: () => {
+      toast({
+        title: "Update failed",
+        description: "Failed to update bar order status.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const getOrderStatus = (order: BarOrder): BarOrderStatus => {
+    const hasReady = order.items.some(item => item.status === OrderItemStatus.READY || item.status === OrderItemStatus.SERVED);
+    
+    if (hasReady) {
+      const allReadyOrServed = order.items.every(
+        item => item.status === OrderItemStatus.READY || item.status === OrderItemStatus.SERVED || item.status === OrderItemStatus.CANCELED
+      );
+      if (allReadyOrServed) return BarOrderStatus.READY;
+    }
 
     return BarOrderStatus.PENDING;
   };
 
-  const getActionButtons = (order: BarOrder, item: BarOrderItem) => {
+  const getActionButtons = (order: BarOrder, item: OrderItem) => {
     switch (item.status) {
-      case BarOrderStatus.PENDING:
+      case OrderItemStatus.PENDING:
         return (
           <Button
             size="sm"
             className="h-8 bg-primary hover:bg-primary/90"
-            onClick={() => updateItemStatus(order.id, item.id, BarOrderStatus.READY)}
+            onClick={() => updateItemStatusMutation.mutate({
+              orderId: order.id,
+              itemId: item.id,
+              newStatus: OrderItemStatus.READY
+            })}
+            disabled={updateItemStatusMutation.isPending}
           >
-            <Play className="h-3 w-3 mr-1" /> Start
+            <Play className="h-3 w-3 mr-1" /> Ready
           </Button>
         );
-      case BarOrderStatus.READY:
+      case OrderItemStatus.READY:
         return (
           <Button
             size="sm"
             className="h-8 bg-sidebar/70 hover:bg-sidebar/50"
-            onClick={() => updateItemStatus(order.id, item.id, BarOrderStatus.PENDING)}
+            onClick={() => updateItemStatusMutation.mutate({
+              orderId: order.id,
+              itemId: item.id,
+              newStatus: OrderItemStatus.SERVED
+            })}
+            disabled={updateItemStatusMutation.isPending}
           >
             <Bell className="h-3 w-3 mr-1" /> Served
+          </Button>
+        );
+      case OrderItemStatus.SERVED:
+        return (
+          <Button
+            size="sm"
+            className="h-8 bg-green-500/20 text-green-500 hover:bg-green-500/30"
+            disabled
+          >
+            <CheckCircle2 className="h-3 w-3 mr-1" /> Done
           </Button>
         );
       default:
@@ -137,14 +319,71 @@ export default function BarOrders() {
     }
   };
 
+  const getPriorityFromItems = (items: OrderItem[]): "high" | "normal" => {
+    const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
+    return totalQuantity >= 4 || items.length >= 3 ? "high" : "normal";
+  };
+
+  const getTimeAgo = (createdAt: string): string => {
+    const now = new Date();
+    const createdDate = new Date(createdAt);
+    const minutesAgo = Math.floor((now.getTime() - createdDate.getTime()) / (1000 * 60));
+
+    if (minutesAgo < 1) return "just now";
+    if (minutesAgo < 60) return `${minutesAgo} min ago`;
+    const hoursAgo = Math.floor(minutesAgo / 60);
+    return `${hoursAgo} hour${hoursAgo > 1 ? 's' : ''} ago`;
+  };
+
+  if (isLoading) {
+    return (
+      <MainLayout title="Bar Orders">
+        <div className="space-y-6">
+          <div>
+            <h1 className="text-3xl font-bold text-foreground">Bar Orders</h1>
+            <p className="text-muted-foreground mt-1">Loading orders...</p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {[...Array(4)].map((_, i) => (
+              <Card key={i} className="glass-card h-24 animate-pulse" />
+            ))}
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {[...Array(6)].map((_, i) => (
+              <Card key={i} className="glass-card h-64 animate-pulse" />
+            ))}
+          </div>
+        </div>
+      </MainLayout>
+    );
+  }
+
+  if (isError) {
+    return (
+      <MainLayout title="Bar Orders">
+        <div className="space-y-6">
+          <div className="flex items-center justify-center h-64">
+            <div className="text-center">
+              <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
+              <h2 className="text-xl font-semibold text-destructive mb-2">Error Loading Orders</h2>
+              <p className="text-muted-foreground">{error?.message || 'Unknown error'}</p>
+              <Button
+                className="mt-4"
+                onClick={() => refetch()}
+                disabled={updateItemStatusMutation.isPending}
+              >
+                {updateItemStatusMutation.isPending ? 'Retrying...' : 'Retry'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      </MainLayout>
+    );
+  }
+
   return (
     <MainLayout title="Bar Orders">
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Bar Orders</h1>
-          <p className="text-muted-foreground mt-1">Manage incoming drink orders</p>
-        </div>
-
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card className="glass-card">
@@ -153,9 +392,7 @@ export default function BarOrders() {
                 <div>
                   <p className="text-sm text-muted-foreground">Pending</p>
                   <p className="text-2xl font-bold text-amber-500">
-                    {orders.filter((o) =>
-                      o.items.some(item => item.status === BarOrderStatus.PENDING)
-                    ).length}
+                    {orders.filter((o) => getOrderStatus(o) === BarOrderStatus.PENDING).length}
                   </p>
                 </div>
                 <Clock className="h-8 w-8 text-amber-500" />
@@ -168,9 +405,7 @@ export default function BarOrders() {
                 <div>
                   <p className="text-sm text-muted-foreground">Ready</p>
                   <p className="text-2xl font-bold text-emerald-500">
-                    {orders.filter((o) =>
-                      o.items.some(item => item.status === BarOrderStatus.READY)
-                    ).length}
+                    {orders.filter((o) => getOrderStatus(o) === BarOrderStatus.READY).length}
                   </p>
                 </div>
                 <CheckCircle2 className="h-8 w-8 text-emerald-500" />
@@ -194,55 +429,75 @@ export default function BarOrders() {
 
         {/* Orders Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {orders.map((order) => {
-            const orderStatus = getOrderStatus(order);
-            const StatusIcon = statusIcons[orderStatus];
-            return (
-              <Card key={order.id} className={`glass-card ${order.priority === "high" ? "ring-2 ring-destructive/50" : ""}`}>
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <CardTitle className="text-lg">{order.table}</CardTitle>
-                      {order.priority === "high" && (
-                        <AlertCircle className="h-4 w-4 text-destructive" />
-                      )}
+          {orders.length > 0 ? (
+            orders.map((order) => {
+              const orderStatus = getOrderStatus(order);
+              const StatusIcon = statusIcons[orderStatus];
+              const priority = getPriorityFromItems(order.items);
+              const timeAgo = getTimeAgo(order.createdAt);
+
+              return (
+                <Card key={order.id} className={`glass-card ${priority === "high" ? "ring-2 ring-destructive/50" : ""}`}>
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <CardTitle className="text-lg">Table {order.order.tableNumber || 'Bar'}</CardTitle>
+                        {priority === "high" && (
+                          <AlertCircle className="h-4 w-4 text-destructive" />
+                        )}
+                      </div>
+                      <Badge className={statusStyles[orderStatus === BarOrderStatus.READY ? OrderItemStatus.READY : OrderItemStatus.PENDING]}>
+                        <StatusIcon className="h-3 w-3 mr-1" />
+                        {orderStatus}
+                      </Badge>
                     </div>
-                    <Badge className={statusStyles[orderStatus]}>
-                      <StatusIcon className="h-3 w-3 mr-1" />
-                      {orderStatus}
-                    </Badge>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <span>{order.id}</span>
-                    <span>•</span>
-                    <span>{order.time} ago</span>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="space-y-2">
-                    {order.items.map((item) => (
-                      <div key={item.id} className="flex justify-between items-start p-2 rounded-lg bg-muted/30">
-                        <div className="flex-1">
-                          <p className="font-medium">{item.quantity}x {item.name}</p>
-                          {item.modifications && (
-                            <p className="text-xs text-muted-foreground italic">{item.modifications}</p>
-                          )}
-                          <div className="mt-1">
-                            <Badge className={statusStyles[item.status]}>
-                              {item.status}
-                            </Badge>
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <span>Order #{order.order.orderNumber}</span>
+                      <span>•</span>
+                      <span>{timeAgo}</span>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="space-y-2">
+                      {order.items.map((item) => (
+                        <div key={item.id} className="flex justify-between items-start p-2 rounded-lg bg-muted/30">
+                          <div className="flex-1">
+                            <p className="font-medium">{item.quantity}x {item.menuItem.name}</p>
+                            {item.notes && (
+                              <p className="text-xs text-muted-foreground italic">{item.notes}</p>
+                            )}
+                            <div className="mt-1">
+                              <Badge className={statusStyles[item.status]}>
+                                {item.status}
+                              </Badge>
+                            </div>
+                          </div>
+                          <div className="ml-2">
+                            {getActionButtons(order, item)}
                           </div>
                         </div>
-                        <div className="ml-2">
-                          {getActionButtons(order, item)}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })
+          ) : (
+            <div className="col-span-full flex items-center justify-center h-64">
+              <div className="text-center">
+                <Wine className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <h2 className="text-xl font-semibold text-muted-foreground mb-2">No Orders Found</h2>
+                <p className="text-muted-foreground">There are no active bar orders at the moment.</p>
+                <Button
+                  className="mt-4"
+                  onClick={() => refetch()}
+                  disabled={updateItemStatusMutation.isPending}
+                >
+                  Refresh
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </MainLayout>

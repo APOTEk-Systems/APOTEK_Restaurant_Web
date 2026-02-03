@@ -60,18 +60,13 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Dashboard />} />
+          <Route path="/" element={<OrderNew />} />
           <Route path="/orders" element={<Orders />} />
           <Route path="/orders/new" element={<OrderNew />} />
           <Route path="/orders/history" element={<OrdersHistory />} />
           <Route path="/order/:id/pay" element={<OrderPay />} />
-          <Route path="/kitchen" element={<Kitchen />} />
           <Route path="/kitchen/orders" element={<KitchenOrders />} />
-          <Route path="/kitchen/menu" element={<KitchenMenu />} />
           <Route path="/kitchen/inventory" element={<KitchenInventory />} />
-          <Route path="/kitchen/dissatisfactions" element={<KitchenDissatisfactions />} />
-          <Route path="/stock-request" element={<StockRequest />} />
-          <Route path="/bar" element={<Bar />} />
           <Route path="/bar/orders" element={<BarOrders />} />
           <Route path="/bar/menu" element={<BarMenu />} />
           <Route path="/bar/inventory" element={<BarInventory />} />
@@ -80,32 +75,6 @@ const App = () => (
           <Route path="/menu/new" element={<MenuNew />} />
           <Route path="/reservations" element={<Reservations />} />
           <Route path="/reservations/new" element={<ReservationNew />} />
-          <Route path="/inventory" element={<Inventory />} />
-          <Route path="/inventory/new" element={<InventoryNew />} />
-          <Route path="/inventory/adjustments" element={<InventoryAdjustments />} />
-          <Route path="/inventory/requests" element={<InventoryRequests />} />
-          <Route path="/inventory/requests/:id" element={<InventoryRequestDetail />} />
-          <Route path="/inventory/expiring" element={<ExpiringProducts />} />
-          <Route path="/purchases" element={<Purchases />} />
-          <Route path="/purchases/receiving" element={<GoodsReceiving />} />
-          <Route path="/purchases/suppliers" element={<Suppliers />} />
-          <Route path="/purchases/new" element={<PurchaseOrderNew />} />
-          <Route path="/staff" element={<Staff />} />
-          <Route path="/staff/new" element={<StaffNew />} />
-          <Route path="/users" element={<Users />} />
-          <Route path="/users/new" element={<UserNew />} />
-          <Route path="/users/roles" element={<Roles />} />
-          <Route path="/users/roles/new" element={<RoleNew />} />
-          <Route path="/accounting" element={<Accounting />} />
-          <Route path="/accounting/expenses" element={<AccountingExpenses />} />
-          <Route path="/reports" element={<Reports />} />
-          <Route path="/settings" element={<SettingsRestaurantInfo />} />
-          <Route path="/settings/configurations" element={<SettingsConfigurations />} />
-          <Route path="/settings/tables" element={<SettingsTables />} />
-          <Route path="/settings/adjustment-reasons" element={<SettingsAdjustmentReasons />} />
-          <Route path="/settings/expense-categories" element={<SettingsExpenseCategories />} />
-          <Route path="/settings/units" element={<SettingsUnits />} />
-          <Route path="/settings/alerts" element={<SettingsAlerts />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

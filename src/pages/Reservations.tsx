@@ -2,23 +2,19 @@ import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Calendar } from "@/components/ui/calendar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Search, Users, Clock, Phone, Mail, MoreHorizontal, Check, X } from "lucide-react";
+import { Label } from "@/components/ui/label";
+import { DateRangePicker, DateRange } from "@/components/ui/date-range-picker";
+import { Plus, Search, Users, Clock, Phone, Mail, MoreHorizontal, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { TableService, Reservation as ReservationType } from "@/services/tableService";
+import { useToast } from "@/hooks/use-toast";
+import { format } from "date-fns";
 
-const reservations = [
-  { id: 1, name: "Johnson Family", email: "johnson@email.com", phone: "(555) 123-4567", guests: 4, date: "Today", time: "6:00 PM", table: "Table 5", status: "confirmed", notes: "Birthday celebration" },
-  { id: 2, name: "Smith Corporation", email: "events@smith.com", phone: "(555) 234-5678", guests: 12, date: "Today", time: "7:00 PM", table: "Private Room", status: "confirmed", notes: "Corporate dinner" },
-  { id: 3, name: "David & Maria", email: "david.m@email.com", phone: "(555) 345-6789", guests: 2, date: "Today", time: "7:30 PM", table: "Table 8", status: "pending", notes: "Anniversary dinner" },
-  { id: 4, name: "Williams Party", email: "sarah.w@email.com", phone: "(555) 456-7890", guests: 8, date: "Today", time: "8:00 PM", table: "Tables 10-11", status: "confirmed", notes: "" },
-  { id: 5, name: "Chen Family", email: "chen.family@email.com", phone: "(555) 567-8901", guests: 6, date: "Tomorrow", time: "6:30 PM", table: "Table 3", status: "pending", notes: "Window seat preferred" },
-  { id: 6, name: "Martinez Wedding", email: "martinez@email.com", phone: "(555) 678-9012", guests: 20, date: "Saturday", time: "5:00 PM", table: "Full Restaurant", status: "confirmed", notes: "Rehearsal dinner" },
-];
-
-const statusStyles = {
+const statusStyles: Record<string, string> = {
   pending: "bg-warning/10 text-warning border-warning/20",
   confirmed: "bg-success/10 text-success border-success/20",
   cancelled: "bg-destructive/10 text-destructive border-destructive/20",
@@ -26,19 +22,68 @@ const statusStyles = {
 };
 
 export default function Reservations() {
-  const [date, setDate] = useState<Date | undefined>(new Date());
+  const [dateRange, setDateRange] = useState<DateRange>({
+    from: new Date(),
+    to: new Date(),
+  });
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const { toast } = useToast();
+
+  // Convert date range to API format
+  const startDate = dateRange.from ? format(dateRange.from, "yyyy-MM-dd") : "";
+  const endDate = dateRange.to ? format(dateRange.to, "yyyy-MM-dd") : "";
+
+  // Fetch reservations by date range
+  const { data: reservations, isLoading: isReservationsLoading } = useQuery({
+    queryKey: ['reservationsByDateRange', startDate, endDate],
+    queryFn: () => TableService.getReservationsByDateRange(startDate, endDate),
+    enabled: !!startDate && !!endDate,
+  });
+
+  // Fetch booked tables for today (for summary)
+  const { data: bookedTables } = useQuery({
+    queryKey: ['bookedTables'],
+    queryFn: TableService.getBookedTables,
+  });
+
+  // Filter reservations
+  const filteredReservations = reservations?.filter((r: ReservationType) => {
+    const matchesStatus = statusFilter === "all" || r.status.toLowerCase() === statusFilter.toLowerCase();
+    const matchesSearch = r.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          r.customerPhone.includes(searchQuery);
+    return matchesStatus && matchesSearch;
+  }) || [];
+
+  // Calculate summary
+  const totalGuests = filteredReservations.reduce((sum: number, r: ReservationType) => sum + r.numberOfGuests, 0);
+  const tablesReserved = new Set(bookedTables?.map((t: any) => t.id)).size || 0;
+
+  // Format date helper
+  const formatDateTime = (dateString: string) => {
+    const date = new Date(dateString);
+    return {
+      date: date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
+      time: date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }),
+    };
+  };
 
   return (
     <MainLayout title="Reservations" subtitle="Manage table bookings and reservations">
       <div className="space-y-6 animate-fade-in">
-        {/* Actions Bar */}
-        <div className="flex flex-col sm:flex-row gap-4 justify-between">
-          <div className="flex gap-3">
+        {/* Date Range Filter & Actions Bar */}
+        <div className="flex flex-col lg:flex-row gap-4 items-start">
+          <div className="flex flex-1 gap-3">
             <div className="relative flex-1 sm:w-80">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Search reservations..." className="pl-9" />
+              <Input
+                placeholder="Search by name or phone..."
+                className="pl-9 "
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
             </div>
-            <Select defaultValue="all">
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-40">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
@@ -49,6 +94,13 @@ export default function Reservations() {
                 <SelectItem value="cancelled">Cancelled</SelectItem>
               </SelectContent>
             </Select>
+
+               <div className="flex flex-col sm:flex-row gap-4 items-start lg:items-center">
+            <DateRangePicker
+              dateRange={dateRange}
+              onDateRangeChange={setDateRange}
+            />
+          </div> 
           </div>
           <Link to="/reservations/new">
             <Button className="gradient-primary text-primary-foreground shadow-glow hover:shadow-lg transition-shadow">
@@ -58,91 +110,85 @@ export default function Reservations() {
           </Link>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Calendar */}
-          <div className="bg-card rounded-xl shadow-card border border-border/50 p-4">
-            <Calendar
-              mode="single"
-              selected={date}
-              onSelect={setDate}
-              className="rounded-md"
-            />
-            <div className="mt-4 pt-4 border-t border-border">
-              <h4 className="font-medium text-foreground mb-2">Today's Summary</h4>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Total Reservations</span>
-                  <span className="font-medium text-foreground">12</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Total Guests</span>
-                  <span className="font-medium text-foreground">48</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Tables Reserved</span>
-                  <span className="font-medium text-foreground">15/24</span>
-                </div>
-              </div>
-            </div>
+        {/* Summary Cards */}
+        <div className="grid grid-cols-3 gap-4">
+          <div className="bg-card rounded-xl p-4 shadow-card border border-border/50">
+            <div className="text-sm text-muted-foreground">Total Reservations</div>
+            <div className="text-2xl font-semibold">{filteredReservations.length}</div>
           </div>
-
-          {/* Reservations List */}
-          <div className="lg:col-span-2 space-y-4">
-            {reservations.map((reservation) => (
-              <div key={reservation.id} className="bg-card rounded-xl p-5 shadow-card border border-border/50 hover:shadow-card-hover transition-all duration-300">
-                <div className="flex items-start justify-between mb-3">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-semibold text-foreground">{reservation.name}</h3>
-                      <Badge className={cn("capitalize", statusStyles[reservation.status as keyof typeof statusStyles])}>
-                        {reservation.status}
-                      </Badge>
-                    </div>
-                    <p className="text-sm text-muted-foreground mt-1">{reservation.table}</p>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    {reservation.status === "pending" && (
-                      <>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-success hover:text-success hover:bg-success/10">
-                          <Check className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10">
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </>
-                    )}
-                    <Button variant="ghost" size="icon" className="h-8 w-8">
-                      <MoreHorizontal className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <Clock className="h-4 w-4" />
-                    <span>{reservation.date}, {reservation.time}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <Users className="h-4 w-4" />
-                    <span>{reservation.guests} guests</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <Phone className="h-4 w-4" />
-                    <span>{reservation.phone}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <Mail className="h-4 w-4" />
-                    <span className="truncate">{reservation.email}</span>
-                  </div>
-                </div>
-                {reservation.notes && (
-                  <p className="text-sm text-muted-foreground mt-3 pt-3 border-t border-border italic">
-                    Note: {reservation.notes}
-                  </p>
-                )}
-              </div>
-            ))}
+          <div className="bg-card rounded-xl p-4 shadow-card border border-border/50">
+            <div className="text-sm text-muted-foreground">Total Guests</div>
+            <div className="text-2xl font-semibold">{totalGuests}</div>
+          </div>
+          <div className="bg-card rounded-xl p-4 shadow-card border border-border/50">
+            <div className="text-sm text-muted-foreground">Tables Reserved</div>
+            <div className="text-2xl font-semibold">{tablesReserved}</div>
           </div>
         </div>
+
+        {/* Reservations List */}
+        <div className="space-y-4">
+            {isReservationsLoading ? (
+              <div className="text-center py-8 text-muted-foreground">Loading reservations...</div>
+            ) : filteredReservations.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <AlertCircle className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                <p>No reservations found for today</p>
+                <Link to="/reservations/new">
+                  <Button variant="link" className="mt-2">Create a new reservation</Button>
+                </Link>
+              </div>
+            ) : (
+              filteredReservations.map((reservation: ReservationType) => {
+                const { date: dateStr, time } = formatDateTime(reservation.date);
+                const tableNames = reservation.tables?.map((t: { table: { number: number } }) => `Table ${t.table.number}`).join(', ') || 'No table assigned';
+
+                return (
+                  <div key={reservation.id} className="bg-card rounded-xl p-5 shadow-card border border-border/50 hover:shadow-card-hover transition-all duration-300">
+                    <div className="flex items-start justify-between mb-3">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-semibold text-foreground">{reservation.customerName}</h3>
+                          <Badge className={cn("capitalize", statusStyles[reservation.status?.toLowerCase() || "pending"])}>
+                            {reservation.status || "pending"}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground mt-1">{tableNames}</p>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Clock className="h-4 w-4" />
+                        <span>{dateStr}, {time}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Users className="h-4 w-4" />
+                        <span>{reservation.numberOfGuests} guests</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Phone className="h-4 w-4" />
+                        <span>{reservation.customerPhone}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Mail className="h-4 w-4" />
+                        <span className="truncate">{reservation.customerEmail || "N/A"}</span>
+                      </div>
+                    </div>
+                    {reservation.notes && (
+                      <p className="text-sm text-muted-foreground mt-3 pt-3 border-t border-border italic">
+                        Note: {reservation.notes}
+                      </p>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </div>
       </div>
     </MainLayout>
   );

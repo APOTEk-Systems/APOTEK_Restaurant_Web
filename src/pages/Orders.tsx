@@ -175,7 +175,7 @@ export default function Orders() {
 
   return (
     <MainLayout title="Orders" subtitle="Manage and track all restaurant orders">
-      <div className="space-y-6 animate-fade-in">
+      <div className="space-y-6 animate-fade-in py-6">
         {/* Actions Bar */}
         <div className="flex flex-col sm:flex-row gap-4 justify-between">
           <div className="flex gap-3">
@@ -236,7 +236,7 @@ export default function Orders() {
                           {new Date(order.createdAt).toLocaleTimeString().slice(0, 5)}
                         </p>
                       </td>
-                      <td className="px-6 py-4 text-foreground">{order.customerName || 'N/A'}</td>
+                      <td className="px-6 py-4 text-foreground">{order.customerName || 'CASH'}</td>
                       <td className="px-6 py-4 text-foreground">{order.tableNumber}</td>
                       <td className="px-6 py-4 text-foreground">{order.waiter || 'N/A'}</td>
                       <td className="px-6 py-4">

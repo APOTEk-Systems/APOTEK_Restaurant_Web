@@ -97,6 +97,22 @@ interface BarOrder {
   createdAt: string;
   updatedAt: string;
   items: OrderItem[];
+  order?: {
+    id: number;
+    orderNumber: number;
+    tableNumber: number | null;
+    status: string;
+    customerName: string | null;
+    waiter: string | null;
+    guestCount: number | null;
+    total: number;
+    orderItems: {
+      id: number;
+      menuItem: {
+        name: string;
+      };
+    }[];
+  };
 }
 
 interface Order {

@@ -4,14 +4,16 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Plus, Trash2, Search, Edit2, Save, Minus, Plus as PlusIcon } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Search, Edit2, Save, Minus, Plus as PlusIcon, AlertTriangle } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Link } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { MenuService } from "@/services/menuService";
 import { OrderService } from "@/services/orderService";
+import { TableService, Table } from "@/services/tableService";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 
@@ -86,8 +88,20 @@ interface Addon {
   updatedAt?: string;
 }
 
-const tables = ["Table 1", "Table 2", "Table 3", "Table 4", "Table 5", "Table 6", "Table 7", "Table 8", "Table 9", "Table 10", "Table 11", "Table 12"];
 const waiters = ["Sarah M.", "Mike R.", "James T.", "Emily W."];
+
+// Helper function to format minutes into hours if exceeding 60 mins
+function formatTimeUntilReservation(minutes: number): string {
+  if (minutes < 60) {
+    return `${minutes} min`;
+  }
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+  if (remainingMinutes === 0) {
+    return `${hours} hr`;
+  }
+  return `${hours} hr ${remainingMinutes} min`;
+}
 
 export default function OrderNew() {
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
@@ -104,6 +118,12 @@ export default function OrderNew() {
   const { data: menuItems, isLoading: isMenuLoading, error: menuError } = useQuery({
     queryKey: ['menuItems'],
     queryFn: MenuService.getAllMenuItems,
+  });
+
+  // Fetch available tables for selection
+  const { data: availableTables, isLoading: isTablesLoading } = useQuery<Table[]>({
+    queryKey: ['availableTables'],
+    queryFn: () => TableService.getAvailableTables(),
   });
 
   // Fetch side dishes
@@ -259,7 +279,12 @@ export default function OrderNew() {
     // Extract table number from selectedTable (e.g., "Table 5" -> 5)
     const tableNumber = parseInt(selectedTable.replace('Table ', ''));
 
+    // Find the table ID for the selected table
+    const selectedTableData = availableTables?.find(t => t.number === tableNumber);
+    const tableId = selectedTableData?.id;
+
     const orderData = {
+      tableId,
       tableNumber,
       customerName: customerName || null,
       waiter: selectedWaiter || null,
@@ -282,7 +307,7 @@ export default function OrderNew() {
     return sum + itemTotal;
   }, 0);
 
-  if (isMenuLoading || isSidesLoading || isAddonsLoading) {
+  if (isMenuLoading || isSidesLoading || isAddonsLoading || isTablesLoading) {
     return (
       <MainLayout title="New Order" subtitle="Create a new customer order">
         <div className="space-y-6 animate-fade-in">
@@ -308,14 +333,14 @@ export default function OrderNew() {
     <MainLayout title="New Order" subtitle="Create a new customer order">
       <div className="space-y-6 animate-fade-in">
         {/* Back Button */}
-        <Link to="/orders">
+        {/* <Link to="/orders">
           <Button variant="ghost" className="gap-2">
             <ArrowLeft className="h-4 w-4" />
             Back to Orders
           </Button>
-        </Link>
+        </Link> */}
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 py-6">
           {/* Menu Items - Main Focus */}
           <div className="space-y-6">
             <Card className="shadow-card border-border/50">
@@ -341,7 +366,7 @@ export default function OrderNew() {
                     >
                       <span className="font-medium text-sm text-foreground">{item.name}</span>
                       <span className="text-xs text-muted-foreground">{item.menuCategory?.name || 'General'}</span>
-                      <span className="text-sm font-semibold text-primary mt-1">${item.price.toFixed(2)}</span>
+                      <span className="text-sm font-semibold text-primary mt-1">${item.price.toLocaleString()}</span>
                       {(item.requiresSideDish || item.hasAddons) && (
                         <span className="text-xs text-muted-foreground mt-1">
                           {item.requiresSideDish ? "Includes sides" : "Customizable"}
@@ -490,14 +515,97 @@ export default function OrderNew() {
                       <Label htmlFor="table" className="text-xs text-muted-foreground">Table</Label>
                       <Select value={selectedTable} onValueChange={setSelectedTable}>
                         <SelectTrigger id="table" className="h-9 text-sm">
-                          <SelectValue placeholder="Select table" />
+                          <SelectValue placeholder={availableTables?.length ? "Select table" : "Loading tables..."} />
                         </SelectTrigger>
                         <SelectContent>
-                          {tables.map(table => (
-                            <SelectItem key={table} value={table}>{table}</SelectItem>
-                          ))}
+                          {availableTables?.map(table => {
+                            const hasUpcomingReservation = !!table.reservationDue;
+                            const reservationDue = table.reservationDue ? new Date(table.reservationDue) : null;
+                            const now = new Date();
+                            const timeUntilReservation = reservationDue
+                              ? Math.ceil((reservationDue.getTime() - now.getTime()) / 60000)
+                              : 0;
+                            
+                            const tooltipText = hasUpcomingReservation && timeUntilReservation > 0
+                              ? `Reserved in ${formatTimeUntilReservation(timeUntilReservation)} at ${reservationDue?.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+                              : undefined;
+  
+                            return (
+                              <TooltipProvider key={table.id}>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <SelectItem value={`Table ${table.number}`}>
+                                      <div className="flex items-center gap-2">
+                                        <span>Table {table.number} (Capacity: {table.capacity})</span>
+                                        {hasUpcomingReservation && timeUntilReservation > 0 && (
+                                          <AlertTriangle className="h-3.5 w-3.5 text-warning" />
+                                        )}
+                                      </div>
+                                    </SelectItem>
+                                  </TooltipTrigger>
+                                  {tooltipText && (
+                                    <TooltipContent side="right" align="start">
+                                      <p>{tooltipText}</p>
+                                    </TooltipContent>
+                                  )}
+                                </Tooltip>
+                              </TooltipProvider>
+                            );
+                          })}
+                          {availableTables?.length === 0 && (
+                            <div className="p-2 text-sm text-muted-foreground text-center">
+                              No available tables
+                            </div>
+                          )}
                         </SelectContent>
                       </Select>
+                      
+                      {/* Warning for selected table with upcoming reservation */}
+                      {selectedTable && (() => {
+                        const tableNumber = parseInt(selectedTable.replace('Table ', ''));
+                        const selectedTableData = availableTables?.find(t => t.number === tableNumber);
+                        const hasUpcomingReservation = !!selectedTableData?.reservationDue;
+                        
+                        if (hasUpcomingReservation) {
+                          const reservationDue = selectedTableData?.reservationDue ? new Date(selectedTableData.reservationDue) : null;
+                          const now = new Date();
+                          const timeUntilReservation = reservationDue
+                            ? Math.ceil((reservationDue.getTime() - now.getTime()) / 60000)
+                            : 0;
+                          
+                          if (timeUntilReservation > 0) {
+                          return (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <div className="flex items-center gap-2 p-2 bg-warning/10 border border-warning/20 rounded-md mt-2 cursor-help w-full">
+                                    <AlertTriangle className="h-4 w-4 text-warning shrink-0" />
+                                    <span className="text-xs text-warning font-medium">
+                                      Reserved in {formatTimeUntilReservation(timeUntilReservation)}
+                                    </span>
+                                  </div>
+                                </TooltipTrigger>
+                                <TooltipContent side="top" align="start" className="max-w-xs">
+                                  <div className="flex items-start gap-2">
+                                    <AlertTriangle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
+                                    <div>
+                                      <p className="font-medium text-warning">Table Reserved Soon</p>
+                                      <p className="text-sm mt-1">
+                                        This table is reserved in <span className="font-semibold">{formatTimeUntilReservation(timeUntilReservation)}</span> at {reservationDue?.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}.
+                                      </p>
+                                      <p className="text-xs text-muted-foreground mt-2">
+                                        Consider informing the guests that their table will be needed soon.
+                                      </p>
+                                    </div>
+                                  </div>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          );
+                        }
+                        }
+                        return null;
+                      })()}
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="waiter" className="text-xs text-muted-foreground">Waiter</Label>
