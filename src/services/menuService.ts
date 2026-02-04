@@ -167,4 +167,22 @@ export const MenuService = {
   deleteMenuCategory: async (id: number): Promise<void> => {
     await api.delete(`/menu/categories/${id}`);
   },
+
+  // Toggle availability for menu item
+  toggleMenuItemAvailability: async (id: number, isAvailable: boolean): Promise<MenuItem> => {
+    const response = await api.patch(`/menu/menu-items/${id}`, { isAvailable });
+    return response.data;
+  },
+
+  // Toggle availability for addon
+  toggleAddonAvailability: async (id: number, isAvailable: boolean): Promise<MenuAddon> => {
+    const response = await api.patch(`/menu/addons/${id}`, { isAvailable });
+    return response.data;
+  },
+
+  // Toggle availability for side dish
+  toggleSideDishAvailability: async (id: number, isAvailable: boolean): Promise<MenuSideDish> => {
+    const response = await api.patch(`/menu/side-dishes/${id}`, { isAvailable });
+    return response.data;
+  },
 };

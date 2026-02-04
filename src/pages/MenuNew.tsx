@@ -407,34 +407,36 @@ export default function MenuNew() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-3 mt-4">
-                  <div className="flex items-center space-x-3 p-3 rounded-lg bg-muted/30">
-                    <Switch
-                      id="hasAddons"
-                      checked={hasAddons}
-                      onCheckedChange={setHasAddons}
-                    />
-                    <Label htmlFor="hasAddons" className="cursor-pointer">
-                      <span className="font-medium">Supports Addons</span>
-                      <p className="text-sm text-muted-foreground">
-                        Allow customers to add extras (e.g., extra cheese, bacon)
-                      </p>
-                    </Label>
+                {!isBar && (
+                  <div className="space-y-3 mt-4">
+                    <div className="flex items-center space-x-3 p-3 rounded-lg bg-muted/30">
+                      <Switch
+                        id="hasAddons"
+                        checked={hasAddons}
+                        onCheckedChange={setHasAddons}
+                      />
+                      <Label htmlFor="hasAddons" className="cursor-pointer">
+                        <span className="font-medium">Supports Addons</span>
+                        <p className="text-sm text-muted-foreground">
+                          Allow customers to add extras (e.g., extra cheese, bacon)
+                        </p>
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-3 p-3 rounded-lg bg-muted/30">
+                      <Switch
+                        id="requiresSideDish"
+                        checked={requiresSideDish}
+                        onCheckedChange={setRequiresSideDish}
+                      />
+                      <Label htmlFor="requiresSideDish" className="cursor-pointer">
+                        <span className="font-medium">Requires Side Dish</span>
+                        <p className="text-sm text-muted-foreground">
+                          Customers must select side dishes with this item
+                        </p>
+                      </Label>
+                    </div>
                   </div>
-                  <div className="flex items-center space-x-3 p-3 rounded-lg bg-muted/30">
-                    <Switch
-                      id="requiresSideDish"
-                      checked={requiresSideDish}
-                      onCheckedChange={setRequiresSideDish}
-                    />
-                    <Label htmlFor="requiresSideDish" className="cursor-pointer">
-                      <span className="font-medium">Requires Side Dish</span>
-                      <p className="text-sm text-muted-foreground">
-                        Customers must select side dishes with this item
-                      </p>
-                    </Label>
-                  </div>
-                </div>
+                )}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="description">Description *</Label>

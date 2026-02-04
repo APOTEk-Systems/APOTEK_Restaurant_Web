@@ -50,7 +50,7 @@ const InventoryRequestDetail = () => {
       });
       queryClient.invalidateQueries({ queryKey: ['stock-request'] });
       queryClient.invalidateQueries({ queryKey: ['stock-requests'] });
-      navigate('/inventory-requests');
+      navigate('/inventory/inventory-requests');
     },
     onError: (error: any) => {
       toast({
@@ -102,8 +102,8 @@ const InventoryRequestDetail = () => {
         {/* Back Button */}
         <Button 
           variant="ghost" 
-          onClick={() => navigate('/inventory-requests')}
-          className="mb-4"
+          onClick={() => navigate('/inventory/requests')}
+          className="mb-0"
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back to Requests
@@ -217,6 +217,7 @@ const InventoryRequestDetail = () => {
                     <tr className="border-b border-border">
                       <th className="text-left p-3 text-sm font-medium text-muted-foreground">Item</th>
                       <th className="text-right p-3 text-sm font-medium text-muted-foreground">Quantity</th>
+                      <th className="text-right p-3 text-sm font-medium text-muted-foreground">On Hand</th>
                       <th className="text-left p-3 text-sm font-medium text-muted-foreground">Status</th>
                     </tr>
                   </thead>
@@ -229,7 +230,10 @@ const InventoryRequestDetail = () => {
                             <div className="text-xs text-muted-foreground">SKU: {item.item.sku}</div>
                           )}
                         </td>
-                        <td className="p-3 text-right font-medium">{item.quantity}</td>
+                        <td className="p-3 text-right font-medium">{item.quantity} {item.item.unit}{item.quantity > 1 ? "s":""}</td>
+                        <td className="p-3 text-right font-medium text-muted-foreground">
+                          {item.item?.quantity ?? '-'} {item.item?.unit}
+                        </td>
                         <td className="p-3">
                           <Badge variant="secondary">{item.status || 'pending'}</Badge>
                         </td>

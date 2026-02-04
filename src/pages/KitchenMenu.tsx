@@ -21,14 +21,33 @@ import {
   Utensils,
   GlassWater,
   PlusCircle,
+  Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Link, useSearchParams } from "react-router-dom";
 import { useState, useEffect, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { MenuService } from "@/services/menuService";
-import { MenuItem, MenuAddon, MenuSideDish, MenuCategory } from "@/services/menuService";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { MenuService, type MenuItem, type MenuAddon, type MenuSideDish, type MenuCategory } from "@/services/menuService";
 import { useToast } from "@/hooks/use-toast";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 // Use the MenuItem type from the service with kitchen-specific category
 interface KitchenMenuItem
@@ -41,9 +60,15 @@ interface KitchenMenuItem
 function KitchenMenuCard({
   item,
   onToggleAvailability,
+  onEdit,
+  onDelete,
+  isToggling,
 }: {
   item: KitchenMenuItem;
-  onToggleAvailability: (id: number) => void;
+  onToggleAvailability: (id: number, currentStatus: boolean) => void;
+  onEdit: (item: KitchenMenuItem) => void;
+  onDelete: (id: number) => void;
+  isToggling?: boolean;
 }) {
   return (
     <div
@@ -72,7 +97,7 @@ function KitchenMenuCard({
           )}
         </div>
         <span className="text-lg font-bold text-primary">
-          {item.price.toLocaleString("en-US")}
+          ${item.price.toLocaleString("en-US")}
         </span>
       </div>
       <div className="flex items-center justify-between">
@@ -86,23 +111,52 @@ function KitchenMenuCard({
           {item.orders && <span>{item.orders} orders</span>}
         </div>
         <div className="flex items-center gap-1">
-          <Button variant="ghost" size="icon" className="h-8 w-8">
-            <Edit className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-destructive hover:text-destructive"
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
           <Button
             variant="ghost"
             size="icon"
             className="h-8 w-8"
-            onClick={() => onToggleAvailability(item.id)}
+            onClick={() => onEdit(item)}
           >
-            {item.isAvailable ? (
+            <Edit className="h-4 w-4" />
+          </Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-destructive hover:text-destructive"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete Menu Item</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Are you sure you want to delete "{item.name}"? This action cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={() => onDelete(item.id)}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  Delete
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={() => onToggleAvailability(item.id, item.isAvailable)}
+            disabled={isToggling}
+          >
+            {isToggling ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : item.isAvailable ? (
               <ToggleRight className="h-4 w-4 text-success" />
             ) : (
               <ToggleLeft className="h-4 w-4 text-muted-foreground" />
@@ -117,9 +171,15 @@ function KitchenMenuCard({
 function AddonCard({
   addon,
   onToggleAvailability,
+  onEdit,
+  onDelete,
+  isToggling,
 }: {
   addon: MenuAddon;
-  onToggleAvailability: (id: number) => void;
+  onToggleAvailability: (id: number, currentStatus: boolean) => void;
+  onEdit: (addon: MenuAddon) => void;
+  onDelete: (id: number) => void;
+  isToggling?: boolean;
 }) {
   return (
     <div
@@ -143,7 +203,7 @@ function AddonCard({
           </p>
         </div>
         <span className="text-lg font-bold text-primary">
-          {addon.price.toLocaleString("en-US")}
+          ${addon.price.toLocaleString("en-US")}
         </span>
       </div>
       <div className="flex items-center justify-between">
@@ -155,23 +215,52 @@ function AddonCard({
           )}
         </div>
         <div className="flex items-center gap-1">
-          <Button variant="ghost" size="icon" className="h-8 w-8">
-            <Edit className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-destructive hover:text-destructive"
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
           <Button
             variant="ghost"
             size="icon"
             className="h-8 w-8"
-            onClick={() => onToggleAvailability(addon.id)}
+            onClick={() => onEdit(addon)}
           >
-            {addon.isAvailable ? (
+            <Edit className="h-4 w-4" />
+          </Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-destructive hover:text-destructive"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete Addon</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Are you sure you want to delete "{addon.name}"? This action cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={() => onDelete(addon.id)}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  Delete
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={() => onToggleAvailability(addon.id, addon.isAvailable)}
+            disabled={isToggling}
+          >
+            {isToggling ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : addon.isAvailable ? (
               <ToggleRight className="h-4 w-4 text-success" />
             ) : (
               <ToggleLeft className="h-4 w-4 text-muted-foreground" />
@@ -186,9 +275,15 @@ function AddonCard({
 function SideDishCard({
   sideDish,
   onToggleAvailability,
+  onEdit,
+  onDelete,
+  isToggling,
 }: {
   sideDish: MenuSideDish;
-  onToggleAvailability: (id: number) => void;
+  onToggleAvailability: (id: number, currentStatus: boolean) => void;
+  onEdit: (sideDish: MenuSideDish) => void;
+  onDelete: (id: number) => void;
+  isToggling?: boolean;
 }) {
   return (
     <div
@@ -212,7 +307,7 @@ function SideDishCard({
           </p>
         </div>
         <span className="text-lg font-bold text-primary">
-          {sideDish.price.toLocaleString("en-US")}
+          ${sideDish.price.toLocaleString("en-US")}
         </span>
       </div>
       <div className="flex items-center justify-between">
@@ -224,23 +319,52 @@ function SideDishCard({
           )}
         </div>
         <div className="flex items-center gap-1">
-          <Button variant="ghost" size="icon" className="h-8 w-8">
-            <Edit className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-destructive hover:text-destructive"
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
           <Button
             variant="ghost"
             size="icon"
             className="h-8 w-8"
-            onClick={() => onToggleAvailability(sideDish.id)}
+            onClick={() => onEdit(sideDish)}
           >
-            {sideDish.isAvailable ? (
+            <Edit className="h-4 w-4" />
+          </Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-destructive hover:text-destructive"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete Side Dish</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Are you sure you want to delete "{sideDish.name}"? This action cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={() => onDelete(sideDish.id)}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  Delete
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={() => onToggleAvailability(sideDish.id, sideDish.isAvailable)}
+            disabled={isToggling}
+          >
+            {isToggling ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : sideDish.isAvailable ? (
               <ToggleRight className="h-4 w-4 text-success" />
             ) : (
               <ToggleLeft className="h-4 w-4 text-muted-foreground" />
@@ -257,6 +381,12 @@ export default function KitchenMenu() {
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState("items");
+  const [editingItem, setEditingItem] = useState<KitchenMenuItem | null>(null);
+  const [editingAddon, setEditingAddon] = useState<MenuAddon | null>(null);
+  const [editingSideDish, setEditingSideDish] = useState<MenuSideDish | null>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [togglingId, setTogglingId] = useState<number | null>(null);
+  const queryClient = useQueryClient();
   const { toast } = useToast();
 
   // Fetch all required data using React Query
@@ -302,6 +432,124 @@ export default function KitchenMenu() {
   // Check if any error occurred
   const error = menuItemsError || addonsError || sideDishesError || categoriesError;
 
+  // Mutations
+  const toggleMenuItemMutation = useMutation({
+    mutationFn: ({ id, isAvailable }: { id: number; isAvailable: boolean }) =>
+      MenuService.toggleMenuItemAvailability(id, !isAvailable),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['menuItems'] });
+      toast({
+        title: "Success",
+        description: "Menu item availability updated",
+      });
+      setTogglingId(null);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update availability",
+        variant: "destructive",
+      });
+      setTogglingId(null);
+    },
+  });
+
+  const toggleAddonMutation = useMutation({
+    mutationFn: ({ id, isAvailable }: { id: number; isAvailable: boolean }) =>
+      MenuService.toggleAddonAvailability(id, !isAvailable),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['menuAddons'] });
+      toast({
+        title: "Success",
+        description: "Addon availability updated",
+      });
+      setTogglingId(null);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update availability",
+        variant: "destructive",
+      });
+      setTogglingId(null);
+    },
+  });
+
+  const toggleSideDishMutation = useMutation({
+    mutationFn: ({ id, isAvailable }: { id: number; isAvailable: boolean }) =>
+      MenuService.toggleSideDishAvailability(id, !isAvailable),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['menuSideDishes'] });
+      toast({
+        title: "Success",
+        description: "Side dish availability updated",
+      });
+      setTogglingId(null);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update availability",
+        variant: "destructive",
+      });
+      setTogglingId(null);
+    },
+  });
+
+  const deleteMenuItemMutation = useMutation({
+    mutationFn: (id: number) => MenuService.deleteMenuItem(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['menuItems'] });
+      toast({
+        title: "Success",
+        description: "Menu item deleted successfully",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete menu item",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteAddonMutation = useMutation({
+    mutationFn: (id: number) => MenuService.deleteMenuAddon(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['menuAddons'] });
+      toast({
+        title: "Success",
+        description: "Addon deleted successfully",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete addon",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteSideDishMutation = useMutation({
+    mutationFn: (id: number) => MenuService.deleteMenuSideDish(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['menuSideDishes'] });
+      toast({
+        title: "Success",
+        description: "Side dish deleted successfully",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete side dish",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Process menu items with category mapping
   const menuItems: KitchenMenuItem[] = useMemo(() => {
     if (!menuItemsData || !categoriesData) return [];
@@ -338,14 +586,100 @@ export default function KitchenMenu() {
     }
   }, [error, toast]);
 
-  const toggleAvailability = (id: number, type: "menu" | "addon" | "side") => {
-    // TODO: Implement API call to toggle availability
-    console.log(`Toggle availability for ${type} with id ${id}`);
-    toast({
-      title: "Feature Coming Soon",
-      description: "Toggle availability will be implemented with backend integration",
-      variant: "default"
-    });
+  const handleToggleAvailability = (id: number, currentStatus: boolean, type: "menu" | "addon" | "side") => {
+    setTogglingId(id);
+    if (type === "menu") {
+      toggleMenuItemMutation.mutate({ id, isAvailable: currentStatus });
+    } else if (type === "addon") {
+      toggleAddonMutation.mutate({ id, isAvailable: currentStatus });
+    } else {
+      toggleSideDishMutation.mutate({ id, isAvailable: currentStatus });
+    }
+  };
+
+  const handleDelete = (id: number, type: "menu" | "addon" | "side") => {
+    if (type === "menu") {
+      deleteMenuItemMutation.mutate(id);
+    } else if (type === "addon") {
+      deleteAddonMutation.mutate(id);
+    } else {
+      deleteSideDishMutation.mutate(id);
+    }
+  };
+
+  const handleEdit = (item: KitchenMenuItem | MenuAddon | MenuSideDish, type: "menu" | "addon" | "side") => {
+    if (type === "menu") {
+      setEditingItem(item as KitchenMenuItem);
+    } else if (type === "addon") {
+      setEditingAddon(item as MenuAddon);
+    } else {
+      setEditingSideDish(item as MenuSideDish);
+    }
+    setIsEditDialogOpen(true);
+  };
+
+  const handleSaveEdit = () => {
+    if (editingItem) {
+      MenuService.updateMenuItem(editingItem.id, {
+        name: editingItem.name,
+        description: editingItem.description,
+        price: editingItem.price,
+      }).then(() => {
+        queryClient.invalidateQueries({ queryKey: ['menuItems'] });
+        setIsEditDialogOpen(false);
+        setEditingItem(null);
+        toast({
+          title: "Success",
+          description: "Menu item updated successfully",
+        });
+      }).catch((error: Error) => {
+        toast({
+          title: "Error",
+          description: error.message || "Failed to update menu item",
+          variant: "destructive",
+        });
+      });
+    } else if (editingAddon) {
+      MenuService.updateMenuAddon(editingAddon.id, {
+        name: editingAddon.name,
+        description: editingAddon.description || undefined,
+        price: editingAddon.price,
+      }).then(() => {
+        queryClient.invalidateQueries({ queryKey: ['menuAddons'] });
+        setIsEditDialogOpen(false);
+        setEditingAddon(null);
+        toast({
+          title: "Success",
+          description: "Addon updated successfully",
+        });
+      }).catch((error: Error) => {
+        toast({
+          title: "Error",
+          description: error.message || "Failed to update addon",
+          variant: "destructive",
+        });
+      });
+    } else if (editingSideDish) {
+      MenuService.updateMenuSideDish(editingSideDish.id, {
+        name: editingSideDish.name,
+        description: editingSideDish.description || undefined,
+        price: editingSideDish.price,
+      }).then(() => {
+        queryClient.invalidateQueries({ queryKey: ['menuSideDishes'] });
+        setIsEditDialogOpen(false);
+        setEditingSideDish(null);
+        toast({
+          title: "Success",
+          description: "Side dish updated successfully",
+        });
+      }).catch((error: Error) => {
+        toast({
+          title: "Error",
+          description: error.message || "Failed to update side dish",
+          variant: "destructive",
+        });
+      });
+    }
   };
 
   // Filter menu items based on search and category
@@ -480,9 +814,12 @@ export default function KitchenMenu() {
                         <KitchenMenuCard
                           key={item.id}
                           item={item}
-                          onToggleAvailability={(id) =>
-                            toggleAvailability(id, "menu")
+                          onToggleAvailability={(id, status) =>
+                            handleToggleAvailability(id, status, "menu")
                           }
+                          onEdit={(item) => handleEdit(item, "menu")}
+                          onDelete={(id) => handleDelete(id, "menu")}
+                          isToggling={togglingId === item.id}
                         />
                       ))}
                     </div>
@@ -522,9 +859,12 @@ export default function KitchenMenu() {
                         <SideDishCard
                           key={side.id}
                           sideDish={side}
-                          onToggleAvailability={(id) =>
-                            toggleAvailability(id, "side")
+                          onToggleAvailability={(id, status) =>
+                            handleToggleAvailability(id, status, "side")
                           }
+                          onEdit={(sideDish) => handleEdit(sideDish, "side")}
+                          onDelete={(id) => handleDelete(id, "side")}
+                          isToggling={togglingId === side.id}
                         />
                       ))}
                     </div>
@@ -564,9 +904,12 @@ export default function KitchenMenu() {
                         <AddonCard
                           key={addon.id}
                           addon={addon}
-                          onToggleAvailability={(id) =>
-                            toggleAvailability(id, "addon")
+                          onToggleAvailability={(id, status) =>
+                            handleToggleAvailability(id, status, "addon")
                           }
+                          onEdit={(addon) => handleEdit(addon, "addon")}
+                          onDelete={(id) => handleDelete(id, "addon")}
+                          isToggling={togglingId === addon.id}
                         />
                       ))}
                     </div>
@@ -576,6 +919,122 @@ export default function KitchenMenu() {
             </Tabs>
           </>
         )}
+
+        {/* Edit Dialog */}
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle>
+                {editingItem ? "Edit Menu Item" : editingAddon ? "Edit Addon" : editingSideDish ? "Edit Side Dish" : "Edit"}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              {editingItem && (
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-name">Name</Label>
+                    <Input
+                      id="edit-name"
+                      value={editingItem.name}
+                      onChange={(e) => setEditingItem({ ...editingItem, name: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-description">Description</Label>
+                    <Input
+                      id="edit-description"
+                      value={editingItem.description}
+                      onChange={(e) => setEditingItem({ ...editingItem, description: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-price">Price</Label>
+                    <Input
+                      id="edit-price"
+                      type="number"
+                      value={editingItem.price}
+                      onChange={(e) => setEditingItem({ ...editingItem, price: parseFloat(e.target.value) })}
+                    />
+                  </div>
+                </>
+              )}
+              {editingAddon && (
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-name">Name</Label>
+                    <Input
+                      id="edit-name"
+                      value={editingAddon.name}
+                      onChange={(e) => setEditingAddon({ ...editingAddon, name: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-description">Description</Label>
+                    <Input
+                      id="edit-description"
+                      value={editingAddon.description || ""}
+                      onChange={(e) => setEditingAddon({ ...editingAddon, description: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-price">Price</Label>
+                    <Input
+                      id="edit-price"
+                      type="number"
+                      value={editingAddon.price}
+                      onChange={(e) => setEditingAddon({ ...editingAddon, price: parseFloat(e.target.value) })}
+                    />
+                  </div>
+                </>
+              )}
+              {editingSideDish && (
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-name">Name</Label>
+                    <Input
+                      id="edit-name"
+                      value={editingSideDish.name}
+                      onChange={(e) => setEditingSideDish({ ...editingSideDish, name: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-description">Description</Label>
+                    <Input
+                      id="edit-description"
+                      value={editingSideDish.description || ""}
+                      onChange={(e) => setEditingSideDish({ ...editingSideDish, description: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-price">Price</Label>
+                    <Input
+                      id="edit-price"
+                      type="number"
+                      value={editingSideDish.price}
+                      onChange={(e) => setEditingSideDish({ ...editingSideDish, price: parseFloat(e.target.value) })}
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => {
+                setIsEditDialogOpen(false);
+                setEditingItem(null);
+                setEditingAddon(null);
+                setEditingSideDish(null);
+              }}>
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                onClick={handleSaveEdit}
+              >
+                Save Changes
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </MainLayout>
   );

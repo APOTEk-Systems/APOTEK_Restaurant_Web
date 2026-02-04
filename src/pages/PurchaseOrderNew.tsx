@@ -2,30 +2,15 @@ import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Plus, Trash2 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { ArrowLeft, Plus, Trash2, Loader2 } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-
-const suppliers = [
-  { id: 1, name: "Fresh Farms Co." },
-  { id: 2, name: "Premium Meats Inc." },
-  { id: 3, name: "Seafood Direct" },
-  { id: 4, name: "Wine & Spirits Dist." },
-  { id: 5, name: "Dairy Fresh" },
-];
-
-const inventoryItems = [
-  { id: 1, name: "Tomatoes", unit: "kg", price: 2.50 },
-  { id: 2, name: "Chicken Breast", unit: "kg", price: 8.75 },
-  { id: 3, name: "Salmon Fillet", unit: "kg", price: 15.99 },
-  { id: 4, name: "Red Wine", unit: "bottle", price: 12.00 },
-  { id: 5, name: "Mozzarella Cheese", unit: "kg", price: 6.50 },
-  { id: 6, name: "Lettuce", unit: "head", price: 1.20 },
-  { id: 7, name: "Beef Tenderloin", unit: "kg", price: 22.50 },
-  { id: 8, name: "Shrimp", unit: "kg", price: 18.00 },
-];
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { SupplierService, Supplier } from "@/services/supplierService";
+import { inventoryItemService, InventoryItem } from "@/services/inventoryItemService";
+import { purchaseOrderService } from "@/services/purchaseOrderService";
 
 interface PurchaseItem {
   id: number;
@@ -36,17 +21,50 @@ interface PurchaseItem {
 }
 
 export default function PurchaseOrderNew() {
-  const [selectedSupplier, setSelectedSupplier] = useState("");
+  const [selectedSupplier, setSelectedSupplier] = useState<string>("");
   const [purchaseItems, setPurchaseItems] = useState<PurchaseItem[]>([]);
   const [newItem, setNewItem] = useState({
     itemId: "",
     quantity: 1
   });
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+
+  // Fetch suppliers using React Query
+  const { data: suppliers = [] } = useQuery({
+    queryKey: ["suppliers"],
+    queryFn: SupplierService.getAllSuppliers,
+  });
+
+  // Fetch inventory items using React Query
+  const { data: inventoryItems = [] } = useQuery({
+    queryKey: ["inventoryItems"],
+    queryFn: inventoryItemService.getAllInventoryItems,
+  });
+
+  // Create purchase order mutation
+  const createMutation = useMutation({
+    mutationFn: (data: {
+      poNumber: string;
+      supplierId: number;
+      notes?: string;
+      expectedDeliveryAt?: string;
+      items: Array<{
+        inventoryItemId: number;
+        quantityOrdered: number;
+        unitPrice: number;
+      }>;
+    }) => purchaseOrderService.createPurchaseOrder(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["purchaseOrders"] });
+      navigate("/purchases");
+    },
+  });
 
   const addItem = () => {
     if (!newItem.itemId) return;
 
-    const selectedItem = inventoryItems.find(item => item.id.toString() === newItem.itemId);
+    const selectedItem = inventoryItems.find((item: InventoryItem) => item.id.toString() === newItem.itemId);
     if (!selectedItem) return;
 
     const existingItem = purchaseItems.find(item => item.id === selectedItem.id);
@@ -62,7 +80,7 @@ export default function PurchaseOrderNew() {
         name: selectedItem.name,
         unit: selectedItem.unit,
         quantity: newItem.quantity,
-        price: selectedItem.price
+        price: selectedItem.price || 0
       }]);
     }
 
@@ -84,6 +102,40 @@ export default function PurchaseOrderNew() {
   const subtotal = purchaseItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const tax = subtotal * 0.1; // 10% tax
   const total = subtotal + tax;
+
+  // Generate PO number
+  const generatePONumber = () => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+    return `PO-${year}${month}${day}-${random}`;
+  };
+
+  const handleSubmit = () => {
+    if (!selectedSupplier || purchaseItems.length === 0) return;
+
+    const supplierId = parseInt(selectedSupplier);
+
+    createMutation.mutate({
+      poNumber: generatePONumber(),
+      supplierId,
+      items: purchaseItems.map(item => ({
+        inventoryItemId: item.id,
+        quantityOrdered: item.quantity,
+        unitPrice: item.price
+      }))
+    });
+  };
+
+  const handleSaveDraft = () => {
+    // For now, just save locally or implement draft functionality
+    console.log("Saving draft...", {
+      supplierId: selectedSupplier,
+      items: purchaseItems
+    });
+  };
 
   return (
     <MainLayout title="Create Purchase Order" subtitle="Create a new purchase order for suppliers">
@@ -112,8 +164,8 @@ export default function PurchaseOrderNew() {
                   <SelectValue placeholder="Select a supplier" />
                 </SelectTrigger>
                 <SelectContent>
-                  {suppliers.map(supplier => (
-                    <SelectItem key={supplier.id} value={supplier.name}>
+                  {suppliers.map((supplier: Supplier) => (
+                    <SelectItem key={supplier.id} value={supplier.id.toString()}>
                       {supplier.name}
                     </SelectItem>
                   ))}
@@ -130,7 +182,7 @@ export default function PurchaseOrderNew() {
               {/* Add Item Form */}
               <div className="flex flex-col sm:flex-row gap-3 items-end">
                 <div className="flex-1 space-y-2">
-                  <Label htmlFor="item" className="text-xs text-muted-foreground">Item</Label>
+                  <Label htmlFor="item" className="xs text-muted-foreground">Item</Label>
                   <Select
                     value={newItem.itemId}
                     onValueChange={(value) => setNewItem({...newItem, itemId: value})}
@@ -139,7 +191,7 @@ export default function PurchaseOrderNew() {
                       <SelectValue placeholder="Select item" />
                     </SelectTrigger>
                     <SelectContent>
-                      {inventoryItems.map(item => (
+                      {inventoryItems.map((item: InventoryItem) => (
                         <SelectItem key={item.id} value={item.id.toString()}>
                           {item.name}
                         </SelectItem>
@@ -149,7 +201,7 @@ export default function PurchaseOrderNew() {
                 </div>
 
                 <div className="w-24 space-y-2">
-                  <Label htmlFor="quantity" className="text-xs text-muted-foreground">Quantity</Label>
+                  <Label htmlFor="quantity" className="xs text-muted-foreground">Quantity</Label>
                   <Input
                     id="quantity"
                     type="number"
@@ -161,18 +213,18 @@ export default function PurchaseOrderNew() {
                 </div>
 
                 <div className="w-24 space-y-2">
-                  <Label className="text-xs text-muted-foreground">Unit</Label>
+                  <Label className="xs text-muted-foreground">Unit</Label>
                   <Input
-                    value={inventoryItems.find(item => item.id.toString() === newItem.itemId)?.unit || ""}
+                    value={inventoryItems.find((item: InventoryItem) => item.id.toString() === newItem.itemId)?.unit || ""}
                     readOnly
                     className="h-9 bg-muted/50"
                   />
                 </div>
 
                 <div className="w-24 space-y-2">
-                  <Label className="text-xs text-muted-foreground">Price</Label>
+                  <Label className="xs text-muted-foreground">Price</Label>
                   <Input
-                    value={inventoryItems.find(item => item.id.toString() === newItem.itemId)?.price?.toFixed(2) || "0.00"}
+                    value={inventoryItems.find((item: InventoryItem) => item.id.toString() === newItem.itemId)?.price?.toFixed(2) || "0.00"}
                     readOnly
                     className="h-9 bg-muted/50"
                   />
@@ -247,14 +299,26 @@ export default function PurchaseOrderNew() {
 
               {/* Action Buttons */}
               <div className="flex gap-3 pt-4">
-                <Button variant="outline" className="flex-1">
+                <Button 
+                  variant="outline" 
+                  className="flex-1"
+                  onClick={handleSaveDraft}
+                >
                   Save Draft
                 </Button>
                 <Button
                   className="flex-1 gradient-primary text-primary-foreground shadow-glow hover:shadow-lg transition-shadow"
-                  disabled={!selectedSupplier || purchaseItems.length === 0}
+                  disabled={!selectedSupplier || purchaseItems.length === 0 || createMutation.isPending}
+                  onClick={handleSubmit}
                 >
-                  Create Purchase Order
+                  {createMutation.isPending ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Creating...
+                    </>
+                  ) : (
+                    "Create Purchase Order"
+                  )}
                 </Button>
               </div>
             </div>

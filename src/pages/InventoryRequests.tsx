@@ -3,13 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Search, Check, X, Clock, Flame, Wine, MoreHorizontal, CheckCircle, XCircle } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { Search, Clock, Flame, Wine, Eye } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -17,9 +11,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { StockRequestService } from "@/services/stockRequestService";
-import { toast } from "@/components/ui/use-toast";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -40,7 +33,6 @@ const InventoryRequests = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedDepartment, setSelectedDepartment] = useState<string>("");
   const [selectedStatus, setSelectedStatus] = useState<string>("");
-  const queryClient = useQueryClient();
   const navigate = useNavigate();
 
   // Fetch stock requests
@@ -50,27 +42,6 @@ const InventoryRequests = () => {
       return StockRequestService.getAllStockRequests({
         department: selectedDepartment || undefined,
         status: selectedStatus || undefined,
-      });
-    },
-  });
-
-  // Update status mutation (approve/reject)
-  const updateStatusMutation = useMutation({
-    mutationFn: async ({ id, status }: { id: number; status: 'pending' | 'approved' | 'rejected' }) => {
-      return StockRequestService.updateStockRequestStatus(id, { status });
-    },
-    onSuccess: () => {
-      toast({
-        title: "Status Updated",
-        description: "Stock request status has been updated successfully.",
-      });
-      queryClient.invalidateQueries({ queryKey: ['stock-requests'] });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to update status.",
-        variant: "destructive",
       });
     },
   });
@@ -97,14 +68,6 @@ const InventoryRequests = () => {
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString();
-  };
-
-  const handleApprove = (id: number) => {
-    updateStatusMutation.mutate({ id, status: 'approved' });
-  };
-
-  const handleReject = (id: number) => {
-    updateStatusMutation.mutate({ id, status: 'rejected' });
   };
 
   const handleViewDetails = (id: number) => {
@@ -152,7 +115,7 @@ const InventoryRequests = () => {
           <Card className="glass-card">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                <Check className="h-4 w-4" />
+                <Eye className="h-4 w-4" />
                 Fulfilled Today
               </CardTitle>
             </CardHeader>
@@ -174,23 +137,23 @@ const InventoryRequests = () => {
             />
           </div>
           <div className="flex gap-2">
-            <Select value={selectedDepartment} onValueChange={setSelectedDepartment}>
+            <Select value={selectedDepartment || "all"} onValueChange={(val) => setSelectedDepartment(val === "all" ? "" : val)}>
               <SelectTrigger className="w-[150px]">
                 <SelectValue placeholder="All Departments" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Departments</SelectItem>
+                <SelectItem value="all">All Departments</SelectItem>
                 <SelectItem value="KITCHEN">Kitchen</SelectItem>
                 <SelectItem value="BAR">Bar</SelectItem>
                 <SelectItem value="SERVICE">Service</SelectItem>
               </SelectContent>
             </Select>
-            <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+            <Select value={selectedStatus || "all"} onValueChange={(val) => setSelectedStatus(val === "all" ? "" : val)}>
               <SelectTrigger className="w-[150px]">
                 <SelectValue placeholder="All Status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Status</SelectItem>
+                <SelectItem value="all">All Status</SelectItem>
                 <SelectItem value="pending">Pending</SelectItem>
                 <SelectItem value="approved">Approved</SelectItem>
                 <SelectItem value="fulfilled">Fulfilled</SelectItem>
@@ -256,42 +219,13 @@ const InventoryRequests = () => {
                           </Badge>
                         </td>
                         <td className="p-4">
-                          {request.status === "pending" && (
-                            <div className="flex items-center gap-2">
-                              <Button 
-                                size="sm" 
-                                variant="ghost" 
-                                className="h-8 w-8 p-0 text-emerald-500 hover:bg-emerald-500/10"
-                                onClick={() => handleApprove(request.id)}
-                                disabled={updateStatusMutation.isPending}
-                              >
-                                <CheckCircle className="h-4 w-4" />
-                              </Button>
-                              <Button 
-                                size="sm" 
-                                variant="ghost" 
-                                className="h-8 w-8 p-0 text-red-500 hover:bg-red-500/10"
-                                onClick={() => handleReject(request.id)}
-                                disabled={updateStatusMutation.isPending}
-                              >
-                                <XCircle className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          )}
-                          {request.status !== "pending" && (
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-8 w-8">
-                                  <MoreHorizontal className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => handleViewDetails(request.id)}>
-                                  View Details
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          )}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleViewDetails(request.id)}
+                          >
+                            View
+                          </Button>
                         </td>
                       </tr>
                     ))}

@@ -4,44 +4,129 @@ import { RecentOrders } from "@/components/dashboard/RecentOrders";
 import { RevenueChart } from "@/components/dashboard/RevenueChart";
 import { PopularItems } from "@/components/dashboard/PopularItems";
 import { UpcomingReservations } from "@/components/dashboard/UpcomingReservations";
-import { DollarSign, ShoppingBag, Users, TrendingUp } from "lucide-react";
+import { DollarSign, ShoppingBag, Users, TrendingUp, AlertTriangle, Package, Clock } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { OrderService } from "@/services/orderService";
+import { ReservationService } from "@/services/reservationService";
+import { TableService } from "@/services/tableService";
+import { InventoryService } from "@/services/inventoryService";
+import { StockRequestService } from "@/services/stockRequestService";
 
 export default function Dashboard() {
+  // Fetch recent orders
+  const { data: orders = [], isLoading: loadingOrders } = useQuery({
+    queryKey: ['recent-orders'],
+    queryFn: OrderService.getRecentOrders,
+  });
+
+  // Fetch today's reservations
+  const { data: reservations = [], isLoading: loadingReservations } = useQuery({
+    queryKey: ['today-reservations'],
+    queryFn: ReservationService.getTodayReservations,
+  });
+
+  // Fetch all tables
+  const { data: tables = [], isLoading: loadingTables } = useQuery({
+    queryKey: ['tables'],
+    queryFn: TableService.getAllTables,
+  });
+
+  // Fetch all inventory items
+  const { data: inventoryItems = [], isLoading: loadingInventory } = useQuery({
+    queryKey: ['inventory-items'],
+    queryFn: InventoryService.getAllItems,
+  });
+
+  // Fetch pending stock requests
+  const { data: pendingRequests = [], isLoading: loadingRequests } = useQuery({
+    queryKey: ['pending-stock-requests'],
+    queryFn: () => StockRequestService.getAllStockRequests({ status: 'pending' }),
+  });
+
+  // Calculate stats
+  const isLoading = loadingOrders || loadingReservations || loadingTables || loadingInventory || loadingRequests;
+  
+  const totalRevenue = orders.reduce((sum: number, order: any) => sum + (order.total || 0), 0);
+  const totalOrders = orders.length;
+  const activeTables = tables.filter((t: any) => t.status === 'OCCUPIED').length;
+  const availableTables = tables.filter((t: any) => t.status === 'AVAILABLE').length;
+  const avgOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+  
+  // Low stock items
+  const lowStockItems = inventoryItems.filter((item: any) => {
+    if (!item.minStock) return false;
+    return item.quantity <= item.minStock;
+  });
+  
+  // Upcoming reservations for today (sorted by time)
+  const upcomingReservations = reservations
+    .filter((r: any) => new Date(r.date) >= new Date())
+    .sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime())
+    .slice(0, 5);
+
   return (
-    <MainLayout title="Dashboard" subtitle="Welcome back, John! Here's what's happening today.">
+    <MainLayout title="Dashboard" subtitle="Welcome back! Here's what's happening today.">
       <div className="space-y-6 animate-fade-in">
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <StatCard
             title="Today's Revenue"
-            value={(4856 * 2400).toLocaleString('en-US', {  })}
-            change="+12.5% from yesterday"
+            value={isLoading ? "..." : `TZS ${totalRevenue.toLocaleString()}`}
+            change={isLoading ? "Loading..." : `${totalOrders} orders today`}
             changeType="positive"
             icon={DollarSign}
             iconColor="primary"
           />
           <StatCard
             title="Total Orders"
-            value="156"
-            change="+8 from yesterday"
-            changeType="positive"
+            value={isLoading ? "..." : String(totalOrders)}
+            change={isLoading ? "Loading..." : `${activeTables} active tables`}
+            changeType="neutral"
             icon={ShoppingBag}
             iconColor="success"
           />
           <StatCard
             title="Active Tables"
-            value="18/24"
-            change="6 available"
+            value={isLoading ? "..." : `${activeTables}/${tables.length}`}
+            change={isLoading ? "Loading..." : `${availableTables} available`}
             changeType="neutral"
             icon={Users}
             iconColor="warning"
           />
           <StatCard
+            title="Pending Requests"
+            value={isLoading ? "..." : String(pendingRequests.length)}
+            change={isLoading ? "Loading..." : "stock requests"}
+            changeType={pendingRequests.length > 0 ? "negative" : "positive"}
+            icon={Clock}
+            iconColor="warning"
+          />
+        </div>
+
+        {/* Secondary Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <StatCard
             title="Avg. Order Value"
-            value={(31.13 * 2400).toLocaleString('en-US',)}
-            change="+4.2% this week"
-            changeType="positive"
+            value={isLoading ? "..." : `TZS ${avgOrderValue.toFixed(0).toLocaleString()}`}
+            change={isLoading ? "Loading..." : "per order"}
+            changeType="neutral"
             icon={TrendingUp}
+            iconColor="primary"
+          />
+          <StatCard
+            title="Low Stock Items"
+            value={isLoading ? "..." : String(lowStockItems.length)}
+            change={isLoading ? "Loading..." : "items need restock"}
+            changeType={lowStockItems.length > 0 ? "negative" : "positive"}
+            icon={AlertTriangle}
+            iconColor="destructive"
+          />
+          <StatCard
+            title="Today's Reservations"
+            value={isLoading ? "..." : String(reservations.length)}
+            change={isLoading ? "Loading..." : "upcoming bookings"}
+            changeType="neutral"
+            icon={Package}
             iconColor="primary"
           />
         </div>
@@ -49,15 +134,15 @@ export default function Dashboard() {
         {/* Charts Row */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2">
-            <RevenueChart />
+            <RevenueChart orders={orders} isLoading={loadingOrders} />
           </div>
-          <PopularItems />
+          <PopularItems orders={orders} isLoading={loadingOrders} />
         </div>
 
         {/* Orders and Reservations */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <RecentOrders />
-          <UpcomingReservations />
+          <RecentOrders orders={orders} isLoading={loadingOrders} />
+          <UpcomingReservations reservations={upcomingReservations} isLoading={loadingReservations} />
         </div>
       </div>
     </MainLayout>

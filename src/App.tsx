@@ -50,6 +50,7 @@ import SettingsUnits from "./pages/SettingsUnits";
 import SettingsAlerts from "./pages/SettingsAlerts";
 import SettingsTables from "./pages/SettingsTables";
 import NotFound from "./pages/NotFound";
+import PurchaseOrderDetail from "./pages/PurchaseOrderDetail";
 
 const queryClient = new QueryClient();
 
@@ -90,6 +91,7 @@ const App = () => (
           <Route path="/purchases/receiving" element={<GoodsReceiving />} />
           <Route path="/purchases/suppliers" element={<Suppliers />} />
           <Route path="/purchases/new" element={<PurchaseOrderNew />} />
+          <Route path="/purchases/:id" element={<PurchaseOrderDetail />} />
           <Route path="/staff" element={<Staff />} />
           <Route path="/staff/new" element={<StaffNew />} />
           <Route path="/users" element={<Users />} />

@@ -3,33 +3,115 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Search, Eye, MoreHorizontal, Truck, Package, FileText } from "lucide-react";
+import { Plus, Search, Eye, MoreHorizontal, Truck, Package, FileText, Loader2, AlertCircle, Check, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Link } from "react-router-dom";
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { purchaseOrderService, type PurchaseOrder } from "@/services/purchaseOrderService";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
-const purchases = [
-  { id: "PO-001", supplier: "Fresh Farms Co.", items: 12, total: 2450.00 * 2400, date: "Jan 8, 2026", delivery: "Jan 10, 2026", status: "delivered" },
-  { id: "PO-002", supplier: "Premium Meats Inc.", items: 8, total: 3780.00 * 2400, date: "Jan 7, 2026", delivery: "Jan 9, 2026", status: "in-transit" },
-  { id: "PO-003", supplier: "Seafood Direct", items: 6, total: 1890.00 * 2400, date: "Jan 6, 2026", delivery: "Jan 8, 2026", status: "pending" },
-  { id: "PO-004", supplier: "Wine & Spirits Dist.", items: 24, total: 4560.00 * 2400, date: "Jan 5, 2026", delivery: "Jan 7, 2026", status: "delivered" },
-  { id: "PO-005", supplier: "Dairy Fresh", items: 15, total: 890.00 * 2400, date: "Jan 4, 2026", delivery: "Jan 6, 2026", status: "delivered" },
-];
-
-const statusStyles = {
+const statusStyles: Record<string, string> = {
   pending: "bg-warning/10 text-warning border-warning/20",
   "in-transit": "bg-primary/10 text-primary border-primary/20",
   delivered: "bg-success/10 text-success border-success/20",
   cancelled: "bg-destructive/10 text-destructive border-destructive/20",
+  APPROVED: "bg-success/10 text-success border-success/20",
+  ORDERED: "bg-primary/10 text-primary border-primary/20",
+  PARTIALLY_RECEIVED: "bg-primary/10 text-primary border-primary/20",
+  COMPLETED: "bg-success/10 text-success border-success/20",
+  CANCELLED: "bg-destructive/10 text-destructive border-destructive/20",
 };
 
-const statusIcons = {
+const statusLabels: Record<string, string> = {
+  pending: "Pending",
+  "in-transit": "In Transit",
+  delivered: "Delivered",
+  cancelled: "Cancelled",
+  APPROVED: "Approved",
+  ORDERED: "Ordered",
+  PARTIALLY_RECEIVED: "Partially Received",
+  COMPLETED: "Completed",
+  CANCELLED: "Cancelled",
+};
+
+const statusIcons: Record<string, React.ComponentType<{ className?: string }>> = {
   pending: FileText,
   "in-transit": Truck,
   delivered: Package,
   cancelled: FileText,
+  APPROVED: Check,
+  ORDERED: Truck,
+  PARTIALLY_RECEIVED: Package,
+  COMPLETED: Check,
+  CANCELLED: X,
 };
 
 export default function Purchases() {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedStatus, setSelectedStatus] = useState<string>("all");
+  const [rejectReason, setRejectReason] = useState("");
+  const [selectedPO, setSelectedPO] = useState<number | null>(null);
+  const queryClient = useQueryClient();
+
+  // Fetch purchase orders using React Query
+  const { data: purchaseOrders = [], isLoading, isError, error } = useQuery({
+    queryKey: ["purchaseOrders"],
+    queryFn: purchaseOrderService.getAllPurchaseOrders,
+  });
+
+  // Approve mutation
+  const approveMutation = useMutation({
+    mutationFn: (id: number) => purchaseOrderService.approvePurchaseOrder(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["purchaseOrders"] });
+    },
+  });
+
+  // Reject mutation
+  const rejectMutation = useMutation({
+    mutationFn: ({ id, reason }: { id: number; reason?: string }) =>
+      purchaseOrderService.rejectPurchaseOrder(id, reason),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["purchaseOrders"] });
+      setRejectReason("");
+      setSelectedPO(null);
+    },
+  });
+
+  const handleApprove = (id: number) => {
+    if (confirm("Are you sure you want to approve this purchase order?")) {
+      approveMutation.mutate(id);
+    }
+  };
+
+  const handleReject = () => {
+    if (selectedPO) {
+      rejectMutation.mutate({ id: selectedPO, reason: rejectReason });
+    }
+  };
+
+  // Filter purchase orders based on search and status
+  const filteredOrders = purchaseOrders.filter((po: PurchaseOrder) => {
+    const matchesSearch = po.poNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          po.supplier?.name?.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesStatus = selectedStatus === "all" || po.status === selectedStatus;
+    return matchesSearch && matchesStatus;
+  });
+
+  // Calculate stats
+  const totalOrders = purchaseOrders.length;
+  const pendingOrders = purchaseOrders.filter((po: PurchaseOrder) => po.status === "PENDING").length;
+  const inTransitOrders = purchaseOrders.filter((po: PurchaseOrder) => 
+    po.status === "ORDERED" || po.status === "PARTIALLY_RECEIVED"
+  ).length;
+  const totalSpent = purchaseOrders.reduce((sum: number, po: PurchaseOrder) => {
+    const poTotal = po.items.reduce((itemSum: number, item: any) => 
+      itemSum + (item.quantityOrdered * item.unitPrice), 0
+    );
+    return sum + poTotal;
+  }, 0);
+
   return (
     <MainLayout title="Purchases" subtitle="Manage supplier orders and deliveries">
       <div className="space-y-6 animate-fade-in">
@@ -37,22 +119,24 @@ export default function Purchases() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="bg-card rounded-xl p-5 shadow-card border border-border/50">
             <p className="text-sm text-muted-foreground">Total Orders</p>
-            <p className="text-2xl font-bold text-foreground mt-1">48</p>
+            <p className="text-2xl font-bold text-foreground mt-1">{isLoading ? "..." : totalOrders}</p>
             <p className="text-xs text-success mt-1">This month</p>
           </div>
           <div className="bg-card rounded-xl p-5 shadow-card border border-border/50">
             <p className="text-sm text-muted-foreground">Pending</p>
-            <p className="text-2xl font-bold text-warning mt-1">5</p>
+            <p className="text-2xl font-bold text-warning mt-1">{isLoading ? "..." : pendingOrders}</p>
             <p className="text-xs text-muted-foreground mt-1">Awaiting approval</p>
           </div>
           <div className="bg-card rounded-xl p-5 shadow-card border border-border/50">
             <p className="text-sm text-muted-foreground">In Transit</p>
-            <p className="text-2xl font-bold text-primary mt-1">3</p>
+            <p className="text-2xl font-bold text-primary mt-1">{isLoading ? "..." : inTransitOrders}</p>
             <p className="text-xs text-muted-foreground mt-1">On the way</p>
           </div>
           <div className="bg-card rounded-xl p-5 shadow-card border border-border/50">
             <p className="text-sm text-muted-foreground">Total Spent</p>
-            <p className="text-2xl font-bold text-foreground mt-1">{(45890 * 2400).toLocaleString('en-US', )}</p>
+            <p className="text-2xl font-bold text-foreground mt-1">
+              {isLoading ? "..." : `$${totalSpent.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+            </p>
             <p className="text-xs text-muted-foreground mt-1">This month</p>
           </div>
         </div>
@@ -62,17 +146,25 @@ export default function Purchases() {
           <div className="flex gap-3">
             <div className="relative flex-1 sm:w-80">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Search purchases..." className="pl-9" />
+              <Input 
+                placeholder="Search purchases..." 
+                className="pl-9" 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
             </div>
-            <Select defaultValue="all">
+            <Select value={selectedStatus} onValueChange={setSelectedStatus}>
               <SelectTrigger className="w-40">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="in-transit">In Transit</SelectItem>
-                <SelectItem value="delivered">Delivered</SelectItem>
+                <SelectItem value="PENDING">Pending</SelectItem>
+                <SelectItem value="APPROVED">Approved</SelectItem>
+                <SelectItem value="ORDERED">Ordered</SelectItem>
+                <SelectItem value="PARTIALLY_RECEIVED">Partially Received</SelectItem>
+                <SelectItem value="COMPLETED">Completed</SelectItem>
+                <SelectItem value="CANCELLED">Cancelled</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -84,54 +176,152 @@ export default function Purchases() {
           </Link>
         </div>
 
-        {/* Purchases Table */}
-        <div className="bg-card rounded-xl shadow-card border border-border/50 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-muted/50">
-                <tr>
-                  <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground">Order ID</th>
-                  <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground">Supplier</th>
-                  <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground">Items</th>
-                  <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground">Order Date</th>
-                  <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground">Status</th>
-                  <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground">Total</th>
-                  <th className="text-right px-6 py-4 text-sm font-medium text-muted-foreground">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {purchases.map((purchase) => {
-                  const StatusIcon = statusIcons[purchase.status as keyof typeof statusIcons];
-                  return (
-                    <tr key={purchase.id} className="hover:bg-muted/30 transition-colors">
-                      <td className="px-6 py-4 font-medium text-foreground">{purchase.id}</td>
-                      <td className="px-6 py-4 text-foreground">{purchase.supplier}</td>
-                      <td className="px-6 py-4 text-foreground">{purchase.items} items</td>
-                      <td className="px-6 py-4 text-muted-foreground">{purchase.date}</td>
-                      <td className="px-6 py-4">
-                        <Badge className={cn("capitalize", statusStyles[purchase.status as keyof typeof statusStyles])}>
-                          <StatusIcon className="h-3 w-3 mr-1" />
-                          {purchase.status.replace("-", " ")}
-                        </Badge>
-                      </td>
-                      <td className="px-6 py-4 font-semibold text-foreground">{purchase.total.toLocaleString('en-US', )}</td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center justify-end gap-2">
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </div>
+        {/* Error State */}
+        {isError && (
+          <div className="bg-destructive/10 border border-destructive/20 rounded-xl p-4 flex items-center gap-3">
+            <AlertCircle className="h-5 w-5 text-destructive" />
+            <p className="text-destructive">Failed to load purchase orders: {error instanceof Error ? error.message : "Unknown error"}</p>
+          </div>
+        )}
+
+        {/* Loading State */}
+        {isLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <span className="ml-3 text-muted-foreground">Loading purchase orders...</span>
+          </div>
+        ) : (
+          /* Purchases Table */
+          <div className="bg-card rounded-xl shadow-card border border-border/50 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-muted/50">
+                  <tr>
+                    <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground">Order ID</th>
+                    <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground">Supplier</th>
+                    <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground">Items</th>
+                    <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground">Order Date</th>
+                    <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground">Status</th>
+                    <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground">Total</th>
+                    <th className="text-right px-6 py-4 text-sm font-medium text-muted-foreground">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {filteredOrders.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="px-6 py-12 text-center text-muted-foreground">
+                        No purchase orders found.
                       </td>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                  ) : (
+                    filteredOrders.map((purchaseOrder: PurchaseOrder) => {
+                      const StatusIcon = statusIcons[purchaseOrder.status] || FileText;
+                      const orderTotal = purchaseOrder.items.reduce((sum: number, item: any) => 
+                        sum + (item.quantityOrdered * item.unitPrice), 0
+                      );
+                      
+                      return (
+                        <tr key={purchaseOrder.id} className="hover:bg-muted/30 transition-colors">
+                          <td className="px-6 py-4 font-medium text-foreground">{purchaseOrder.poNumber}</td>
+                          <td className="px-6 py-4 text-foreground">{purchaseOrder.supplier?.name || `Supplier #${purchaseOrder.supplierId}`}</td>
+                          <td className="px-6 py-4 text-foreground">{purchaseOrder.items.length} items</td>
+                          <td className="px-6 py-4 text-muted-foreground">
+                            {purchaseOrder.orderedAt ? new Date(purchaseOrder.orderedAt).toLocaleDateString() : "-"}
+                          </td>
+                          <td className="px-6 py-4">
+                            <Badge className={cn("capitalize", statusStyles[purchaseOrder.status] || statusStyles.pending)}>
+                              <StatusIcon className="h-3 w-3 mr-1" />
+                              {statusLabels[purchaseOrder.status] || purchaseOrder.status}
+                            </Badge>
+                          </td>
+                          <td className="px-6 py-4 font-semibold text-foreground">
+                            ${orderTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex items-center justify-end gap-2">
+                              <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
+                                <Link to={`/purchases/${purchaseOrder.id}`}>
+                                  <Eye className="h-4 w-4" />
+                                </Link>
+                              </Button>
+                              
+                              {/* Approve/Reject buttons for pending orders */}
+                              {purchaseOrder.status === "PENDING" && (
+                                <>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 text-success hover:text-success hover:bg-success/10"
+                                    onClick={() => handleApprove(purchaseOrder.id)}
+                                    disabled={approveMutation.isPending}
+                                  >
+                                    {approveMutation.isPending && approveMutation.variables === purchaseOrder.id ? (
+                                      <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                      <Check className="h-4 w-4" />
+                                    )}
+                                  </Button>
+                                  
+                                  <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                        onClick={() => setSelectedPO(purchaseOrder.id)}
+                                      >
+                                        <X className="h-4 w-4" />
+                                      </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                      <AlertDialogHeader>
+                                        <AlertDialogTitle>Reject Purchase Order</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                          Please provide a reason for rejecting this purchase order.
+                                        </AlertDialogDescription>
+                                      </AlertDialogHeader>
+                                      <div className="py-4">
+                                        <Input
+                                          placeholder="Rejection reason..."
+                                          value={rejectReason}
+                                          onChange={(e) => setRejectReason(e.target.value)}
+                                        />
+                                      </div>
+                                      <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                        <AlertDialogAction 
+                                          onClick={handleReject}
+                                          disabled={rejectMutation.isPending}
+                                        >
+                                          {rejectMutation.isPending ? (
+                                            <>
+                                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                              Rejecting...
+                                            </>
+                                          ) : (
+                                            "Reject"
+                                          )}
+                                        </AlertDialogAction>
+                                      </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                  </AlertDialog>
+                                </>
+                              )}
+                              
+                              <Button variant="ghost" size="icon" className="h-8 w-8">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </MainLayout>
   );
