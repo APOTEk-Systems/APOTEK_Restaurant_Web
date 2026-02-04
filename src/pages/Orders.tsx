@@ -34,8 +34,8 @@ import { Link } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { OrderService } from "@/services/orderService";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { PrintService } from "@/services/printService";
-import { printPdf } from "tauri-plugin-printer-v2";
+import { invoke } from '@tauri-apps/api/core';
+
 
 const statusStyles = {
   pending: "bg-warning/10 text-warning border-warning/20",
@@ -118,17 +118,54 @@ export default function Orders() {
     setIsModalOpen(false);
   };
 
-  const handleGenerateBill = async (order: any) => {
-    const printResult = await printPdf({
-      path: "download.pdf",
-      printer: "POS-58",
-      id: "unique-print-job-id",
-      print_settings: "",
-      remove_after_print: true,
-    });
-    console.log("Print Result:", printResult);
-  };
+  
 
+
+const S = {
+  reset: '\x1B\x40',
+  boldOn: '\x1B\x45\x01',
+  boldOff: '\x1B\x45\x00',
+  center: '\x1B\x61\x01',
+  cut: '\x1D\x56\x41\x03'
+};
+
+const handleGenerateBill = async (order: any) => {
+  // Construct your raw string
+  const now = new Date();
+  const formattedDate = `${now.toLocaleDateString()} ${now.toLocaleTimeString()}`;
+  
+  let receipt = `${S.reset}${S.center}${S.boldOn}APOTEK RESTO${S.boldOff}\n`;
+  receipt += `--------------------------------\n`;
+  receipt += `Order #${order.orderNumber}\n`;
+  receipt += `Table: ${order.tableNumber}\n`;
+  receipt += `Waiter: ${order.waiter || 'N/A'}\n`;
+  receipt += `Date: ${formattedDate}\n`;
+  receipt += `--------------------------------\n`;
+  
+  // Add order items
+  order.orderItems.forEach((item: any) => {
+    const itemTotal = (item.quantity * item.price).toFixed(2);
+    const itemLine = `${item.menuItem.name} x${item.quantity}`;
+    receipt += `${itemLine.padEnd(22)}${itemTotal.padStart(10)}\n`;
+  });
+  
+  receipt += `--------------------------------\n`;
+  receipt += `${'Subtotal:'.padEnd(22)}${order.total.toFixed(2).padStart(10)}\n`;
+  const totalLine = `${S.boldOn}TOTAL:`.padEnd(22) + order.total.toFixed(2).padStart(10) + S.boldOff;
+  receipt += totalLine + '\n';
+  receipt += `\n\n${S.cut}`;
+
+  try {
+    // This matches the function name in your Rust code
+    const response = await invoke('print_raw_silent', {
+      printerName: 'POS-58', // e.g., 'EPSON TM-T20'
+      content: receipt
+    });
+    console.log(response);
+  } catch (err) {
+    console.error("Rust printing failed:", err);
+  }
+};
   const getStatusActions = (status: string, orderId: string) => {
     switch (status) {
       case "completed":
