@@ -5,9 +5,9 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ArrowLeft, Plus, Trash2, CreditCard, DollarSign, Receipt, CheckCircle, Loader2, Split } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, CreditCard, DollarSign, Receipt, CheckCircle, Loader2, Split, AlertCircle } from "lucide-react";
 import { Link, useParams, useNavigate } from "react-router-dom";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { OrderService, Order } from "@/services/orderService";
 import { PaymentService, PaymentMethod, Payment } from "@/services/paymentService";
@@ -27,6 +27,13 @@ interface OrderPaymentSummary {
   payments: Payment[];
 }
 
+interface SplitPayment {
+  amount: string;
+  method: PaymentMethod;
+  transactionId: string;
+  itemIds?: number[];
+}
+
 type SplitType = 'method' | 'item';
 
 export default function OrderPay() {
@@ -37,6 +44,7 @@ export default function OrderPay() {
   const [paymentSummary, setPaymentSummary] = useState<OrderPaymentSummary | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<string[]>([]);
 
   // Payment form state
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod>("CASH");
@@ -46,7 +54,7 @@ export default function OrderPay() {
   // Split payment state
   const [isSplitMode, setIsSplitMode] = useState(false);
   const [splitType, setSplitType] = useState<SplitType>("method");
-  const [splitPayments, setSplitPayments] = useState<Array<{ amount: string; method: PaymentMethod; transactionId: string; itemIds?: number[] }>>([
+  const [splitPayments, setSplitPayments] = useState<SplitPayment[]>([
     { amount: "", method: "CASH", transactionId: "", itemIds: [] },
   ]);
 
@@ -86,6 +94,81 @@ export default function OrderPay() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Helper to get all selected item IDs across all payments
+  const getAllSelectedItemIds = useMemo(() => {
+    const allIds: number[] = [];
+    splitPayments.forEach((payment) => {
+      if (payment.itemIds) {
+        payment.itemIds.forEach((id) => {
+          if (!allIds.includes(id)) {
+            allIds.push(id);
+          }
+        });
+      }
+    });
+    return allIds;
+  }, [splitPayments]);
+
+  // Helper to check if an item is already selected in another payment
+  const isItemSelectedInOtherPayment = (itemId: number, currentIndex: number): boolean => {
+    return splitPayments.some((payment, index) => {
+      if (index === currentIndex) return false;
+      return payment.itemIds?.includes(itemId) || false;
+    });
+  };
+
+  // Validate split payments
+  const validateSplitPayments = (): string[] => {
+    const errors: string[] = [];
+
+    // Check for duplicate items
+    const selectedItemsCount: Record<number, number> = {};
+    splitPayments.forEach((payment) => {
+      if (payment.itemIds) {
+        payment.itemIds.forEach((itemId) => {
+          selectedItemsCount[itemId] = (selectedItemsCount[itemId] || 0) + 1;
+        });
+      }
+    });
+
+    Object.entries(selectedItemsCount).forEach(([itemId, count]) => {
+      if (count > 1) {
+        const itemName = order?.orderItems.find(i => i.id === parseInt(itemId))?.menuItem?.name || `Item #${itemId}`;
+        errors.push(`${itemName} is selected in multiple payments`);
+      }
+    });
+
+    // Check if all items are exhausted in one payment
+    const totalSelectedItems = getAllSelectedItemIds.length;
+    const totalOrderItems = order?.orderItems.length || 0;
+
+    if (splitType === "item" && totalSelectedItems === totalOrderItems && totalOrderItems > 0) {
+      errors.push("Cannot select all items in split payment. Use single payment for full order payment.");
+    }
+
+    // Check if total payment exceeds order total
+    const totalPayment = splitPayments.reduce((sum, payment) => sum + (parseFloat(payment.amount) || 0), 0);
+    if (totalPayment > (paymentSummary?.totalAmount || 0)) {
+      errors.push(`Total payments ($${totalPayment.toFixed(2)}) exceed order total ($${(paymentSummary?.totalAmount || 0).toFixed(2)})`);
+    }
+
+    // Check if total payment is zero
+    if (totalPayment <= 0) {
+      errors.push("Total payment amount must be greater than zero");
+    }
+
+    // Check for empty payments (no amount or no items)
+    splitPayments.forEach((payment, index) => {
+      const hasAmount = parseFloat(payment.amount) > 0;
+      const hasItems = payment.itemIds && payment.itemIds.length > 0;
+      if (!hasAmount && !hasItems) {
+        errors.push(`Payment ${index + 1} has no amount or items selected`);
+      }
+    });
+
+    return errors;
   };
 
   const handleSinglePayment = async () => {
@@ -130,28 +213,36 @@ export default function OrderPay() {
   const handleSplitPayment = async () => {
     if (!order || !paymentSummary) return;
 
+    // Validate before submitting
+    const errors = validateSplitPayments();
+    if (errors.length > 0) {
+      setValidationErrors(errors);
+      toast({
+        title: "Validation Error",
+        description: errors[0],
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setValidationErrors([]);
+
     const payments = splitPayments
-      .filter((p) => p.amount && parseFloat(p.amount) > 0)
-      .map((p) => ({
-        amount: parseFloat(p.amount),
-        method: p.method,
-        transactionId: p.transactionId || undefined,
+      .filter((payment) => {
+        const hasAmount = parseFloat(payment.amount) > 0;
+        const hasItems = payment.itemIds && payment.itemIds.length > 0;
+        return hasAmount || hasItems;
+      })
+      .map((payment) => ({
+        amount: parseFloat(payment.amount) || calculateItemTotal(payment.itemIds || []),
+        method: payment.method,
+        transactionId: payment.transactionId || undefined,
       }));
 
     if (payments.length === 0) {
       toast({
         title: "No Payments",
         description: "Please add at least one payment",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const totalPayment = payments.reduce((sum, p) => sum + p.amount, 0);
-    if (totalPayment > paymentSummary.totalAmount) {
-      toast({
-        title: "Amount Exceeds Total",
-        description: `Total payments ($${totalPayment.toFixed(2)}) exceed order total ($${paymentSummary.totalAmount.toFixed(2)})`,
         variant: "destructive",
       });
       return;
@@ -190,16 +281,18 @@ export default function OrderPay() {
 
   const removeSplitPayment = (index: number) => {
     setSplitPayments(splitPayments.filter((_, i) => i !== index));
+    setValidationErrors([]);
   };
 
   const updateSplitPayment = (index: number, field: string, value: string | PaymentMethod | number[]) => {
     const updated = [...splitPayments];
     updated[index] = { ...updated[index], [field]: value };
     setSplitPayments(updated);
+    setValidationErrors([]);
   };
 
   const calculateSplitTotal = () => {
-    return splitPayments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
+    return splitPayments.reduce((sum, payment) => sum + (parseFloat(payment.amount) || 0), 0);
   };
 
   const calculateItemTotal = (itemIds: number[]) => {
@@ -216,6 +309,15 @@ export default function OrderPay() {
     if (currentIds.includes(itemId)) {
       updated[index].itemIds = currentIds.filter((id) => id !== itemId);
     } else {
+      // Check if item is already selected in another payment
+      if (isItemSelectedInOtherPayment(itemId, index)) {
+        toast({
+          title: "Item Already Selected",
+          description: "This item is already selected in another payment",
+          variant: "destructive",
+        });
+        return;
+      }
       updated[index].itemIds = [...currentIds, itemId];
     }
     
@@ -224,18 +326,35 @@ export default function OrderPay() {
     updated[index].amount = itemTotal > 0 ? itemTotal.toFixed(2) : "";
     
     setSplitPayments(updated);
+    setValidationErrors([]);
   };
 
   const handleSelectAllItems = (index: number) => {
     const updated = [...splitPayments];
     const allItemIds = order?.orderItems.map((item) => item.id) || [];
-    updated[index].itemIds = allItemIds;
+    
+    // Check if any items are already selected in other payments
+    const alreadySelected = allItemIds.filter(id => isItemSelectedInOtherPayment(id, index));
+    
+    // Only select items that aren't already selected
+    const availableItemIds = allItemIds.filter(id => !isItemSelectedInOtherPayment(id, index));
+    
+    updated[index].itemIds = availableItemIds;
     
     // Auto-calculate amount
-    const itemTotal = order?.orderItems.reduce((sum, item) => sum + item.price, 0) || 0;
+    const itemTotal = calculateItemTotal(availableItemIds);
     updated[index].amount = itemTotal > 0 ? itemTotal.toFixed(2) : "";
     
+    if (alreadySelected.length > 0) {
+      toast({
+        title: "Some Items Excluded",
+        description: `${alreadySelected.length} item(s) were already selected in other payments and were not included`,
+        variant: "default",
+      });
+    }
+    
     setSplitPayments(updated);
+    setValidationErrors([]);
   };
 
   const handleDeselectAllItems = (index: number) => {
@@ -243,6 +362,14 @@ export default function OrderPay() {
     updated[index].itemIds = [];
     updated[index].amount = "";
     setSplitPayments(updated);
+    setValidationErrors([]);
+  };
+
+  const getItemSelectedBy = (itemId: number): number | null => {
+    const paymentIndex = splitPayments.findIndex((payment) => 
+      payment.itemIds?.includes(itemId)
+    );
+    return paymentIndex >= 0 ? paymentIndex : null;
   };
 
   if (isLoading) {
@@ -269,6 +396,68 @@ export default function OrderPay() {
   }
 
   const changeAmount = parseFloat(amountReceived) - (paymentSummary?.remainingAmount || 0);
+
+  // Validation summary
+  const validationIssues = validateSplitPayments();
+
+  // Render order item for display
+  const renderOrderItem = (item: { id: number; menuItem?: { name?: string }; quantity: number; price: number }, selectedBy: number | null) => {
+    return (
+      <div
+        key={item.id}
+        className={`flex justify-between items-center p-2 rounded-lg ${
+          selectedBy !== null 
+            ? 'bg-muted/50 border border-primary/20' 
+            : 'bg-muted/30'
+        }`}
+      >
+        <div className="flex items-center gap-2">
+          <span className="text-sm">{item.menuItem?.name || `Item #${item.id}`}</span>
+          <span className="text-xs text-muted-foreground">x{item.quantity}</span>
+          {selectedBy !== null && (
+            <span className="text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded">
+              P{selectedBy + 1}
+            </span>
+          )}
+        </div>
+        <span className="text-sm font-medium">
+          ${(item.price * item.quantity).toFixed(2)}
+        </span>
+      </div>
+    );
+  };
+
+  // Render item checkbox for split payment
+  const renderItemCheckbox = (item: { id: number; menuItem?: { name?: string }; price: number }, splitPayment: SplitPayment, index: number) => {
+    const isSelectedInThis = (splitPayment.itemIds || []).includes(item.id);
+    const isSelectedInOther = isItemSelectedInOtherPayment(item.id, index);
+    const isDisabled = !isSelectedInThis && isSelectedInOther;
+    const selectedBy = isSelectedInOther ? getItemSelectedBy(item.id) : null;
+    
+    return (
+      <div key={item.id} className={`flex items-center space-x-2 ${isDisabled ? 'opacity-50' : ''}`}>
+        <Checkbox
+          id={`item-${index}-${item.id}`}
+          checked={isSelectedInThis}
+          disabled={isDisabled}
+          onCheckedChange={() => handleItemToggle(index, item.id)}
+        />
+        <label
+          htmlFor={`item-${index}-${item.id}`}
+          className={`text-sm flex-1 cursor-pointer ${
+            isDisabled ? 'line-through text-muted-foreground' : ''
+          }`}
+        >
+          {item.menuItem?.name || `Item #${item.id}`} - ${item.price.toFixed(2)}
+          {isDisabled && selectedBy !== null && (
+            <span className="text-xs text-muted-foreground ml-1">
+              (P{selectedBy + 1})
+            </span>
+          )}
+        </label>
+      </div>
+    );
+  };
 
   return (
     <MainLayout title="Record Payment" subtitle={`Order #${order.orderNumber}`}>
@@ -311,20 +500,10 @@ export default function OrderPay() {
                 <div>
                   <p className="text-sm text-muted-foreground mb-2">Items</p>
                   <div className="space-y-2 max-h-60 overflow-y-auto">
-                    {order.orderItems.map((item) => (
-                      <div
-                        key={item.id}
-                        className="flex justify-between items-center p-2 rounded-lg bg-muted/30"
-                      >
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm">{item.menuItem?.name || `Item #${item.menuItemId}`}</span>
-                          <span className="text-xs text-muted-foreground">x{item.quantity}</span>
-                        </div>
-                        <span className="text-sm font-medium">
-                          ${(item.price * item.quantity).toFixed(2)}
-                        </span>
-                      </div>
-                    ))}
+                    {order.orderItems.map((item) => {
+                      const selectedBy = getItemSelectedBy(item.id);
+                      return renderOrderItem(item, selectedBy);
+                    })}
                   </div>
                 </div>
 
@@ -387,7 +566,10 @@ export default function OrderPay() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => setIsSplitMode(!isSplitMode)}
+                    onClick={() => {
+                      setIsSplitMode(!isSplitMode);
+                      setValidationErrors([]);
+                    }}
                     className="text-sm"
                   >
                     {isSplitMode ? (
@@ -498,7 +680,10 @@ export default function OrderPay() {
                       <Button
                         variant={splitType === "method" ? "default" : "outline"}
                         size="sm"
-                        onClick={() => setSplitType("method")}
+                        onClick={() => {
+                          setSplitType("method");
+                          setValidationErrors([]);
+                        }}
                         className="flex-1"
                       >
                         <CreditCard className="h-4 w-4 mr-1" />
@@ -507,7 +692,10 @@ export default function OrderPay() {
                       <Button
                         variant={splitType === "item" ? "default" : "outline"}
                         size="sm"
-                        onClick={() => setSplitType("item")}
+                        onClick={() => {
+                          setSplitType("item");
+                          setValidationErrors([]);
+                        }}
                         className="flex-1"
                       >
                         <Split className="h-4 w-4 mr-1" />
@@ -517,7 +705,25 @@ export default function OrderPay() {
 
                     {splitType === "item" && (
                       <div className="text-sm text-muted-foreground mb-2">
-                        Select items to include in each split payment
+                        Select items to include in each split payment. Items cannot be selected in multiple payments.
+                      </div>
+                    )}
+
+                    {/* Validation Errors */}
+                    {validationIssues.length > 0 && (
+                      <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20">
+                        <div className="flex items-center gap-2 mb-2">
+                          <AlertCircle className="h-4 w-4 text-red-500" />
+                          <span className="text-sm font-medium text-red-500">Validation Issues</span>
+                        </div>
+                        <ul className="list-disc list-inside text-sm text-red-500/80 space-y-1">
+                          {validationIssues.slice(0, 3).map((error, idx) => (
+                            <li key={idx}>{error}</li>
+                          ))}
+                          {validationIssues.length > 3 && (
+                            <li>+{validationIssues.length - 3} more issues</li>
+                          )}
+                        </ul>
                       </div>
                     )}
 
@@ -560,22 +766,14 @@ export default function OrderPay() {
                               </div>
                             </div>
                             <div className="space-y-1 max-h-32 overflow-y-auto border rounded p-2">
-                              {order.orderItems.map((item) => (
-                                <div key={item.id} className="flex items-center space-x-2">
-                                  <Checkbox
-                                    id={`item-${index}-${item.id}`}
-                                    checked={(payment.itemIds || []).includes(item.id)}
-                                    onCheckedChange={() => handleItemToggle(index, item.id)}
-                                  />
-                                  <label
-                                    htmlFor={`item-${index}-${item.id}`}
-                                    className="text-sm flex-1 cursor-pointer"
-                                  >
-                                    {item.menuItem?.name || `Item #${item.menuItemId}`} - ${item.price.toFixed(2)}
-                                  </label>
-                                </div>
-                              ))}
+                              {order.orderItems.map((item) => renderItemCheckbox(item, payment, index))}
                             </div>
+                            {getAllSelectedItemIds.length === order.orderItems.length && (
+                              <p className="text-xs text-amber-500 flex items-center gap-1">
+                                <AlertCircle className="h-3 w-3" />
+                                All items selected. Use single payment for full order.
+                              </p>
+                            )}
                           </div>
                         )}
 
@@ -679,7 +877,8 @@ export default function OrderPay() {
                         disabled={
                           isSubmitting ||
                           calculateSplitTotal() <= 0 ||
-                          calculateSplitTotal() > (paymentSummary?.totalAmount || 0)
+                          calculateSplitTotal() > (paymentSummary?.totalAmount || 0) ||
+                          validationIssues.length > 0
                         }
                         onClick={handleSplitPayment}
                       >

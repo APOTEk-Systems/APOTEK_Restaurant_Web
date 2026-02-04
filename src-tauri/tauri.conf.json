@@ -1,8 +1,8 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "restaurant_kds_pos",
+  "productName": "pos-kds-restaurant",
   "version": "0.1.0",
-  "identifier": "com.example.tauri",
+  "identifier": "com.kds.dev",
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:8080",
@@ -12,20 +12,16 @@
   "app": {
     "windows": [
       {
-        "title": "Restaurant POS",
+        "title": "pos-kds-restaurant",
         "width": 800,
         "height": 600,
-        "fullscreen": true,
-        "decorations": false,
-        "resizable": false
-        
+        "resizable": true,
+        "fullscreen": false
       }
     ],
-  
     "security": {
-      "csp": "default-src 'self'; connect-src 'self' http://212.115.110.115:8080"
+      "csp": null
     }
-   
   },
   "bundle": {
     "active": true,

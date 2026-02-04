@@ -1,0 +1,4 @@
+The build has completed successfully!
+
+You can find the generated installers in the following directory:
+C:\Users\malew\Desktop\APOTEk_Restaurant\frontend\src-tauri	argetelease\bundle

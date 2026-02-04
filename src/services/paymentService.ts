@@ -30,10 +30,31 @@ export interface CreatePaymentData {
   transactionId?: string;
 }
 
+export interface SplitPaymentData {
+  orderId: number;
+  payments: Array<{
+    amount: number;
+    paymentMethod: PaymentMethod;
+    transactionId?: string;
+  }>;
+}
+
 export const PaymentService = {
   // Create a single payment
   createPayment: async (paymentData: CreatePaymentData): Promise<Payment> => {
     const response = await api.post('/payment', paymentData);
+    return response.data;
+  },
+
+  // Process split payment (multiple payment methods)
+  processSplitPayment: async (
+    orderId: number,
+    payments: Array<{ amount: number; paymentMethod: PaymentMethod; transactionId?: string }>
+  ): Promise<Payment[]> => {
+    const response = await api.post('/payment/split', {
+      orderId,
+      payments,
+    });
     return response.data;
   },
 
@@ -77,33 +98,5 @@ export const PaymentService = {
       paymentMethod,
       transactionId,
     });
-  },
-
-  // Process split payment (multiple payment methods)
-  processSplitPayment: async (
-    orderId: number,
-    payments: Array<{ amount: number; paymentMethod: PaymentMethod; transactionId?: string }>
-  ): Promise<Payment[]> => {
-    const summary = await PaymentService.getOrderPaymentSummary(orderId);
-    const totalPayment = payments.reduce((sum, p) => sum + p.amount, 0);
-
-    if (totalPayment > summary.totalAmount) {
-      throw new Error(
-        `Total payment amount (${totalPayment}) exceeds order total (${summary.totalAmount})`
-      );
-    }
-
-    const results: Payment[] = [];
-    for (const payment of payments) {
-      const result = await PaymentService.createPayment({
-        orderId,
-        amount: payment.amount,
-        paymentMethod: payment.paymentMethod,
-        transactionId: payment.transactionId,
-      });
-      results.push(result);
-    }
-
-    return results;
   },
 };
