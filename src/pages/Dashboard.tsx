@@ -85,14 +85,7 @@ export default function Dashboard() {
             icon={ShoppingBag}
             iconColor="success"
           />
-          <StatCard
-            title="Active Tables"
-            value={isLoading ? "..." : `${activeTables}/${tables.length}`}
-            change={isLoading ? "Loading..." : `${availableTables} available`}
-            changeType="neutral"
-            icon={Users}
-            iconColor="warning"
-          />
+        
           <StatCard
             title="Pending Requests"
             value={isLoading ? "..." : String(pendingRequests.length)}
@@ -101,19 +94,7 @@ export default function Dashboard() {
             icon={Clock}
             iconColor="warning"
           />
-        </div>
-
-        {/* Secondary Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <StatCard
-            title="Avg. Order Value"
-            value={isLoading ? "..." : `TZS ${avgOrderValue.toFixed(0).toLocaleString()}`}
-            change={isLoading ? "Loading..." : "per order"}
-            changeType="neutral"
-            icon={TrendingUp}
-            iconColor="primary"
-          />
-          <StatCard
+           <StatCard
             title="Low Stock Items"
             value={isLoading ? "..." : String(lowStockItems.length)}
             change={isLoading ? "Loading..." : "items need restock"}
@@ -121,15 +102,8 @@ export default function Dashboard() {
             icon={AlertTriangle}
             iconColor="destructive"
           />
-          <StatCard
-            title="Today's Reservations"
-            value={isLoading ? "..." : String(reservations.length)}
-            change={isLoading ? "Loading..." : "upcoming bookings"}
-            changeType="neutral"
-            icon={Package}
-            iconColor="primary"
-          />
         </div>
+
 
         {/* Charts Row */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

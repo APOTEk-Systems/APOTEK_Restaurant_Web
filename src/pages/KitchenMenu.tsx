@@ -24,7 +24,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { MenuService, type MenuItem, type MenuAddon, type MenuSideDish, type MenuCategory } from "@/services/menuService";
@@ -377,14 +377,11 @@ function SideDishCard({
 }
 
 export default function KitchenMenu() {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState("items");
-  const [editingItem, setEditingItem] = useState<KitchenMenuItem | null>(null);
-  const [editingAddon, setEditingAddon] = useState<MenuAddon | null>(null);
-  const [editingSideDish, setEditingSideDish] = useState<MenuSideDish | null>(null);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [togglingId, setTogglingId] = useState<number | null>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -609,76 +606,14 @@ export default function KitchenMenu() {
 
   const handleEdit = (item: KitchenMenuItem | MenuAddon | MenuSideDish, type: "menu" | "addon" | "side") => {
     if (type === "menu") {
-      setEditingItem(item as KitchenMenuItem);
+      // Navigate to MenuNew with the item ID for full editing
+      navigate(`/menu/new?type=kitchen&id=${item.id}`);
     } else if (type === "addon") {
-      setEditingAddon(item as MenuAddon);
+      // Navigate to MenuNew with the addon ID for editing
+      navigate(`/menu/new?type=kitchen&id=${item.id}&itemType=addon`);
     } else {
-      setEditingSideDish(item as MenuSideDish);
-    }
-    setIsEditDialogOpen(true);
-  };
-
-  const handleSaveEdit = () => {
-    if (editingItem) {
-      MenuService.updateMenuItem(editingItem.id, {
-        name: editingItem.name,
-        description: editingItem.description,
-        price: editingItem.price,
-      }).then(() => {
-        queryClient.invalidateQueries({ queryKey: ['menuItems'] });
-        setIsEditDialogOpen(false);
-        setEditingItem(null);
-        toast({
-          title: "Success",
-          description: "Menu item updated successfully",
-        });
-      }).catch((error: Error) => {
-        toast({
-          title: "Error",
-          description: error.message || "Failed to update menu item",
-          variant: "destructive",
-        });
-      });
-    } else if (editingAddon) {
-      MenuService.updateMenuAddon(editingAddon.id, {
-        name: editingAddon.name,
-        description: editingAddon.description || undefined,
-        price: editingAddon.price,
-      }).then(() => {
-        queryClient.invalidateQueries({ queryKey: ['menuAddons'] });
-        setIsEditDialogOpen(false);
-        setEditingAddon(null);
-        toast({
-          title: "Success",
-          description: "Addon updated successfully",
-        });
-      }).catch((error: Error) => {
-        toast({
-          title: "Error",
-          description: error.message || "Failed to update addon",
-          variant: "destructive",
-        });
-      });
-    } else if (editingSideDish) {
-      MenuService.updateMenuSideDish(editingSideDish.id, {
-        name: editingSideDish.name,
-        description: editingSideDish.description || undefined,
-        price: editingSideDish.price,
-      }).then(() => {
-        queryClient.invalidateQueries({ queryKey: ['menuSideDishes'] });
-        setIsEditDialogOpen(false);
-        setEditingSideDish(null);
-        toast({
-          title: "Success",
-          description: "Side dish updated successfully",
-        });
-      }).catch((error: Error) => {
-        toast({
-          title: "Error",
-          description: error.message || "Failed to update side dish",
-          variant: "destructive",
-        });
-      });
+      // Navigate to MenuNew with the side dish ID for editing
+      navigate(`/menu/new?type=kitchen&id=${item.id}&itemType=sideDish`);
     }
   };
 
@@ -840,7 +775,7 @@ export default function KitchenMenu() {
                         onChange={(e) => setSearchQuery(e.target.value)}
                       />
                     </div>
-                    <Link to="/menu/side-dishes/new">
+                    <Link to="/menu/new?type=kitchen&itemType=sideDish">
                       <Button className="gradient-primary text-primary-foreground shadow-glow hover:shadow-lg transition-shadow">
                         <Plus className="h-4 w-4 mr-2" />
                         Add Side Dish
@@ -919,122 +854,6 @@ export default function KitchenMenu() {
             </Tabs>
           </>
         )}
-
-        {/* Edit Dialog */}
-        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-          <DialogContent className="sm:max-w-[500px]">
-            <DialogHeader>
-              <DialogTitle>
-                {editingItem ? "Edit Menu Item" : editingAddon ? "Edit Addon" : editingSideDish ? "Edit Side Dish" : "Edit"}
-              </DialogTitle>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              {editingItem && (
-                <>
-                  <div className="space-y-2">
-                    <Label htmlFor="edit-name">Name</Label>
-                    <Input
-                      id="edit-name"
-                      value={editingItem.name}
-                      onChange={(e) => setEditingItem({ ...editingItem, name: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="edit-description">Description</Label>
-                    <Input
-                      id="edit-description"
-                      value={editingItem.description}
-                      onChange={(e) => setEditingItem({ ...editingItem, description: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="edit-price">Price</Label>
-                    <Input
-                      id="edit-price"
-                      type="number"
-                      value={editingItem.price}
-                      onChange={(e) => setEditingItem({ ...editingItem, price: parseFloat(e.target.value) })}
-                    />
-                  </div>
-                </>
-              )}
-              {editingAddon && (
-                <>
-                  <div className="space-y-2">
-                    <Label htmlFor="edit-name">Name</Label>
-                    <Input
-                      id="edit-name"
-                      value={editingAddon.name}
-                      onChange={(e) => setEditingAddon({ ...editingAddon, name: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="edit-description">Description</Label>
-                    <Input
-                      id="edit-description"
-                      value={editingAddon.description || ""}
-                      onChange={(e) => setEditingAddon({ ...editingAddon, description: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="edit-price">Price</Label>
-                    <Input
-                      id="edit-price"
-                      type="number"
-                      value={editingAddon.price}
-                      onChange={(e) => setEditingAddon({ ...editingAddon, price: parseFloat(e.target.value) })}
-                    />
-                  </div>
-                </>
-              )}
-              {editingSideDish && (
-                <>
-                  <div className="space-y-2">
-                    <Label htmlFor="edit-name">Name</Label>
-                    <Input
-                      id="edit-name"
-                      value={editingSideDish.name}
-                      onChange={(e) => setEditingSideDish({ ...editingSideDish, name: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="edit-description">Description</Label>
-                    <Input
-                      id="edit-description"
-                      value={editingSideDish.description || ""}
-                      onChange={(e) => setEditingSideDish({ ...editingSideDish, description: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="edit-price">Price</Label>
-                    <Input
-                      id="edit-price"
-                      type="number"
-                      value={editingSideDish.price}
-                      onChange={(e) => setEditingSideDish({ ...editingSideDish, price: parseFloat(e.target.value) })}
-                    />
-                  </div>
-                </>
-              )}
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => {
-                setIsEditDialogOpen(false);
-                setEditingItem(null);
-                setEditingAddon(null);
-                setEditingSideDish(null);
-              }}>
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                onClick={handleSaveEdit}
-              >
-                Save Changes
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
       </div>
     </MainLayout>
   );

@@ -7,24 +7,32 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, UtensilsCrossed, DollarSign, Clock, Tag, Plus, X } from "lucide-react";
-import { Link, useSearchParams } from "react-router-dom";
+import { ArrowLeft, UtensilsCrossed, DollarSign, Clock, Tag, Plus, X, Loader2 } from "lucide-react";
+import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { MenuService } from "@/services/menuService";
 import { useToast } from "@/hooks/use-toast";
-
-// Import types from menu service
 import { MenuCategory, MenuAddon, MenuSideDish } from "@/services/menuService";
 
 const allergens = ["Gluten", "Dairy", "Nuts", "Shellfish", "Eggs", "Soy", "Fish"];
 const dietaryOptions = ["Vegetarian", "Vegan", "Gluten-Free", "Keto", "Low-Carb", "Dairy-Free"];
 
-// No hardcoded side dish options - we fetch from backend
-
 export default function MenuNew() {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  // Check if we're in edit mode
+  const editId = searchParams.get('id');
+  const isEditMode = !!editId;
+  const type = searchParams.get('type');
+  const isKitchen = type === 'kitchen';
+  const isBar = type === 'bar';
+
+  // State for form fields
   const [selectedAllergens, setSelectedAllergens] = useState<string[]>([]);
   const [selectedDietary, setSelectedDietary] = useState<string[]>([]);
   const [ingredients, setIngredients] = useState<string[]>([]);
@@ -34,10 +42,6 @@ export default function MenuNew() {
   const [selectedAddons, setSelectedAddons] = useState<number[]>([]);
   const [hasAddons, setHasAddons] = useState(false);
   const [requiresSideDish, setRequiresSideDish] = useState(false);
-  // Removed state management - using React Query data directly
-  const [loadingCategories, setLoadingCategories] = useState(true);
-  const [loadingAddons, setLoadingAddons] = useState(false);
-  const [loadingSideDishes, setLoadingSideDishes] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -50,37 +54,71 @@ export default function MenuNew() {
     featured: false,
     seasonal: false
   });
-  const { toast } = useToast();
-
-  // Determine categories based on type parameter
-  const type = searchParams.get('type');
-  const isKitchen = type === 'kitchen';
-  const isBar = type === 'bar';
-
-  // Remove hardcoded categories - we'll fetch from API
-  // const kitchenCategories = ["Appetizers", "Main Dishes", "Side Dishes", "Desserts"];
-  // const barCategories = ["Cocktails", "Wines", "Beers", "Non-Alcoholic"];
-  // const allCategories = ["Appetizers", "Mains", "Desserts", "Beverages", "Sides", "Specials"];
-
-  // const categories = isKitchen ? kitchenCategories :
-  //                   isBar ? barCategories :
-  //                   allCategories;
-
-  // Filter categories based on menu type
- // Filter categories based on prep area
- // Filter categories based on prep area will be defined after categories
-
 
   // Fetch categories using React Query
-  const { data: categoriesData, isLoading: isLoadingCategories, error: categoriesError } = useQuery<MenuCategory[], Error>({
+  const { data: categoriesData, isLoading: isLoadingCategories } = useQuery<MenuCategory[], Error>({
     queryKey: ['menuCategories'],
     queryFn: MenuService.getAllMenuCategories,
   });
 
-  // Handle category selection and errors with useEffect
+  // Fetch addons using React Query (always fetch but not used unless hasAddons is true)
+  const { data: addonsData } = useQuery<MenuAddon[], Error>({
+    queryKey: ['menuAddons'],
+    queryFn: MenuService.getAllMenuAddons,
+  });
+
+  // Fetch side dishes using React Query
+  const { data: sideDishesData } = useQuery<MenuSideDish[], Error>({
+    queryKey: ['menuSideDishes'],
+    queryFn: MenuService.getAllMenuSideDishes,
+  });
+
+  // Fetch menu item data if in edit mode
+  const { data: menuItemData, isLoading: isLoadingMenuItem } = useQuery({
+    queryKey: ['menuItem', editId],
+    queryFn: () => MenuService.getMenuItemById(parseInt(editId!)),
+    enabled: isEditMode && !!editId,
+  });
+
+  // Populate form with existing data when in edit mode
   useEffect(() => {
-    if (categoriesData) {
-      // Set default category based on type
+    if (menuItemData) {
+      setFormData({
+        name: menuItemData.name || "",
+        description: menuItemData.description || "",
+        price: menuItemData.price || 0,
+        cost: menuItemData.cost || 0,
+        prepTime: menuItemData.prepTime || 0,
+        calories: menuItemData.calories || 0,
+        servingSize: menuItemData.servingSize || "",
+        available: menuItemData.isAvailable ?? true,
+        featured: menuItemData.featured || false,
+        seasonal: menuItemData.seasonal || false,
+      });
+      setSelectedAllergens(menuItemData.allergens || []);
+      setSelectedDietary(menuItemData.dietaryOptions || []);
+      setIngredients(menuItemData.ingredients || []);
+      setHasAddons(menuItemData.hasAddons || false);
+      setRequiresSideDish(menuItemData.requiresSideDish || false);
+      
+      // Set selected category
+      if (categoriesData && menuItemData.menuCategory) {
+        setSelectedCategory(menuItemData.menuCategory.name);
+      }
+      
+      // Set selected side dishes and addons from the item
+      if (menuItemData.sideDishes) {
+        setSelectedSideDishes(menuItemData.sideDishes.map((sd: any) => sd.id));
+      }
+      if (menuItemData.addons) {
+        setSelectedAddons(menuItemData.addons.map((a: any) => a.id));
+      }
+    }
+  }, [menuItemData, categoriesData]);
+
+  // Set default category when categories load
+  useEffect(() => {
+    if (categoriesData && !selectedCategory && !isEditMode) {
       if (isKitchen) {
         const kitchenCat = categoriesData.find(cat =>
           ["Appetizers", "Main Dishes", "Side Dishes", "Desserts"].includes(cat.name)
@@ -95,72 +133,97 @@ export default function MenuNew() {
         setSelectedCategory(categoriesData[0].name);
       }
     }
-  }, [categoriesData, isKitchen, isBar]);
+  }, [categoriesData, isKitchen, isBar, selectedCategory, isEditMode]);
 
-  useEffect(() => {
-    if (categoriesError) {
-      console.error("Error fetching categories:", categoriesError);
-      toast({
-        title: "Error",
-        description: "Failed to load menu categories",
-        variant: "destructive"
-      });
-    }
-  }, [categoriesError, toast]);
-
-  // Use categories data directly
+  // Use data
   const categories = categoriesData || [];
+  const addons = addonsData || [];
+  const sideDishes = sideDishesData || [];
 
   // Filter categories based on prep area
   const filteredCategories = categories.filter(category => {
     if (isKitchen) return category.prepArea === 'KITCHEN';
     if (isBar) return category.prepArea === 'BAR';
-    return true; // keep all if neither is selected
+    return true;
   });
 
-  // Fetch addons using React Query
-  const { data: addonsData, isLoading: isLoadingAddons, error: addonsError } = useQuery<MenuAddon[], Error>({
-    queryKey: ['menuAddons'],
-    queryFn: MenuService.getAllMenuAddons,
-    enabled: hasAddons,
-  });
+  // Create/update menu item mutation
+  const { mutate: saveMenuItem, isPending } = useMutation({
+    mutationFn: async (menuData: typeof formData) => {
+      // Find category ID
+      let categoryId = 1;
+      try {
+        const categories = await MenuService.getAllMenuCategories();
+        const existingCategory = categories.find(cat =>
+          cat.name.toLowerCase() === selectedCategory.toLowerCase()
+        );
+        if (existingCategory) {
+          categoryId = existingCategory.id;
+        } else {
+          const newCategory = await MenuService.createMenuCategory({
+            name: selectedCategory,
+            description: `${selectedCategory} category`,
+            prepArea: isBar ? 'BAR' : 'KITCHEN',
+            isActive: true
+          });
+          categoryId = newCategory.id;
+        }
+      } catch (error) {
+        console.error("Error handling category:", error);
+        categoryId = 1;
+      }
 
-  // Handle addons errors with useEffect
-  useEffect(() => {
-    if (addonsError) {
-      console.error("Error fetching addons:", addonsError);
+      const menuItemData = {
+        name: menuData.name,
+        description: menuData.description,
+        price: menuData.price,
+        cost: menuData.cost,
+        prepTime: menuData.prepTime,
+        calories: menuData.calories,
+        servingSize: menuData.servingSize,
+        isAvailable: menuData.available,
+        prepArea: isBar ? 'BAR' : 'KITCHEN',
+        categoryId: categoryId,
+        featured: menuData.featured,
+        seasonal: menuData.seasonal,
+        ingredients: ingredients,
+        allergens: selectedAllergens,
+        dietaryOptions: selectedDietary,
+        sideDishIds: selectedSideDishes.length > 0 ? selectedSideDishes : undefined,
+        addonIds: selectedAddons.length > 0 ? selectedAddons : undefined,
+        hasAddons: hasAddons,
+        requiresSideDish: requiresSideDish,
+      };
+
+      if (isEditMode && editId) {
+        return MenuService.updateMenuItem(parseInt(editId), menuItemData);
+      } else {
+        return MenuService.createMenuItem(menuItemData);
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["menuItems"] });
+      toast({
+        title: "Success",
+        description: isEditMode 
+          ? `${isBar ? "Bar item" : "Menu item"} updated successfully!`
+          : `${isBar ? "Bar item" : "Menu item"} created successfully!`,
+        variant: "default"
+      });
+      
+      // Redirect back to menu page
+      setTimeout(() => {
+        navigate(isKitchen ? "/kitchen/menu" : isBar ? "/bar/menu" : "/menu");
+      }, 1500);
+    },
+    onError: (error: any) => {
       toast({
         title: "Error",
-        description: "Failed to load addons",
+        description: error.response?.data?.message || `Failed to ${isEditMode ? 'update' : 'create'} menu item`,
         variant: "destructive"
       });
     }
-  }, [addonsError, toast]);
-
-  // addons is already defined above
-
-  // Fetch side dishes using React Query
-  const { data: sideDishesData, isLoading: isLoadingSideDishes, error: sideDishesError } = useQuery<MenuSideDish[], Error>({
-    queryKey: ['menuSideDishes'],
-    queryFn: MenuService.getAllMenuSideDishes,
-    enabled: requiresSideDish,
   });
-
-  // Handle side dishes errors with useEffect
-  useEffect(() => {
-    if (sideDishesError) {
-      console.error("Error fetching side dishes:", sideDishesError);
-      toast({
-        title: "Error",
-        description: "Failed to load side dishes",
-        variant: "destructive"
-      });
-    }
-  }, [sideDishesError, toast]);
-
-  // Use addons and sideDishes data after all useQuery calls
-  const addons = addonsData || [];
-  const sideDishes = sideDishesData || [];
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { id, value, type: inputType } = e.target;
@@ -180,94 +243,6 @@ export default function MenuNew() {
   const handleCategoryChange = (value: string) => {
     setSelectedCategory(value);
   };
-
-  // Create menu item mutation
-  const { mutate: createMenuItem, isPending, isError, isSuccess } = useMutation({
-    mutationFn: async (menuData: any) => {
-      // Find or create category
-      let categoryId = 1; // Default category
-
-      // Try to find existing category
-      try {
-        const categories = await MenuService.getAllMenuCategories();
-        const existingCategory = categories.find(cat =>
-          cat.name.toLowerCase() === selectedCategory.toLowerCase()
-        );
-        if (existingCategory) {
-          categoryId = existingCategory.id;
-        } else {
-          // Create new category
-          const newCategory = await MenuService.createMenuCategory({
-            name: selectedCategory,
-            description: `${selectedCategory} category`,
-            prepArea: isBar ? 'BAR' : 'KITCHEN',
-            isActive: true
-          });
-          categoryId = newCategory.id;
-        }
-      } catch (error) {
-        console.error("Error handling category:", error);
-        // Fallback to default category
-        categoryId = 1;
-      }
-
-      // Prepare menu item data according to the schema
-      const menuItemData = {
-        name: menuData.name,
-        description: menuData.description,
-        price: menuData.price,
-        cost: menuData.cost,
-        prepTime: menuData.prepTime,
-        calories: menuData.calories,
-        servingSize: menuData.servingSize,
-        isAvailable: menuData.available,
-        prepArea: isBar ? 'BAR' : 'KITCHEN',
-        categoryId: categoryId,
-        featured: menuData.featured,
-        seasonal: menuData.seasonal,
-        ingredients: ingredients,
-        allergens: selectedAllergens,
-        dietaryOptions: selectedDietary,
-        sideDishIds: selectedSideDishes.length > 0 ? selectedSideDishes : undefined,
-        addonIds: selectedAddons.length > 0 ? selectedAddons : undefined,
-        rating: 0, // Default rating
-        hasAddons: hasAddons,
-        requiresSideDish: requiresSideDish,
-        addons: [], // Will be populated by the backend
-        sideDishes: [],
-        menuCategory: categories.find(cat => cat.name === selectedCategory) || {
-          id: 1,
-          name: selectedCategory,
-          description: `${selectedCategory} category`,
-          isActive: true,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        }
-      };
-
-      return MenuService.createMenuItem(menuItemData);
-    },
-    onSuccess: () => {
-      toast({
-        title: "Success",
-        description: `${isBar ? "Bar item" : "Menu item"} created successfully!`,
-        variant: "default"
-      });
-
-      // Reset form after successful creation
-      setTimeout(() => {
-        // Redirect back to menu page
-        window.location.href = isKitchen ? "/kitchen/menu" : isBar ? "/bar/menu" : "/menu";
-      }, 2000);
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error.response?.data?.message || "Failed to create menu item",
-        variant: "destructive"
-      });
-    }
-  });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -300,13 +275,8 @@ export default function MenuNew() {
       return;
     }
 
-    // Create menu item
-    createMenuItem({
-      ...formData,
-      category: selectedCategory
-    });
+    saveMenuItem(formData);
   };
-
 
   const toggleAllergen = (allergen: string) => {
     setSelectedAllergens(prev =>
@@ -347,20 +317,30 @@ export default function MenuNew() {
     );
   };
 
+  // Loading state for edit mode
+  if (isEditMode && isLoadingMenuItem) {
+    return (
+      <MainLayout title={isBar ? "Edit Bar Item" : "Edit Menu Item"} subtitle="Loading item details...">
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <span className="ml-3 text-muted-foreground">Loading...</span>
+        </div>
+      </MainLayout>
+    );
+  }
+
   return (
-    <MainLayout title={isBar ? "Add Bar Item" : "Add Menu Item"} subtitle={isBar ? "Create a new drink for your bar menu" : "Create a new dish for your menu"}>
+    <MainLayout 
+      title={isEditMode 
+        ? (isBar ? "Edit Bar Item" : "Edit Menu Item") 
+        : (isBar ? "Add Bar Item" : "Add Menu Item")
+      } 
+      subtitle={isEditMode 
+        ? "Update item details" 
+        : (isBar ? "Create a new drink for your bar menu" : "Create a new dish for your menu")
+      }
+    >
       <div className="space-y-6 animate-fade-in max-w-3xl">
-        {/* Status Feedback */}
-        {isSuccess && (
-          <div className="p-4 rounded-lg bg-green-50 border border-green-200 text-green-800">
-            ✅ {isBar ? "Bar item" : "Menu item"} created successfully! Redirecting...
-          </div>
-        )}
-        {isError && (
-          <div className="p-4 rounded-lg bg-red-50 border border-red-200 text-red-800">
-            ❌ Error creating item. Please check the form and try again.
-          </div>
-        )}
         {/* Back Button */}
         <Link to={isKitchen ? "/kitchen/menu" : isBar ? "/bar/menu" : "/menu"}>
           <Button variant="ghost" className="gap-2">
@@ -382,27 +362,28 @@ export default function MenuNew() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="name">{isBar ? "Drink Name" : "Dish Name"} *</Label>
-                  <Input id="name" placeholder={isBar ? "e.g., Mojito" : "e.g., Grilled Salmon"} value={formData.name} onChange={handleInputChange} />
+                  <Input 
+                    id="name" 
+                    placeholder={isBar ? "e.g., Mojito" : "e.g., Grilled Salmon"} 
+                    value={formData.name} 
+                    onChange={handleInputChange} 
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="category">Category *</Label>
                   <Select value={selectedCategory} onValueChange={handleCategoryChange} disabled={isLoadingCategories}>
                     <SelectTrigger id="category">
-                      <SelectValue placeholder={isLoadingCategories ? "Loading categories..." : "Select category"} />
+                      <SelectValue placeholder={isLoadingCategories ? "Loading..." : "Select category"} />
                     </SelectTrigger>
                     <SelectContent>
                       {isLoadingCategories ? (
-                        <div className="py-2 px-3 text-sm text-muted-foreground">
-                          Loading categories...
-                        </div>
+                        <div className="py-2 px-3 text-sm text-muted-foreground">Loading...</div>
                       ) : filteredCategories.length > 0 ? (
                         filteredCategories.map(cat => (
                           <SelectItem key={cat.id} value={cat.name}>{cat.name}</SelectItem>
                         ))
                       ) : (
-                        <div className="py-2 px-3 text-sm text-muted-foreground">
-                          No categories available
-                        </div>
+                        <div className="py-2 px-3 text-sm text-muted-foreground">No categories</div>
                       )}
                     </SelectContent>
                   </Select>
@@ -417,9 +398,7 @@ export default function MenuNew() {
                       />
                       <Label htmlFor="hasAddons" className="cursor-pointer">
                         <span className="font-medium">Supports Addons</span>
-                        <p className="text-sm text-muted-foreground">
-                          Allow customers to add extras (e.g., extra cheese, bacon)
-                        </p>
+                        <p className="text-sm text-muted-foreground">Allow customers to add extras</p>
                       </Label>
                     </div>
                     <div className="flex items-center space-x-3 p-3 rounded-lg bg-muted/30">
@@ -430,9 +409,7 @@ export default function MenuNew() {
                       />
                       <Label htmlFor="requiresSideDish" className="cursor-pointer">
                         <span className="font-medium">Requires Side Dish</span>
-                        <p className="text-sm text-muted-foreground">
-                          Customers must select side dishes with this item
-                        </p>
+                        <p className="text-sm text-muted-foreground">Customers must select side dishes</p>
                       </Label>
                     </div>
                   </div>
@@ -440,13 +417,19 @@ export default function MenuNew() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="description">Description *</Label>
-                <Textarea id="description" placeholder={isBar ? "Describe the drink, ingredients, and serving style..." : "Describe the dish, preparation, and presentation..."} rows={3} value={formData.description} onChange={handleInputChange} />
+                <Textarea 
+                  id="description" 
+                  placeholder={isBar ? "Describe the drink..." : "Describe the dish..."} 
+                  rows={3} 
+                  value={formData.description} 
+                  onChange={handleInputChange} 
+                />
               </div>
               <div className="space-y-2">
                 <Label>{isBar ? "Ingredients" : "Ingredients"}</Label>
                 <div className="flex gap-2">
                   <Input
-                    placeholder={isBar ? "Add ingredient (e.g., Vodka, Lime)" : "Add ingredient"}
+                    placeholder={isBar ? "Add ingredient" : "Add ingredient"}
                     value={newIngredient}
                     onChange={(e) => setNewIngredient(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addIngredient())}
@@ -471,9 +454,7 @@ export default function MenuNew() {
             </CardContent>
           </Card>
 
-          {/* Side Dishes section removed - we use the required side dishes section below */}
-
-          {/* Addons Selection Card - shown when hasAddons is checked */}
+          {/* Addons Selection Card */}
           {hasAddons && (
             <Card className="shadow-card border-border/50">
               <CardHeader>
@@ -483,16 +464,9 @@ export default function MenuNew() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {isLoadingAddons ? (
-                  <div className="flex justify-center items-center py-8">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                    <span className="ml-3">Loading addons...</span>
-                  </div>
-                ) : addons.length > 0 ? (
+                {addons.length > 0 ? (
                   <>
-                    <p className="text-sm text-muted-foreground">
-                      Select addons that can be added to this item (e.g., extra cheese, bacon, etc.)
-                    </p>
+                    <p className="text-sm text-muted-foreground">Select addons that can be added to this item</p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {addons.map(addon => (
                         <div
@@ -512,7 +486,6 @@ export default function MenuNew() {
                               checked={selectedAddons.includes(addon.id)}
                               onChange={() => toggleAddon(addon.id)}
                               className="h-4 w-4 rounded border-border"
-                              aria-label={`Include ${addon.name} as addon`}
                             />
                             <div>
                               <label htmlFor={`addon-${addon.id}`} className="cursor-pointer">
@@ -526,7 +499,7 @@ export default function MenuNew() {
                     </div>
                     {selectedAddons.length > 0 && (
                       <div className="flex flex-wrap gap-2 mt-4">
-                        <p className="text-sm font-medium text-foreground">Selected Addons:</p>
+                        <p className="text-sm font-medium text-foreground">Selected:</p>
                         {selectedAddons.map(addonId => {
                           const addon = addons.find(a => a.id === addonId);
                           return (
@@ -541,14 +514,13 @@ export default function MenuNew() {
                 ) : (
                   <div className="text-center py-8 text-muted-foreground">
                     <p>No addons available</p>
-                    <p className="text-sm mt-2">Addons can be created in the Menu Addons section</p>
                   </div>
                 )}
               </CardContent>
             </Card>
           )}
 
-          {/* Side Dishes Selection Card - shown when requiresSideDish is checked */}
+          {/* Side Dishes Selection Card */}
           {requiresSideDish && (
             <Card className="shadow-card border-border/50">
               <CardHeader>
@@ -558,16 +530,9 @@ export default function MenuNew() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {isLoadingSideDishes ? (
-                  <div className="flex justify-center items-center py-8">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                    <span className="ml-3">Loading side dishes...</span>
-                  </div>
-                ) : sideDishes.length > 0 ? (
+                {sideDishes.length > 0 ? (
                   <>
-                    <p className="text-sm text-muted-foreground">
-                      Select side dishes that can be included with this item
-                    </p>
+                    <p className="text-sm text-muted-foreground">Select side dishes for this item</p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {sideDishes.map(sideDish => (
                         <div
@@ -583,14 +548,13 @@ export default function MenuNew() {
                           <div className="flex items-center gap-3">
                             <input
                               type="checkbox"
-                              id={`side-dish-${sideDish.id}`}
+                              id={`side-${sideDish.id}`}
                               checked={selectedSideDishes.includes(sideDish.id)}
                               onChange={() => toggleSideDish(sideDish.id)}
                               className="h-4 w-4 rounded border-border"
-                              aria-label={`Include ${sideDish.name} as side dish`}
                             />
                             <div>
-                              <label htmlFor={`side-dish-${sideDish.id}`} className="cursor-pointer">
+                              <label htmlFor={`side-${sideDish.id}`} className="cursor-pointer">
                                 <p className="font-medium text-foreground">{sideDish.name}</p>
                                 <p className="text-sm text-muted-foreground">${sideDish.price.toFixed(2)}</p>
                               </label>
@@ -601,7 +565,7 @@ export default function MenuNew() {
                     </div>
                     {selectedSideDishes.length > 0 && (
                       <div className="flex flex-wrap gap-2 mt-4">
-                        <p className="text-sm font-medium text-foreground">Selected Sides:</p>
+                        <p className="text-sm font-medium text-foreground">Selected:</p>
                         {selectedSideDishes.map(sideId => {
                           const sideDish = sideDishes.find(s => s.id === sideId);
                           return (
@@ -616,7 +580,6 @@ export default function MenuNew() {
                 ) : (
                   <div className="text-center py-8 text-muted-foreground">
                     <p>No side dishes available</p>
-                    <p className="text-sm mt-2">Side dishes can be created in the Menu Side Dishes section</p>
                   </div>
                 )}
               </CardContent>
@@ -635,25 +598,60 @@ export default function MenuNew() {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="price">Price ($) *</Label>
-                  <Input id="price" type="number" min="0" step="0.01" placeholder="0.00" value={formData.price} onChange={handleInputChange} />
+                  <Input 
+                    id="price" 
+                    type="number" 
+                    min="0" 
+                    step="0.01" 
+                    placeholder="0.00" 
+                    value={formData.price} 
+                    onChange={handleInputChange} 
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="cost">Cost ($)</Label>
-                  <Input id="cost" type="number" min="0" step="0.01" placeholder={isBar ? "Liquor cost" : "Food cost"} value={formData.cost} onChange={handleInputChange} />
+                  <Input 
+                    id="cost" 
+                    type="number" 
+                    min="0" 
+                    step="0.01" 
+                    placeholder={isBar ? "Liquor cost" : "Food cost"} 
+                    value={formData.cost} 
+                    onChange={handleInputChange} 
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="prepTime">{isBar ? "Prep Time (sec)" : "Prep Time (mins)"}</Label>
-                  <Input id="prepTime" type="number" min="0" placeholder={isBar ? "30" : "15"} value={formData.prepTime} onChange={handleInputChange} />
+                  <Input 
+                    id="prepTime" 
+                    type="number" 
+                    min="0" 
+                    placeholder={isBar ? "30" : "15"} 
+                    value={formData.prepTime} 
+                    onChange={handleInputChange} 
+                  />
                 </div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="calories">Calories</Label>
-                  <Input id="calories" type="number" min="0" placeholder="Optional" value={formData.calories} onChange={handleInputChange} />
+                  <Input 
+                    id="calories" 
+                    type="number" 
+                    min="0" 
+                    placeholder="Optional" 
+                    value={formData.calories} 
+                    onChange={handleInputChange} 
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="servingSize">Serving Size</Label>
-                  <Input id="servingSize" placeholder="e.g., 8 oz" value={formData.servingSize} onChange={handleInputChange} />
+                  <Input 
+                    id="servingSize" 
+                    placeholder="e.g., 8 oz" 
+                    value={formData.servingSize} 
+                    onChange={handleInputChange} 
+                  />
                 </div>
               </div>
             </CardContent>
@@ -746,13 +744,13 @@ export default function MenuNew() {
             >
               {isPending ? (
                 <>
-                  <span className="animate-spin mr-2">🌀</span>
-                  {isBar ? "Adding Bar Item..." : "Adding Menu Item..."}
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  {isEditMode ? "Saving..." : "Creating..."}
                 </>
               ) : (
                 <>
                   <UtensilsCrossed className="h-4 w-4 mr-2" />
-                  {isBar ? "Add Bar Item" : "Add Menu Item"}
+                  {isEditMode ? "Save Changes" : (isBar ? "Add Bar Item" : "Add Menu Item")}
                 </>
               )}
             </Button>

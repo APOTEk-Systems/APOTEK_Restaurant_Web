@@ -79,7 +79,27 @@ export const MenuService = {
     return response.data;
   },
 
-  createMenuItem: async (menuItemData: Omit<MenuItem, 'id' | 'createdAt' | 'updatedAt'>): Promise<MenuItem> => {
+  createMenuItem: async (menuItemData: {
+    name: string;
+    description: string;
+    price: number;
+    cost?: number;
+    prepTime?: number;
+    calories?: number;
+    servingSize?: string;
+    isAvailable: boolean;
+    prepArea: string;
+    categoryId: number;
+    featured?: boolean;
+    seasonal?: boolean;
+    ingredients?: string[];
+    allergens?: string[];
+    dietaryOptions?: string[];
+    sideDishIds?: number[];
+    addonIds?: number[];
+    hasAddons?: boolean;
+    requiresSideDish?: boolean;
+  }): Promise<MenuItem> => {
     const response = await api.post('/menu/menu-items', menuItemData);
     return response.data;
   },

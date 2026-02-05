@@ -5,19 +5,11 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, Search, Edit, Trash2, Star, ToggleLeft, ToggleRight, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { MenuService, type MenuItem, type MenuAddon, type MenuSideDish, type MenuCategory } from "@/services/menuService";
+import { MenuService, type MenuItem, type MenuCategory } from "@/services/menuService";
 import { useToast } from "@/hooks/use-toast";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -150,10 +142,9 @@ function BarMenuCard({
 }
 
 export default function BarMenu() {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("all");
-  const [editingItem, setEditingItem] = useState<BarMenuItem | null>(null);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [togglingId, setTogglingId] = useState<number | null>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -265,32 +256,8 @@ export default function BarMenu() {
   };
 
   const handleEdit = (item: BarMenuItem) => {
-    setEditingItem(item);
-    setIsEditDialogOpen(true);
-  };
-
-  const handleSaveEdit = () => {
-    if (editingItem) {
-      MenuService.updateMenuItem(editingItem.id, {
-        name: editingItem.name,
-        description: editingItem.description,
-        price: editingItem.price,
-      }).then(() => {
-        queryClient.invalidateQueries({ queryKey: ['menuItems'] });
-        setIsEditDialogOpen(false);
-        setEditingItem(null);
-        toast({
-          title: "Success",
-          description: "Menu item updated successfully",
-        });
-      }).catch((error: Error) => {
-        toast({
-          title: "Error",
-          description: error.message || "Failed to update menu item",
-          variant: "destructive",
-        });
-      });
-    }
+    // Navigate to MenuNew with the item ID for full editing
+    navigate(`/menu/new?type=bar&id=${item.id}`);
   };
 
   // Filter menu items based on search and category
@@ -392,61 +359,6 @@ export default function BarMenu() {
           </>
         )}
 
-        {/* Edit Dialog */}
-        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-          <DialogContent className="sm:max-w-[500px]">
-            <DialogHeader>
-              <DialogTitle>
-                {editingItem ? "Edit Bar Item" : "Edit"}
-              </DialogTitle>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              {editingItem && (
-                <>
-                  <div className="space-y-2">
-                    <Label htmlFor="edit-name">Name</Label>
-                    <Input
-                      id="edit-name"
-                      value={editingItem.name}
-                      onChange={(e) => setEditingItem({ ...editingItem, name: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="edit-description">Description</Label>
-                    <Input
-                      id="edit-description"
-                      value={editingItem.description}
-                      onChange={(e) => setEditingItem({ ...editingItem, description: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="edit-price">Price</Label>
-                    <Input
-                      id="edit-price"
-                      type="number"
-                      value={editingItem.price}
-                      onChange={(e) => setEditingItem({ ...editingItem, price: parseFloat(e.target.value) })}
-                    />
-                  </div>
-                </>
-              )}
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => {
-                setIsEditDialogOpen(false);
-                setEditingItem(null);
-              }}>
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                onClick={handleSaveEdit}
-              >
-                Save Changes
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
       </div>
     </MainLayout>
   );

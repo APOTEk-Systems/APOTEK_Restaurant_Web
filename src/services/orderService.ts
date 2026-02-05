@@ -171,8 +171,12 @@ interface UpdateOrderData {
 
 export const OrderService = {
   // Orders
-  getAllOrders: async (): Promise<Order[]> => {
-    const response = await api.get('/order');
+  getAllOrders: async (params?: {
+    startDate?: string;
+    endDate?: string;
+    status?: string;
+  }): Promise<Order[]> => {
+    const response = await api.get('/order', { params });
     return response.data;
   },
 

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -12,55 +12,133 @@ import {
   TableHeader, 
   TableRow 
 } from "@/components/ui/table";
-import { Search, Filter, Download, Eye, Calendar, DollarSign, Receipt } from "lucide-react";
+import { Search, Filter, Download, Eye, Calendar, DollarSign, Receipt, Loader2 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { OrderService, Order } from "@/services/orderService";
+import { DateRangePicker, DateRange } from "@/components/ui/date-range-picker";
+import { cn, formatCurrency } from "@/lib/utils";
 
-const historyOrders = [
-  { id: "ORD-001", table: "Table 5", items: 4, total: 89.50, date: "2024-01-08", time: "19:30", waiter: "Sarah M.", paymentMethod: "Card" },
-  { id: "ORD-002", table: "Table 3", items: 2, total: 45.00, date: "2024-01-08", time: "18:15", waiter: "John D.", paymentMethod: "Cash" },
-  { id: "ORD-003", table: "Table 8", items: 6, total: 156.75, date: "2024-01-07", time: "20:45", waiter: "Mike R.", paymentMethod: "Card" },
-  { id: "ORD-004", table: "Table 1", items: 3, total: 67.25, date: "2024-01-07", time: "19:00", waiter: "Sarah M.", paymentMethod: "Card" },
-  { id: "ORD-005", table: "Table 12", items: 5, total: 112.00, date: "2024-01-06", time: "21:30", waiter: "Emily S.", paymentMethod: "Cash" },
-  { id: "ORD-006", table: "Table 7", items: 2, total: 38.50, date: "2024-01-06", time: "17:45", waiter: "John D.", paymentMethod: "Card" },
-  { id: "ORD-007", table: "Table 4", items: 8, total: 198.00, date: "2024-01-05", time: "20:00", waiter: "Mike R.", paymentMethod: "Card" },
-  { id: "ORD-008", table: "Table 9", items: 3, total: 54.25, date: "2024-01-05", time: "18:30", waiter: "Sarah M.", paymentMethod: "Cash" },
-];
-
-const stats = [
-  { title: "Total Orders", value: "1,284", icon: Receipt, change: "+12%" },
-  { title: "Total Revenue", value: "$45,890", icon: DollarSign, change: "+8%" },
-  { title: "This Month", value: "342", icon: Calendar, change: "+15%" },
-];
+const paymentMethodStyles = {
+  CASH: "bg-success/10 text-success",
+  CARD: "bg-primary/10 text-primary",
+  ONLINE: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400",
+};
 
 export default function OrdersHistory() {
   const [searchQuery, setSearchQuery] = useState("");
-  const [dateFilter, setDateFilter] = useState("all");
+  const [dateRange, setDateRange] = useState<DateRange | undefined>();
+  const [statusFilter, setStatusFilter] = useState<string>("all");
 
-  const filteredOrders = historyOrders.filter(order =>
-    order.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    order.table.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    order.waiter.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Fetch orders with date range filter
+  const { data: orders = [], isLoading, error } = useQuery({
+    queryKey: ['orders-history', dateRange, statusFilter],
+    queryFn: async () => {
+      const params: any = {};
+      
+      if (dateRange?.from && dateRange?.to) {
+        params.startDate = dateRange.from.toISOString();
+        params.endDate = dateRange.to.toISOString();
+      }
+      
+      if (statusFilter !== "all") {
+        params.status = statusFilter;
+      }
+      
+      return OrderService.getAllOrders(params);
+    },
+  });
+
+  // Filter orders by search query
+  const filteredOrders = useMemo(() => {
+    return orders.filter((order: Order) => {
+      const matchesSearch = 
+        order.orderNumber?.toString().includes(searchQuery.toLowerCase()) ||
+        order.tableNumber?.toString().includes(searchQuery.toLowerCase()) ||
+        order.waiter?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        order.customerName?.toLowerCase().includes(searchQuery.toLowerCase());
+      return matchesSearch;
+    });
+  }, [orders, searchQuery]);
+
+  // Calculate stats from filtered orders
+  const stats = useMemo(() => {
+    const totalRevenue = filteredOrders.reduce((sum: number, order: Order) => sum + (order.total || 0), 0);
+    const totalOrders = filteredOrders.length;
+    const totalItems = filteredOrders.reduce((sum: number, order: Order) => 
+      sum + (order.orderItems?.length || 0), 0);
+    
+    return {
+      totalOrders,
+      totalRevenue,
+      totalItems,
+    };
+  }, [filteredOrders]);
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric' 
+    });
+  };
+
+  const formatTime = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleTimeString('en-US', { 
+      hour: 'numeric', 
+      minute: '2-digit',
+      hour12: true 
+    });
+  };
+
+  const handleDateRangeChange = (range: DateRange | undefined) => {
+    setDateRange(range);
+  };
 
   return (
     <MainLayout title="Orders History" subtitle="View past completed orders">
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        {stats.map((stat) => (
-          <Card key={stat.title} className="card-hover">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">{stat.title}</p>
-                  <p className="text-2xl font-bold mt-1">{stat.value}</p>
-                  <span className="text-xs text-emerald-500">{stat.change} vs last period</span>
-                </div>
-                <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center">
-                  <stat.icon className="h-6 w-6 text-primary" />
-                </div>
+        <Card className="card-hover">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Total Orders</p>
+                <p className="text-2xl font-bold mt-1">{isLoading ? "..." : stats.totalOrders}</p>
               </div>
-            </CardContent>
-          </Card>
-        ))}
+              <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center">
+                <Receipt className="h-6 w-6 text-primary" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="card-hover">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Total Revenue</p>
+                <p className="text-2xl font-bold mt-1">{isLoading ? "..." : formatCurrency(stats.totalRevenue)}</p>
+              </div>
+              <div className="h-12 w-12 rounded-xl bg-success/10 flex items-center justify-center">
+                <DollarSign className="h-6 w-6 text-success" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="card-hover">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Total Items Sold</p>
+                <p className="text-2xl font-bold mt-1">{isLoading ? "..." : stats.totalItems}</p>
+              </div>
+              <div className="h-12 w-12 rounded-xl bg-warning/10 flex items-center justify-center">
+                <Calendar className="h-6 w-6 text-warning" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Filters */}
@@ -70,33 +148,44 @@ export default function OrdersHistory() {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search by order ID, table, or waiter..."
+                placeholder="Search by order ID, table, waiter, or customer..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10"
               />
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
+              <DateRangePicker 
+                dateRange={dateRange}
+                onDateRangeChange={handleDateRangeChange}
+              />
               <Button 
-                variant={dateFilter === "all" ? "default" : "outline"} 
+                variant={statusFilter === "all" ? "default" : "outline"} 
                 size="sm"
-                onClick={() => setDateFilter("all")}
+                onClick={() => setStatusFilter("all")}
               >
-                All Time
+                All Status
               </Button>
               <Button 
-                variant={dateFilter === "week" ? "default" : "outline"} 
+                variant={statusFilter === "COMPLETED" ? "default" : "outline"} 
                 size="sm"
-                onClick={() => setDateFilter("week")}
+                onClick={() => setStatusFilter("COMPLETED")}
               >
-                This Week
+                Completed
               </Button>
               <Button 
-                variant={dateFilter === "month" ? "default" : "outline"} 
+                variant={statusFilter === "PAID" ? "default" : "outline"} 
                 size="sm"
-                onClick={() => setDateFilter("month")}
+                onClick={() => setStatusFilter("PAID")}
               >
-                This Month
+                Paid
+              </Button>
+              <Button 
+                variant={statusFilter === "CANCELLED" ? "default" : "outline"} 
+                size="sm"
+                onClick={() => setStatusFilter("CANCELLED")}
+              >
+                Cancelled
               </Button>
               <Button variant="outline" size="sm">
                 <Download className="h-4 w-4 mr-2" />
@@ -113,47 +202,71 @@ export default function OrdersHistory() {
           <CardTitle className="text-lg">Completed Orders</CardTitle>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Order ID</TableHead>
-                <TableHead>Date & Time</TableHead>
-                <TableHead>Table</TableHead>
-                <TableHead>Items</TableHead>
-                <TableHead>Waiter</TableHead>
-                <TableHead>Payment</TableHead>
-                <TableHead className="text-right">Total</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredOrders.map((order) => (
-                <TableRow key={order.id}>
-                  <TableCell className="font-medium">{order.id}</TableCell>
-                  <TableCell>
-                    <div>
-                      <span className="text-sm">{order.date}</span>
-                      <span className="text-xs text-muted-foreground ml-2">{order.time}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell>{order.table}</TableCell>
-                  <TableCell>{order.items} items</TableCell>
-                  <TableCell>{order.waiter}</TableCell>
-                  <TableCell>
-                    <Badge variant={order.paymentMethod === "Card" ? "default" : "secondary"}>
-                      {order.paymentMethod}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right font-medium">${order.total.toFixed(2)}</TableCell>
-                  <TableCell className="text-right">
-                    <Button variant="ghost" size="sm">
-                      <Eye className="h-4 w-4" />
-                    </Button>
-                  </TableCell>
+          {isLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : error ? (
+            <div className="text-center py-12 text-destructive">
+              Failed to load orders. Please try again.
+            </div>
+          ) : filteredOrders.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground">
+              No orders found. Try adjusting your filters.
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Order ID</TableHead>
+                  <TableHead>Date & Time</TableHead>
+                  <TableHead>Table</TableHead>
+                  <TableHead>Items</TableHead>
+                  <TableHead>Waiter</TableHead>
+                  {/* <TableHead>Payment</TableHead> */}
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Total</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {filteredOrders.map((order: Order) => (
+                  <TableRow key={order.id}>
+                    <TableCell className="font-medium">#{order.orderNumber}</TableCell>
+                    <TableCell>
+                      <div>
+                        <span className="text-sm">{formatDate(order.createdAt)}</span>
+                        <span className="text-xs text-muted-foreground ml-2 block">{formatTime(order.createdAt)}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>Table {order.tableNumber || 'N/A'}</TableCell>
+                    <TableCell>{order.orderItems?.length || 0} items</TableCell>
+                    <TableCell>{order.waiter || 'N/A'}</TableCell>
+                    {/* <TableCell>
+                      {order.payments && order.payments.length > 0 ? (
+                        <Badge className={cn(paymentMethodStyles[order.payments[0].paymentMethod as keyof typeof paymentMethodStyles] || "bg-muted")}>
+                          {order.payments[0].paymentMethod}
+                        </Badge>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
+                    </TableCell> */}
+                    <TableCell>
+                      <Badge variant={order.status === "COMPLETED" || order.status === "PAID" ? "default" : "destructive"}>
+                        {order.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right font-medium">{formatCurrency(order.total || 0)}</TableCell>
+                    <TableCell className="text-right">
+                      <Button variant="ghost" size="sm">
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
     </MainLayout>
