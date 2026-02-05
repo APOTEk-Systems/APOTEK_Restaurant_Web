@@ -11,10 +11,17 @@ import { ReservationService } from "@/services/reservationService";
 import { TableService } from "@/services/tableService";
 import { InventoryService } from "@/services/inventoryService";
 import { StockRequestService } from "@/services/stockRequestService";
+import { useMemo } from "react";
 
 export default function Dashboard() {
-  // Fetch recent orders
-  const { data: orders = [], isLoading: loadingOrders } = useQuery({
+  // Fetch weekly orders - for charts and weekly stats
+  const { data: weeklyOrders = [], isLoading: loadingWeeklyOrders } = useQuery({
+    queryKey: ['weekly-orders'],
+    queryFn: OrderService.getWeeklyOrders,
+  });
+
+  // Fetch recent orders - for RecentOrders component (most recent regardless of date)
+  const { data: recentOrders = [], isLoading: loadingRecentOrders } = useQuery({
     queryKey: ['recent-orders'],
     queryFn: OrderService.getRecentOrders,
   });
@@ -43,14 +50,28 @@ export default function Dashboard() {
     queryFn: () => StockRequestService.getAllStockRequests({ status: 'pending' }),
   });
 
-  // Calculate stats
-  const isLoading = loadingOrders || loadingReservations || loadingTables || loadingInventory || loadingRequests;
+  // Calculate weekly stats from weeklyOrders
+  const weeklyStats = useMemo(() => {
+    const totalRevenue = weeklyOrders.reduce((sum: number, order: any) => sum + (order.total || 0), 0);
+    const totalOrders = weeklyOrders.length;
+    return { totalRevenue, totalOrders };
+  }, [weeklyOrders]);
+
+  // Get today's orders for today's revenue
+  const todayOrders = useMemo(() => {
+    const today = new Date().toISOString().split('T')[0];
+    return weeklyOrders.filter((order: any) =>
+      new Date(order.createdAt).toISOString().split('T')[0] === today
+    );
+  }, [weeklyOrders]);
+
+  const todayRevenue = todayOrders.reduce((sum: number, order: any) => sum + (order.total || 0), 0);
+
+  const isLoading = loadingWeeklyOrders || loadingRecentOrders || loadingReservations || loadingTables || loadingInventory || loadingRequests;
   
-  const totalRevenue = orders.reduce((sum: number, order: any) => sum + (order.total || 0), 0);
-  const totalOrders = orders.length;
   const activeTables = tables.filter((t: any) => t.status === 'OCCUPIED').length;
   const availableTables = tables.filter((t: any) => t.status === 'AVAILABLE').length;
-  const avgOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+  const avgOrderValue = weeklyStats.totalOrders > 0 ? weeklyStats.totalRevenue / weeklyStats.totalOrders : 0;
   
   // Low stock items
   const lowStockItems = inventoryItems.filter((item: any) => {
@@ -71,21 +92,20 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <StatCard
             title="Today's Revenue"
-            value={isLoading ? "..." : `TZS ${totalRevenue.toLocaleString()}`}
-            change={isLoading ? "Loading..." : `${totalOrders} orders today`}
+            value={isLoading ? "..." : `TZS ${todayRevenue.toLocaleString()}`}
+            change={isLoading ? "Loading..." : `${todayOrders.length} orders today`}
             changeType="positive"
             icon={DollarSign}
             iconColor="primary"
           />
           <StatCard
-            title="Total Orders"
-            value={isLoading ? "..." : String(totalOrders)}
-            change={isLoading ? "Loading..." : `${activeTables} active tables`}
+            title="Weekly Revenue"
+            value={isLoading ? "..." : `TZS ${weeklyStats.totalRevenue.toLocaleString()}`}
+            change={isLoading ? "Loading..." : `${weeklyStats.totalOrders} orders this week`}
             changeType="neutral"
-            icon={ShoppingBag}
+            icon={TrendingUp}
             iconColor="success"
           />
-        
           <StatCard
             title="Pending Requests"
             value={isLoading ? "..." : String(pendingRequests.length)}
@@ -108,14 +128,14 @@ export default function Dashboard() {
         {/* Charts Row */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2">
-            <RevenueChart orders={orders} isLoading={loadingOrders} />
+            <RevenueChart orders={weeklyOrders} isLoading={loadingWeeklyOrders} />
           </div>
-          <PopularItems orders={orders} isLoading={loadingOrders} />
+          <PopularItems orders={weeklyOrders} isLoading={loadingWeeklyOrders} />
         </div>
 
         {/* Orders and Reservations */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <RecentOrders orders={orders} isLoading={loadingOrders} />
+          <RecentOrders orders={recentOrders} isLoading={loadingRecentOrders} />
           <UpcomingReservations reservations={upcomingReservations} isLoading={loadingReservations} />
         </div>
       </div>

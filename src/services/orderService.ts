@@ -253,4 +253,24 @@ export const OrderService = {
     const response = await api.get('/order/recent');
     return response.data;
   },
+
+  // Weekly Orders - for dashboard charts and stats
+  getWeeklyOrders: async (): Promise<Order[]> => {
+    const today = new Date();
+    const startOfWeek = new Date(today);
+    startOfWeek.setDate(today.getDate() - today.getDay()); // Start from Sunday
+    startOfWeek.setHours(0, 0, 0, 0);
+    
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(startOfWeek.getDate() + 7);
+    endOfWeek.setHours(23, 59, 59, 999);
+
+    const response = await api.get('/order', {
+      params: {
+        startDate: startOfWeek.toISOString(),
+        endDate: endOfWeek.toISOString(),
+      }
+    });
+    return response.data;
+  },
 };
