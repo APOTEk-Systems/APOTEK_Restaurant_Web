@@ -1,4 +1,6 @@
 import { getPrinters, printHtml } from 'tauri-plugin-printer-v2';
+import { invoke } from '@tauri-apps/api/core';
+
 
 interface Order {
   orderNumber: string;
@@ -37,9 +39,9 @@ export const generateBillHtml = (order: Order): string => {
     .join("");
 
   return `
-    <div style="width: ${receiptWidth}; font-family: 'monospace', sans-serif; font-size: 10px; color: #000;">
+    <div style="width: ${receiptWidth}; font-family: 'monospace', sans-serif; font-size: 14px; color: #000;">
       <div style="text-align: center; margin-bottom: 10px;">
-        <h2 style="margin: 0; font-size: 14px;">APOTEK Restaurant</h2>
+        <h2 style="margin: 0; font-size: 16px;">APOTEK Restaurant</h2>
         <p style="margin: 0;">123 Main Street, Anytown</p>
         <p style="margin: 0;">Tel: 123-456-7890</p>
       </div>
@@ -100,12 +102,19 @@ const printBill = async (order: Order) => {
       throw new Error("No printers found");
     }
 
-    const result = await printHtml({
-      html: htmlContent,
-      printer: printersList[0].Name, // exact system printer name
-      id: generateId(),
-      print_settings:"{\"copies\":1,\"orientation\":\"portrait\"}"
-    });
+const result = await printHtml({
+  html: htmlContent,
+  printer: printersList[0].Name,
+  id: generateId(),
+  print_settings: JSON.stringify({
+    page_width: 80,
+    page_height: 297,
+    margin_top: 0,
+    margin_bottom: 0,
+    margin_left: 0,
+    margin_right: 0
+  })
+});
 
     console.log("Printed successfully", result);
   } catch (err) {
@@ -114,7 +123,20 @@ const printBill = async (order: Order) => {
   }
 };
 
+async function print80mm(order:Order) {
+  try {
+    const result = await invoke('print_html_80mm', {
+      printerName: "POS-58",
+      htmlContent: generateBillHtml(order)
+    });
+    console.log(result);
+  } catch (error) {
+    console.error('Print error:', error);
+  }
+}
+
 
 export const PrintService = {
   printBill,
+  print80mm
 };
