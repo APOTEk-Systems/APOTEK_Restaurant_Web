@@ -1,3 +1,8 @@
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -34,10 +39,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useState } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 import {
   Form,
   FormControl,
@@ -47,69 +48,164 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { toast } from "sonner";
+import { TableService, Table } from "@/services/tableService";
 
 const tableSchema = z.object({
-  tableNumber: z.string().min(1, "Table number is required").max(10, "Table number must be less than 10 characters"),
+  number: z.string().min(1, "Table number is required"),
   capacity: z.string().min(1, "Capacity is required"),
-  location: z.string().min(1, "Location is required").max(50, "Location must be less than 50 characters"),
+ // location: z.string().min(1, "Location is required"),
   status: z.string().min(1, "Status is required"),
 });
 
 type TableFormValues = z.infer<typeof tableSchema>;
 
-const tables = [
-  { id: 1, tableNumber: "T-01", capacity: 4, location: "Main Hall", status: "available" },
-  { id: 2, tableNumber: "T-02", capacity: 2, location: "Main Hall", status: "occupied" },
-  { id: 3, tableNumber: "T-03", capacity: 6, location: "Main Hall", status: "available" },
-  { id: 4, tableNumber: "T-04", capacity: 4, location: "Patio", status: "reserved" },
-  { id: 5, tableNumber: "T-05", capacity: 8, location: "Private Room", status: "available" },
-  { id: 6, tableNumber: "T-06", capacity: 2, location: "Bar Area", status: "occupied" },
-  { id: 7, tableNumber: "T-07", capacity: 4, location: "Patio", status: "available" },
-  { id: 8, tableNumber: "T-08", capacity: 10, location: "Private Room", status: "maintenance" },
-];
-
 const locations = ["Main Hall", "Patio", "Private Room", "Bar Area", "Outdoor"];
-const statuses = ["available", "occupied", "reserved", "maintenance"];
 
 export default function SettingsTables() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [editingTable, setEditingTable] = useState<Table | null>(null);
+  const queryClient = useQueryClient();
+
+  const { data: tables = [], isLoading } = useQuery({
+    queryKey: ['tables'],
+    queryFn: () => TableService.getAllTables(),
+  });
+
+  const createMutation = useMutation({
+    mutationFn: (data: { number: number; capacity: number; status: string }) =>
+      TableService.create({
+        number: data.number, 
+        capacity: data.capacity, 
+        status: data.status as 'AVAILABLE' | 'OCCUPIED' | 'RESERVED' 
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tables'] });
+      toast.success('Table added successfully');
+      setIsDialogOpen(false);
+      form.reset();
+    },
+    onError: () => {
+      toast.error('Failed to add table');
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: number; data: { number?: number; capacity?: number; status?: string } }) =>
+      TableService.update(id, {
+        number: data.number, 
+        capacity: data.capacity, 
+        status: data.status as 'AVAILABLE' | 'OCCUPIED' | 'RESERVED' 
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tables'] });
+      toast.success('Table updated successfully');
+      setIsDialogOpen(false);
+      setEditingTable(null);
+      form.reset();
+    },
+    onError: () => {
+      toast.error('Failed to update table');
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) => TableService.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tables'] });
+      toast.success('Table deleted successfully');
+    },
+    onError: () => {
+      toast.error('Failed to delete table');
+    },
+  });
 
   const form = useForm<TableFormValues>({
     resolver: zodResolver(tableSchema),
     defaultValues: {
-      tableNumber: "",
+      number: "",
       capacity: "",
-      location: "",
-      status: "available",
+      // location: "",
+      status: "AVAILABLE",
     },
   });
 
   const onSubmit = (data: TableFormValues) => {
-    toast.success(`Table ${data.tableNumber} has been added successfully`);
-    setIsDialogOpen(false);
-    form.reset();
+    if (editingTable) {
+      updateMutation.mutate({
+        id: editingTable.id,
+        data: {
+          number: parseInt(data.number),
+          capacity: parseInt(data.capacity),
+          status: data.status,
+        },
+      });
+    } else {
+      createMutation.mutate({
+        number: parseInt(data.number),
+        capacity: parseInt(data.capacity),
+        status: data.status,
+      });
+    }
   };
 
   const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "available":
-        return <Badge className="bg-success/10 text-success hover:bg-success/20">Available</Badge>;
-      case "occupied":
-        return <Badge className="bg-primary/10 text-primary hover:bg-primary/20">Occupied</Badge>;
-      case "reserved":
-        return <Badge className="bg-warning/10 text-warning hover:bg-warning/20">Reserved</Badge>;
-      case "maintenance":
-        return <Badge className="bg-destructive/10 text-destructive hover:bg-destructive/20">Maintenance</Badge>;
+    const normalizedStatus = status.toUpperCase();
+    switch (normalizedStatus) {
+      case "AVAILABLE":
+        return <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Available</Badge>;
+      case "OCCUPIED":
+        return <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100">Occupied</Badge>;
+      case "RESERVED":
+        return <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100">Reserved</Badge>;
+      case "MAINTENANCE":
+        return <Badge className="bg-red-100 text-red-800 hover:bg-red-100">Maintenance</Badge>;
       default:
         return <Badge variant="secondary">{status}</Badge>;
     }
   };
 
   const filteredTables = tables.filter(table => 
-    table.tableNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    table.location.toLowerCase().includes(searchQuery.toLowerCase())
+    table.number.toString().toLowerCase().includes(searchQuery.toLowerCase()) ||
+    table.status.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const handleEdit = (table: Table) => {
+    setEditingTable(table);
+    form.reset({
+      number: table.number.toString(),
+      capacity: table.capacity.toString(),
+      // location: "",
+      status: table.status,
+    });
+    setIsDialogOpen(true);
+  };
+
+  const handleAddNew = () => {
+    setEditingTable(null);
+    form.reset({
+      number: "",
+      capacity: "",
+      // location: "",
+      status: "AVAILABLE",
+    });
+    setIsDialogOpen(true);
+  };
+
+  const totalTables = tables.length;
+  const availableTables = tables.filter(t => t.status === 'AVAILABLE').length;
+  const occupiedTables = tables.filter(t => t.status === 'OCCUPIED').length;
+  const totalCapacity = tables.reduce((sum, t) => sum + t.capacity, 0);
+
+  if (isLoading) {
+    return (
+      <MainLayout title="Tables" subtitle="Loading...">
+        <div className="flex items-center justify-center h-64">
+          <p>Loading tables...</p>
+        </div>
+      </MainLayout>
+    );
+  }
 
   return (
     <MainLayout title="Tables" subtitle="Manage restaurant tables and seating">
@@ -118,25 +214,19 @@ export default function SettingsTables() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="bg-card rounded-xl p-4 shadow-card border border-border/50">
             <p className="text-sm text-muted-foreground">Total Tables</p>
-            <p className="text-2xl font-bold text-foreground mt-1">{tables.length}</p>
+            <p className="text-2xl font-bold text-foreground mt-1">{totalTables}</p>
           </div>
           <div className="bg-card rounded-xl p-4 shadow-card border border-border/50">
             <p className="text-sm text-muted-foreground">Available</p>
-            <p className="text-2xl font-bold text-success mt-1">
-              {tables.filter(t => t.status === "available").length}
-            </p>
+            <p className="text-2xl font-bold text-green-600 mt-1">{availableTables}</p>
           </div>
           <div className="bg-card rounded-xl p-4 shadow-card border border-border/50">
             <p className="text-sm text-muted-foreground">Occupied</p>
-            <p className="text-2xl font-bold text-primary mt-1">
-              {tables.filter(t => t.status === "occupied").length}
-            </p>
+            <p className="text-2xl font-bold text-blue-600 mt-1">{occupiedTables}</p>
           </div>
           <div className="bg-card rounded-xl p-4 shadow-card border border-border/50">
             <p className="text-sm text-muted-foreground">Total Capacity</p>
-            <p className="text-2xl font-bold text-foreground mt-1">
-              {tables.reduce((sum, t) => sum + t.capacity, 0)}
-            </p>
+            <p className="text-2xl font-bold text-foreground mt-1">{totalCapacity}</p>
           </div>
         </div>
 
@@ -153,28 +243,28 @@ export default function SettingsTables() {
           </div>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
-              <Button className="gradient-primary shadow-glow">
+              <Button className="shadow-glow" onClick={handleAddNew}>
                 <Plus className="h-4 w-4 mr-2" />
                 Add Table
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[450px]">
               <DialogHeader>
-                <DialogTitle>Add New Table</DialogTitle>
+                <DialogTitle>{editingTable ? 'Edit Table' : 'Add New Table'}</DialogTitle>
                 <DialogDescription>
-                  Enter the details for the new table.
+                  {editingTable ? 'Update the table details.' : 'Enter the details for the new table.'}
                 </DialogDescription>
               </DialogHeader>
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                   <FormField
                     control={form.control}
-                    name="tableNumber"
+                    name="number"
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Table Number</FormLabel>
                         <FormControl>
-                          <Input placeholder="e.g., T-09" {...field} />
+                          <Input placeholder="e.g., 9" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -206,30 +296,6 @@ export default function SettingsTables() {
                   />
                   <FormField
                     control={form.control}
-                    name="location"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Location</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select location" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {locations.map((loc) => (
-                              <SelectItem key={loc} value={loc}>
-                                {loc}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
                     name="status"
                     render={({ field }) => (
                       <FormItem>
@@ -241,11 +307,9 @@ export default function SettingsTables() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {statuses.map((status) => (
-                              <SelectItem key={status} value={status}>
-                                {status.charAt(0).toUpperCase() + status.slice(1)}
-                              </SelectItem>
-                            ))}
+                            <SelectItem value="AVAILABLE">Available</SelectItem>
+                            <SelectItem value="OCCUPIED">Occupied</SelectItem>
+                            <SelectItem value="RESERVED">Reserved</SelectItem>
                           </SelectContent>
                         </Select>
                         <FormMessage />
@@ -256,8 +320,8 @@ export default function SettingsTables() {
                     <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
                       Cancel
                     </Button>
-                    <Button type="submit" className="gradient-primary">
-                      Add Table
+                    <Button type="submit">
+                      {editingTable ? 'Save Changes' : 'Add Table'}
                     </Button>
                   </DialogFooter>
                 </form>
@@ -278,7 +342,7 @@ export default function SettingsTables() {
                   <div className="p-2 rounded-lg bg-primary/10">
                     <Users className="h-4 w-4 text-primary" />
                   </div>
-                  <span className="font-semibold text-foreground text-lg">{table.tableNumber}</span>
+                  <span className="font-semibold text-foreground text-lg">Table {table.number}</span>
                 </div>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -287,11 +351,18 @@ export default function SettingsTables() {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleEdit(table)}>
                       <Edit className="h-4 w-4 mr-2" />
                       Edit
                     </DropdownMenuItem>
-                    <DropdownMenuItem className="text-destructive">
+                    <DropdownMenuItem 
+                      className="text-destructive"
+                      onClick={() => {
+                        if (confirm('Are you sure you want to delete this table?')) {
+                          deleteMutation.mutate(table.id);
+                        }
+                      }}
+                    >
                       <Trash2 className="h-4 w-4 mr-2" />
                       Delete
                     </DropdownMenuItem>
@@ -302,10 +373,6 @@ export default function SettingsTables() {
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Users className="h-4 w-4" />
                   <span>{table.capacity} seats</span>
-                </div>
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <MapPin className="h-4 w-4" />
-                  <span>{table.location}</span>
                 </div>
               </div>
               <div className="mt-3 pt-3 border-t border-border">

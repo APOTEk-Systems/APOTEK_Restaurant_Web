@@ -1,26 +1,57 @@
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Pencil, Trash2 } from "lucide-react";
-
-const units = [
-  { id: 1, name: "Kilogram", abbreviation: "kg", category: "Weight", baseUnit: true, conversionFactor: 1, active: true },
-  { id: 2, name: "Gram", abbreviation: "g", category: "Weight", baseUnit: false, conversionFactor: 0.001, active: true },
-  { id: 3, name: "Pound", abbreviation: "lb", category: "Weight", baseUnit: false, conversionFactor: 0.453592, active: true },
-  { id: 4, name: "Ounce", abbreviation: "oz", category: "Weight", baseUnit: false, conversionFactor: 0.0283495, active: true },
-  { id: 5, name: "Liter", abbreviation: "L", category: "Volume", baseUnit: true, conversionFactor: 1, active: true },
-  { id: 6, name: "Milliliter", abbreviation: "mL", category: "Volume", baseUnit: false, conversionFactor: 0.001, active: true },
-  { id: 7, name: "Gallon", abbreviation: "gal", category: "Volume", baseUnit: false, conversionFactor: 3.78541, active: true },
-  { id: 8, name: "Piece", abbreviation: "pc", category: "Count", baseUnit: true, conversionFactor: 1, active: true },
-  { id: 9, name: "Dozen", abbreviation: "dz", category: "Count", baseUnit: false, conversionFactor: 12, active: true },
-  { id: 10, name: "Box", abbreviation: "box", category: "Package", baseUnit: true, conversionFactor: 1, active: true },
-  { id: 11, name: "Case", abbreviation: "case", category: "Package", baseUnit: false, conversionFactor: 1, active: true },
-  { id: 12, name: "Bottle", abbreviation: "btl", category: "Container", baseUnit: true, conversionFactor: 1, active: false },
-];
+import { inventoryUnitService, InventoryUnit } from "@/services/inventoryUnitService";
+import { toast } from "sonner";
 
 const SettingsUnits = () => {
+  const queryClient = useQueryClient();
+  const [isLoading, setIsLoading] = useState(false);
+
+  const { data: units = [], isLoading: isLoadingUnits } = useQuery({
+    queryKey: ['inventory-units'],
+    queryFn: () => inventoryUnitService.getAll(),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) => inventoryUnitService.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['inventory-units'] });
+      toast.success('Unit deleted successfully');
+    },
+    onError: () => {
+      toast.error('Failed to delete unit');
+    },
+  });
+
+  const getCategory = (type: string): string => {
+    const typeLower = type.toLowerCase();
+    if (['kilogram', 'gram', 'pound', 'ounce'].some(u => typeLower.includes(u))) return 'Weight';
+    if (['liter', 'milliliter', 'gallon'].some(u => typeLower.includes(u))) return 'Volume';
+    if (['piece', 'dozen'].some(u => typeLower.includes(u))) return 'Count';
+    if (['box', 'case'].some(u => typeLower.includes(u))) return 'Package';
+    if (['bottle'].some(u => typeLower.includes(u))) return 'Container';
+    return type;
+  };
+
+  if (isLoadingUnits) {
+    return (
+      <MainLayout 
+        title="Units of Measurement" 
+        subtitle="Loading..."
+      >
+        <div className="flex items-center justify-center h-64">
+          <p>Loading units...</p>
+        </div>
+      </MainLayout>
+    );
+  }
+
   return (
     <MainLayout 
       title="Units of Measurement" 
@@ -51,7 +82,6 @@ const SettingsUnits = () => {
                   <TableHead>Unit Name</TableHead>
                   <TableHead>Abbreviation</TableHead>
                   <TableHead>Category</TableHead>
-                  <TableHead>Base Unit</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -61,19 +91,12 @@ const SettingsUnits = () => {
                   <TableRow key={unit.id}>
                     <TableCell className="font-medium">{unit.name}</TableCell>
                     <TableCell>
-                      <Badge variant="outline">{unit.abbreviation}</Badge>
+                      <Badge variant="outline">{unit.symbol || '-'}</Badge>
                     </TableCell>
-                    <TableCell>{unit.category}</TableCell>
+                    <TableCell>{getCategory(unit.name)}</TableCell>
                     <TableCell>
-                      {unit.baseUnit ? (
-                        <Badge>Base</Badge>
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={unit.active ? "default" : "secondary"}>
-                        {unit.active ? "Active" : "Inactive"}
+                      <Badge variant={unit.isActive ? "default" : "secondary"}>
+                        {unit.isActive ? "Active" : "Inactive"}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right">
@@ -81,7 +104,15 @@ const SettingsUnits = () => {
                         <Button variant="ghost" size="icon">
                           <Pencil className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" disabled={unit.baseUnit}>
+                        <Button 
+                          variant="ghost" 
+                          size="icon"
+                          onClick={() => {
+                            if (confirm('Are you sure you want to delete this unit?')) {
+                              deleteMutation.mutate(unit.id);
+                            }
+                          }}
+                        >
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>

@@ -1,24 +1,45 @@
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Pencil, Trash2 } from "lucide-react";
-
-const expenseCategories = [
-  { id: 1, name: "Food & Ingredients", code: "FOOD", description: "Raw materials and ingredients for kitchen", active: true },
-  { id: 2, name: "Beverages", code: "BEV", description: "Drinks and beverage supplies", active: true },
-  { id: 3, name: "Utilities", code: "UTIL", description: "Electricity, water, gas, and internet", active: true },
-  { id: 4, name: "Rent & Lease", code: "RENT", description: "Property rental and lease payments", active: true },
-  { id: 5, name: "Salaries & Wages", code: "SAL", description: "Staff compensation and benefits", active: true },
-  { id: 6, name: "Equipment", code: "EQUIP", description: "Kitchen and restaurant equipment", active: true },
-  { id: 7, name: "Maintenance", code: "MAINT", description: "Repairs and maintenance costs", active: true },
-  { id: 8, name: "Marketing", code: "MKT", description: "Advertising and promotional expenses", active: true },
-  { id: 9, name: "Cleaning Supplies", code: "CLEAN", description: "Cleaning materials and sanitation", active: true },
-  { id: 10, name: "Insurance", code: "INS", description: "Business insurance premiums", active: false },
-];
+import { expenseCategoryService, ExpenseCategory } from "@/services/expenseCategoryService";
+import { toast } from "sonner";
 
 const SettingsExpenseCategories = () => {
+  const queryClient = useQueryClient();
+
+  const { data: categories = [], isLoading } = useQuery({
+    queryKey: ['expense-categories'],
+    queryFn: () => expenseCategoryService.getAll(),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) => expenseCategoryService.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['expense-categories'] });
+      toast.success('Category deleted successfully');
+    },
+    onError: () => {
+      toast.error('Failed to delete category');
+    },
+  });
+
+  if (isLoading) {
+    return (
+      <MainLayout 
+        title="Expense Categories" 
+        subtitle="Loading..."
+      >
+        <div className="flex items-center justify-center h-64">
+          <p>Loading categories...</p>
+        </div>
+      </MainLayout>
+    );
+  }
+
   return (
     <MainLayout 
       title="Expense Categories" 
@@ -47,31 +68,33 @@ const SettingsExpenseCategories = () => {
               <TableHeader>
                 <TableRow>
                   <TableHead>Category Name</TableHead>
-                  <TableHead>Code</TableHead>
                   <TableHead>Description</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {expenseCategories.map((category) => (
+                {categories.map((category) => (
                   <TableRow key={category.id}>
                     <TableCell className="font-medium">{category.name}</TableCell>
+                    <TableCell className="text-muted-foreground">{category.description || '-'}</TableCell>
                     <TableCell>
-                      <Badge variant="outline">{category.code}</Badge>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">{category.description}</TableCell>
-                    <TableCell>
-                      <Badge variant={category.active ? "default" : "secondary"}>
-                        {category.active ? "Active" : "Inactive"}
-                      </Badge>
+                      <Badge variant="default">Active</Badge>
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
                         <Button variant="ghost" size="icon">
                           <Pencil className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="icon">
+                        <Button 
+                          variant="ghost" 
+                          size="icon"
+                          onClick={() => {
+                            if (confirm('Are you sure you want to delete this category?')) {
+                              deleteMutation.mutate(category.id);
+                            }
+                          }}
+                        >
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>

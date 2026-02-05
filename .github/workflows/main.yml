@@ -1,0 +1,40 @@
+name: Restaurant Frontend CI/CD
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Deploy to Server via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            set -e
+
+            # 1. Enter the project directory
+            cd /var/www/restaurant/frontend
+
+            # 2. Pull the latest code
+            git fetch origin main
+            git reset --hard origin/main
+            git clean -fd
+
+            # 3. Install dependencies and build
+            npm ci
+            npm run build
+
+            # 4. Restart nginx
+            sudo systemctl restart nginx
+            sudo systemctl status nginx
+
+            # 5. Optional: Reload PM2 processes if any
+            pm2 restart all || true
