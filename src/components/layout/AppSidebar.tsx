@@ -102,6 +102,8 @@ const settingsSubItems = [
   { title: "Restaurant Info", url: "/settings", icon: Store },
   { title: "Configurations", url: "/settings/configurations", icon: Wrench },
   { title: "Tables", url: "/settings/tables", icon: Grid3X3 },
+  { title: "Inventory Categories", url: "/settings/inventory-categories", icon: Package },
+  { title: "Menu Categories", url: "/settings/menu-categories", icon: UtensilsCrossed },
   { title: "Adjustment Reasons", url: "/settings/adjustment-reasons", icon: ListChecks },
   { title: "Expense Categories", url: "/settings/expense-categories", icon: Wallet },
   { title: "Units", url: "/settings/units", icon: Ruler },

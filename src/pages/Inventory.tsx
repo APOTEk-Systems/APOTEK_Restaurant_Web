@@ -108,42 +108,8 @@ export default function Inventory() {
           </div>
         ) : (
           <>
-            {/* Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="bg-card rounded-xl p-5 shadow-card border border-border/50">
-                <div className="flex items-center gap-3">
-                  <div className="p-3 rounded-xl bg-primary/10">
-                    <Package className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Total Items</p>
-                    <p className="text-2xl font-bold text-foreground">{itemsData.length}</p>
-                  </div>
-                </div>
-              </div>
-              <div className="bg-card rounded-xl p-5 shadow-card border border-border/50">
-                <div className="flex items-center gap-3">
-                  <div className="p-3 rounded-xl bg-warning/10">
-                    <AlertTriangle className="h-5 w-5 text-warning" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Low Stock Alerts</p>
-                    <p className="text-2xl font-bold text-foreground">{lowStockItems.length}</p>
-                  </div>
-                </div>
-              </div>
-              <div className="bg-card rounded-xl p-5 shadow-card border border-border/50">
-                <div className="flex items-center gap-3">
-                  <div className="p-3 rounded-xl bg-success/10">
-                    <TrendingDown className="h-5 w-5 text-success" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Categories</p>
-                    <p className="text-2xl font-bold text-foreground">{categoryNames.length}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
+          
+           
 
             {/* Actions Bar */}
             <div className="flex flex-col sm:flex-row gap-4 justify-between">
@@ -185,7 +151,6 @@ export default function Inventory() {
                 <TableRow>
                   <TableHead>Item</TableHead>
                   <TableHead>Category</TableHead>
-                  <TableHead>Departments</TableHead>
                   <TableHead>Current Stock</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Unit Price</TableHead>
@@ -215,15 +180,7 @@ export default function Inventory() {
                         <TableCell>
                           <div className="text-sm text-muted-foreground">{item.category?.name || "Uncategorized"}</div>
                         </TableCell>
-                        <TableCell>
-                          <div className="flex flex-wrap gap-1">
-                            {item.department?.map((dept) => (
-                              <Badge key={dept} variant="outline" className="text-xs">
-                                {dept.charAt(0) + dept.slice(1).toLowerCase()}
-                              </Badge>
-                            ))}
-                          </div>
-                        </TableCell>
+                      
                         <TableCell>
                           <div className="space-y-1">
                             <div className="font-medium text-foreground">

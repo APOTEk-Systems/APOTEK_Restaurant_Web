@@ -78,7 +78,7 @@ const InventoryRequests = () => {
     <MainLayout title="Inventory Requests" subtitle="Manage stock requests from kitchen and bar">
       <div className="space-y-6">
         {/* Summary Cards */}
-        <div className="grid gap-4 md:grid-cols-4">
+        {/* <div className="grid gap-4 md:grid-cols-4">
           <Card className="glass-card">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
@@ -123,7 +123,7 @@ const InventoryRequests = () => {
               <div className="text-2xl font-bold text-emerald-500">{fulfilledToday}</div>
             </CardContent>
           </Card>
-        </div>
+        </div> */}
 
         {/* Search and Filters */}
         <div className="flex flex-col sm:flex-row gap-4">

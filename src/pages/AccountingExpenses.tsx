@@ -202,47 +202,7 @@ export default function AccountingExpenses() {
     <MainLayout title="Expenses" subtitle="Record and manage all expenses">
       <div className="space-y-6 animate-fade-in">
         {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-card rounded-xl p-5 shadow-card border border-border/50">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Total Expenses (This Month)</p>
-                <p className="text-2xl font-bold text-foreground mt-1">
-                  {totalExpenses.toLocaleString('en-US', { style: 'currency', currency: 'TZS' })}
-                </p>
-              </div>
-              <div className="p-3 rounded-xl bg-primary/10">
-                <Receipt className="h-6 w-6 text-primary" />
-              </div>
-            </div>
-          </div>
-          <div className="bg-card rounded-xl p-5 shadow-card border border-border/50">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Total Transactions</p>
-                <p className="text-2xl font-bold text-foreground mt-1">
-                  {filteredExpenses.length}
-                </p>
-              </div>
-              <div className="p-3 rounded-xl bg-success/10">
-                <Receipt className="h-6 w-6 text-success" />
-              </div>
-            </div>
-          </div>
-          <div className="bg-card rounded-xl p-5 shadow-card border border-border/50">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Categories</p>
-                <p className="text-2xl font-bold text-foreground mt-1">
-                  {categories.length}
-                </p>
-              </div>
-              <div className="p-3 rounded-xl bg-warning/10">
-                <Receipt className="h-6 w-6 text-warning" />
-              </div>
-            </div>
-          </div>
-        </div>
+       
 
         {/* Actions */}
         <div className="flex flex-col sm:flex-row gap-4 justify-between">

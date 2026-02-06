@@ -37,6 +37,8 @@ const PurchaseOrderNew = lazy(() => import("./pages/PurchaseOrderNew"));
 const GoodsReceiving = lazy(() => import("./pages/GoodsReceiving"));
 const GoodsReceivingDetail = lazy(() => import("./pages/GoodsReceivingDetail"));
 const Suppliers = lazy(() => import("./pages/Suppliers"));
+const SettingsInventoryCategories = lazy(() => import("./pages/SettingsInventoryCategories"));
+const SettingsMenuCategories = lazy(() => import("./pages/SettingsMenuCategories"));
 const Staff = lazy(() => import("./pages/Staff"));
 const StaffNew = lazy(() => import("./pages/StaffNew"));
 const Users = lazy(() => import("./pages/Users"));
@@ -124,6 +126,8 @@ const App = () => (
             <Route path="/settings/expense-categories" element={<SettingsExpenseCategories />} />
             <Route path="/settings/units" element={<SettingsUnits />} />
             <Route path="/settings/alerts" element={<SettingsAlerts />} />
+            <Route path="/settings/inventory-categories" element={<SettingsInventoryCategories />} />
+            <Route path="/settings/menu-categories" element={<SettingsMenuCategories />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>
