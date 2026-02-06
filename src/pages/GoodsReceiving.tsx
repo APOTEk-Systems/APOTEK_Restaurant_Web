@@ -82,10 +82,10 @@ export default function GoodsReceiving() {
   }
 
   return (
-    <MainLayout title="Goods Receiving" subtitle="Track and manage incoming deliveries">
+    <MainLayout title="Goods Received" subtitle="Track and manage incoming deliveries">
       <div className="space-y-6 animate-fade-in">
         {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        {/* <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="bg-card rounded-xl p-5 shadow-card border border-border/50">
             <p className="text-sm text-muted-foreground">Total Received</p>
             <p className="text-2xl font-bold text-foreground mt-1">{isLoading ? "..." : totalReceived}</p>
@@ -106,7 +106,7 @@ export default function GoodsReceiving() {
             <p className="text-2xl font-bold text-success mt-1">{isLoading ? "..." : completeCount}</p>
             <p className="text-xs text-muted-foreground mt-1">Fully received</p>
           </div>
-        </div>
+        </div> */}
 
         {/* Actions Bar */}
         <div className="flex flex-col sm:flex-row gap-4 justify-between">
@@ -159,7 +159,6 @@ export default function GoodsReceiving() {
                     <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground">Receiving ID</th>
                     <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground">PO Reference</th>
                     <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground">Supplier</th>
-                    <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground">Items</th>
                     <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground">Received Date</th>
                     <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground">Status</th>
                     <th className="text-right px-6 py-4 text-sm font-medium text-muted-foreground">Actions</th>
@@ -184,7 +183,6 @@ export default function GoodsReceiving() {
                             {receiving.purchaseOrder?.poNumber || "-"}
                           </td>
                           <td className="px-6 py-4 text-foreground">{receiving.supplier?.name || "-"}</td>
-                          <td className="px-6 py-4 text-foreground">{receiving.receivedItems?.length || 0} items</td>
                           <td className="px-6 py-4 text-muted-foreground">
                             {receiving.receivedAt ? new Date(receiving.receivedAt).toLocaleDateString() : "-"}
                           </td>
@@ -196,12 +194,12 @@ export default function GoodsReceiving() {
                           </td>
                           <td className="px-6 py-4">
                             <div className="flex items-center justify-end gap-2">
-                              <Button variant="ghost" size="icon" className="h-8 w-8">
-                                <Eye className="h-4 w-4" />
-                              </Button>
-                              <Button variant="ghost" size="icon" className="h-8 w-8">
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
+                              <Link to={`/purchases/receiving/view/${receiving.id}`}>
+                                <Button variant="ghost" size="icon" className="h-8 w-8">
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                              </Link>
+                             
                             </div>
                           </td>
                         </tr>

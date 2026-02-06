@@ -3,13 +3,16 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Search, Eye, MoreHorizontal, Phone, Mail, Star, Loader2, AlertCircle } from "lucide-react";
+import { Plus, Search, Eye, MoreHorizontal, Phone, Mail, Star, Loader2, AlertCircle, Edit, Trash2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { SupplierService, Supplier } from "@/services/supplierService";
+import { SupplierService, Supplier, CreateSupplierData, UpdateSupplierData } from "@/services/supplierService";
+import { InventoryService, type InventoryCategory } from "@/services/inventoryService";
+import { toast } from "sonner";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 const statusStyles: Record<string, string> = {
   active: "bg-success/10 text-success border-success/20",
@@ -18,11 +21,11 @@ const statusStyles: Record<string, string> = {
 };
 
 const categoryColors: Record<string, string> = {
-  "Produce": "bg-success/10 text-success",
+  Produce: "bg-success/10 text-success",
   "Meat & Poultry": "bg-destructive/10 text-destructive",
-  "Seafood": "bg-primary/10 text-primary",
-  "Beverages": "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400",
-  "Dairy": "bg-warning/10 text-warning",
+  Seafood: "bg-primary/10 text-primary",
+  Beverages: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400",
+  Dairy: "bg-warning/10 text-warning",
 };
 
 // Helper function to get category name from inventoryCategories
@@ -34,24 +37,24 @@ const getCategoryName = (supplier: Supplier): string => {
   return "Other";
 };
 
-// Category name to ID mapping
-const categoryMapping: Record<string, number> = {
-  "Produce": 1,
-  "Meat & Poultry": 2,
-  "Seafood": 3,
-  "Beverages": 4,
-  "Dairy": 5,
-  "Other": 6,
-};
-
 export default function Suppliers() {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
-  const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
   const queryClient = useQueryClient();
 
   const [newSupplier, setNewSupplier] = useState({
+    name: "",
+    category: "",
+    contact: "",
+    phone: "",
+    email: "",
+    status: "active"
+  });
+
+  const [editForm, setEditForm] = useState({
     name: "",
     category: "",
     contact: "",
@@ -66,18 +69,18 @@ export default function Suppliers() {
     queryFn: SupplierService.getAllSuppliers,
   });
 
+  // Fetch inventory categories dynamically
+  const { data: categories = [] } = useQuery<InventoryCategory[]>({
+    queryKey: ["inventoryCategories"],
+    queryFn: InventoryService.getAllCategories,
+  });
+
   // Create mutation
   const createMutation = useMutation({
-    mutationFn: (data: { name: string; contact: string; email: string; phone: string; status: string; categories?: number[] }) =>
-      SupplierService.createSupplier({
-        name: data.name,
-        contactPerson: data.contact,
-        email: data.email,
-        phone: data.phone,
-        categories: data.categories,
-      }),
+    mutationFn: (data: CreateSupplierData) => SupplierService.createSupplier(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["suppliers"] });
+      toast.success("Supplier created successfully");
       setIsModalOpen(false);
       setNewSupplier({
         name: "",
@@ -88,6 +91,24 @@ export default function Suppliers() {
         status: "active"
       });
     },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || "Failed to create supplier");
+    },
+  });
+
+  // Update mutation
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: number; data: UpdateSupplierData }) =>
+      SupplierService.updateSupplier(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["suppliers"] });
+      toast.success("Supplier updated successfully");
+      setIsEditModalOpen(false);
+      setEditingSupplier(null);
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || "Failed to update supplier");
+    },
   });
 
   // Delete mutation
@@ -95,7 +116,10 @@ export default function Suppliers() {
     mutationFn: (id: number) => SupplierService.deleteSupplier(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["suppliers"] });
-      setDeletingId(null);
+      toast.success("Supplier deleted successfully");
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || "Failed to delete supplier");
     },
   });
 
@@ -103,14 +127,18 @@ export default function Suppliers() {
     setNewSupplier(prev => ({ ...prev, [field]: value }));
   };
 
+  const handleEditInputChange = (field: string, value: string) => {
+    setEditForm(prev => ({ ...prev, [field]: value }));
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    const categoryId = categoryMapping[newSupplier.category];
+    const categoryId = categories.find((c: InventoryCategory) => c.name === newSupplier.category)?.id;
     
     createMutation.mutate({
       name: newSupplier.name,
-      contact: newSupplier.contact,
+      contactPerson: newSupplier.contact,
       email: newSupplier.email,
       phone: newSupplier.phone,
       status: newSupplier.status,
@@ -118,11 +146,41 @@ export default function Suppliers() {
     });
   };
 
+  const handleEditSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!editingSupplier) return;
+    
+    const categoryId = categories.find((c: InventoryCategory) => c.name === editForm.category)?.id;
+    
+    updateMutation.mutate({
+      id: editingSupplier.id,
+      data: {
+        name: editForm.name,
+        contactPerson: editForm.contact,
+        email: editForm.email,
+        phone: editForm.phone,
+        status: editForm.status,
+        categories: categoryId ? [categoryId] : undefined,
+      }
+    });
+  };
+
   const handleDelete = (id: number) => {
-    if (confirm("Are you sure you want to delete this supplier?")) {
-      setDeletingId(id);
-      deleteMutation.mutate(id);
-    }
+    deleteMutation.mutate(id);
+  };
+
+  const openEditModal = (supplier: Supplier) => {
+    setEditingSupplier(supplier);
+    setEditForm({
+      name: supplier.name || "",
+      category: getCategoryName(supplier),
+      contact: supplier.contactPerson || "",
+      phone: supplier.phone || "",
+      email: supplier.email || "",
+      status: supplier.status || "active"
+    });
+    setIsEditModalOpen(true);
   };
 
   // Filter suppliers based on search and category
@@ -130,22 +188,25 @@ export default function Suppliers() {
     const matchesSearch = supplier.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
                           supplier.contactPerson?.toLowerCase().includes(searchQuery.toLowerCase()) ||
                           supplier.email?.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = selectedCategory === "all" || 
+    const matchesCategory = selectedCategory === "all" ||
                             getCategoryName(supplier).toLowerCase() === selectedCategory.toLowerCase();
     return matchesSearch && matchesCategory;
   });
+
+  // Get unique categories from suppliers for filtering
+  const uniqueCategoriesFromSuppliers = Array.from(new Set(suppliers.map((s: Supplier) => getCategoryName(s))));
 
   // Calculate stats
   const totalSuppliers = suppliers.length;
   const activeSuppliers = suppliers.filter((s: Supplier) => s.status === "active" || s.status === "active").length;
   const topRatedSuppliers = suppliers.filter((s: Supplier) => (s.rating || 0) >= 5).length;
-  const categories = new Set(suppliers.map((s: Supplier) => getCategoryName(s)));
+  const categoryCount = uniqueCategoriesFromSuppliers.length;
 
   return (
     <MainLayout title="Suppliers" subtitle="Manage your supplier relationships">
       <div className="space-y-6 animate-fade-in">
         {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        {/* <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="bg-card rounded-xl p-5 shadow-card border border-border/50">
             <p className="text-sm text-muted-foreground">Total Suppliers</p>
             <p className="text-2xl font-bold text-foreground mt-1">{isLoading ? "..." : totalSuppliers}</p>
@@ -163,10 +224,10 @@ export default function Suppliers() {
           </div>
           <div className="bg-card rounded-xl p-5 shadow-card border border-border/50">
             <p className="text-sm text-muted-foreground">Categories</p>
-            <p className="text-2xl font-bold text-foreground mt-1">{isLoading ? "..." : categories.size}</p>
+            <p className="text-2xl font-bold text-foreground mt-1">{isLoading ? "..." : categoryCount}</p>
             <p className="text-xs text-muted-foreground mt-1">Product categories</p>
           </div>
-        </div>
+        </div> */}
 
         {/* Actions Bar */}
         <div className="flex flex-col sm:flex-row gap-4 justify-between">
@@ -186,11 +247,11 @@ export default function Suppliers() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Categories</SelectItem>
-                <SelectItem value="produce">Produce</SelectItem>
-                <SelectItem value="meat">Meat & Poultry</SelectItem>
-                <SelectItem value="seafood">Seafood</SelectItem>
-                <SelectItem value="beverages">Beverages</SelectItem>
-                <SelectItem value="dairy">Dairy</SelectItem>
+                {categories.map((cat) => (
+                  <SelectItem key={cat.id} value={cat.name}>
+                    {cat.name}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -245,12 +306,11 @@ export default function Suppliers() {
                         <SelectValue placeholder="Select category" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="Produce">Produce</SelectItem>
-                        <SelectItem value="Meat & Poultry">Meat & Poultry</SelectItem>
-                        <SelectItem value="Seafood">Seafood</SelectItem>
-                        <SelectItem value="Beverages">Beverages</SelectItem>
-                        <SelectItem value="Dairy">Dairy</SelectItem>
-                        <SelectItem value="Other">Other</SelectItem>
+                        {categories.map((cat: InventoryCategory) => (
+                          <SelectItem key={cat.id} value={cat.name}>
+                            {cat.name}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
@@ -344,6 +404,144 @@ export default function Suppliers() {
               </form>
             </DialogContent>
           </Dialog>
+
+          {/* Edit Supplier Modal */}
+          <Dialog open={isEditModalOpen} onOpenChange={(open) => {
+            setIsEditModalOpen(open);
+            if (!open) {
+              setEditingSupplier(null);
+            }
+          }}>
+            <DialogContent className="sm:max-w-[600px]">
+              <DialogHeader>
+                <DialogTitle className="text-xl font-bold">Edit Supplier</DialogTitle>
+              </DialogHeader>
+              <form onSubmit={handleEditSubmit} className="space-y-4 py-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-name" className="text-sm font-medium">
+                      Supplier Name *
+                    </Label>
+                    <Input
+                      id="edit-name"
+                      value={editForm.name}
+                      onChange={(e) => handleEditInputChange("name", e.target.value)}
+                      placeholder="Enter supplier name"
+                      required
+                      className="h-9"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-category" className="text-sm font-medium">
+                      Category *
+                    </Label>
+                    <Select
+                      value={editForm.category}
+                      onValueChange={(value) => handleEditInputChange("category", value)}
+                      required
+                    >
+                      <SelectTrigger id="edit-category" className="h-9">
+                        <SelectValue placeholder="Select category" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {categories.map((cat: InventoryCategory) => (
+                          <SelectItem key={cat.id} value={cat.name}>
+                            {cat.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-contact" className="text-sm font-medium">
+                      Contact Person *
+                    </Label>
+                    <Input
+                      id="edit-contact"
+                      value={editForm.contact}
+                      onChange={(e) => handleEditInputChange("contact", e.target.value)}
+                      placeholder="Enter contact name"
+                      required
+                      className="h-9"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-phone" className="text-sm font-medium">
+                      Phone *
+                    </Label>
+                    <Input
+                      id="edit-phone"
+                      value={editForm.phone}
+                      onChange={(e) => handleEditInputChange("phone", e.target.value)}
+                      placeholder="Enter phone number"
+                      required
+                      className="h-9"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="edit-email" className="text-sm font-medium">
+                    Email *
+                  </Label>
+                  <Input
+                    id="edit-email"
+                    type="email"
+                    value={editForm.email}
+                    onChange={(e) => handleEditInputChange("email", e.target.value)}
+                    placeholder="Enter email address"
+                    required
+                    className="h-9"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="edit-status" className="text-sm font-medium">
+                    Status
+                  </Label>
+                  <Select
+                    value={editForm.status}
+                    onValueChange={(value) => handleEditInputChange("status", value)}
+                  >
+                    <SelectTrigger id="edit-status" className="h-9">
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="inactive">Inactive</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="flex justify-end gap-3 pt-4">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setIsEditModalOpen(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    className="gradient-primary text-primary-foreground shadow-glow hover:shadow-lg transition-shadow"
+                    disabled={updateMutation.isPending}
+                  >
+                    {updateMutation.isPending ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      "Save Changes"
+                    )}
+                  </Button>
+                </div>
+              </form>
+            </DialogContent>
+          </Dialog>
         </div>
 
         {/* Error State */}
@@ -373,7 +571,7 @@ export default function Suppliers() {
                   <thead className="bg-muted/50 border-b border-border">
                     <tr>
                       <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Supplier</th>
-                      <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Category</th>
+                      {/* <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Category</th> */}
                       <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Contact</th>
                       <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Phone</th>
                       <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Status</th>
@@ -389,11 +587,7 @@ export default function Suppliers() {
                             <p className="text-sm text-muted-foreground">SUP-{String(supplier.id).padStart(3, '0')}</p>
                           </div>
                         </td>
-                        <td className="py-4 px-4">
-                          <Badge className={cn("text-xs", categoryColors[getCategoryName(supplier)] || categoryColors["Other"])}>
-                            {getCategoryName(supplier)}
-                          </Badge>
-                        </td>
+                        
                         <td className="py-4 px-4">
                           <div>
                             <p className="text-sm">{supplier.contactPerson || "-"}</p>
@@ -410,23 +604,45 @@ export default function Suppliers() {
                         </td>
                         <td className="py-4 px-4">
                           <div className="flex justify-end gap-2">
-                            <Button variant="outline" size="sm">
-                              <Eye className="h-4 w-4 mr-1" />
-                              View
-                            </Button>
                             <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                              onClick={() => supplier.id && handleDelete(supplier.id)}
-                              disabled={deletingId === supplier.id}
+                              variant="outline"
+                              size="sm"
+                              onClick={() => openEditModal(supplier)}
                             >
-                              {deletingId === supplier.id ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                              ) : (
-                                <MoreHorizontal className="h-4 w-4" />
-                              )}
+                              <Edit className="h-4 w-4 mr-1" />
+                              Edit
                             </Button>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                               <Button
+                              variant="outline"
+                              size="sm"
+                              className="bg-destructive text-white"
+                             
+                            >
+                              <Trash2 className="h-4 w-4 mr-1" />
+                              Edit
+                            </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Delete Supplier</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Are you sure you want to delete "{supplier.name}"?
+                                    This action cannot be undone and may affect associated purchase orders.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => supplier.id && handleDelete(supplier.id)}
+                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                  >
+                                    Delete
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
                           </div>
                         </td>
                       </tr>

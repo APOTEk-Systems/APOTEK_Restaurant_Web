@@ -234,7 +234,7 @@ export default function PurchaseOrderDetail() {
                 {/* Receive Goods Button for Approved/Ordered POs */}
                 {(purchaseOrder.status === "APPROVED" || purchaseOrder.status ==="PARTIALLY_RECEIVED") && (
                   <Button asChild className="gap-2">
-                    <Link to={`/purchases/receiving/${purchaseOrder.id}`}>
+                    <Link to={`/purchases/receiving/new/${purchaseOrder.id}`}>
                       <Package className="h-4 w-4" />
                       Receive Goods
                     </Link>

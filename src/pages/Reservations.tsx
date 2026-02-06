@@ -230,30 +230,8 @@ export default function Reservations() {
           </Link>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Summary Card */}
-          <div className="bg-card rounded-xl shadow-card border border-border/50 p-4">
-            <div className="mt-4 pt-4 border-t border-border">
-              <h4 className="font-medium text-foreground mb-2">
-                {dateRange ? 'Date Range Summary' : 'All Reservations'}
-              </h4>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Total Reservations</span>
-                  <span className="font-medium text-foreground">{summaryReservations.length}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Total Guests</span>
-                  <span className="font-medium text-foreground">{totalGuestsSummary}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Tables Reserved</span>
-                  <span className="font-medium text-foreground">{tablesReservedSummary}/{allTables.length}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
+        <div className="grid grid-cols-1 lg:grid-cols-1 gap-6">
+  
           {/* Reservations List */}
           <div className="lg:col-span-2 space-y-4">
             {filteredReservations.length > 0 ? (

@@ -84,9 +84,9 @@ export default function GoodsReceivingNew() {
       queryClient.invalidateQueries({ queryKey: ["purchaseOrders"] });
       queryClient.invalidateQueries({ queryKey: ["purchaseOrder", purchaseOrderId] });
       toast.success("Goods received successfully");
-      // Navigate back to purchases
+      // Navigate back to goods receiving list
       setTimeout(() => {
-        window.location.href = "/purchases";
+        window.location.href = "/purchases/receiving";
       }, 1000);
     },
     onError: (error: any) => {
@@ -118,6 +118,16 @@ export default function GoodsReceivingNew() {
       return;
     }
 
+    // Helper to convert date input to ISO datetime string
+    const toISODateTime = (dateStr: string) => {
+      if (!dateStr) return undefined;
+      // Ensure the date is in proper ISO format (append time if only date is provided)
+      if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        return new Date(`${dateStr}T00:00:00.000Z`).toISOString();
+      }
+      return dateStr;
+    };
+
     const data: CreateGoodsReceivingData = {
       purchaseOrderId,
       supplierId: purchaseOrder?.supplierId || 1,
@@ -128,7 +138,7 @@ export default function GoodsReceivingNew() {
         .map(item => ({
           inventoryItemId: item.inventoryItemId,
           quantityReceived: item.quantityReceiving,
-          expiryDate: item.expiryDate || undefined,
+          expiryDate: toISODateTime(item.expiryDate),
         })),
     };
 

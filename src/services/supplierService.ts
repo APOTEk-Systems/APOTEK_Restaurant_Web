@@ -37,6 +37,7 @@ export interface UpdateSupplierData {
   phone?: string;
   address?: string;
   categories?: number[];
+  status?: string;
 }
 
 export const SupplierService = {

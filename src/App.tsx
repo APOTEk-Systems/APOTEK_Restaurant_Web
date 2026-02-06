@@ -35,6 +35,7 @@ const ExpiringProducts = lazy(() => import("./pages/ExpiringProducts"));
 const Purchases = lazy(() => import("./pages/Purchases"));
 const PurchaseOrderNew = lazy(() => import("./pages/PurchaseOrderNew"));
 const GoodsReceiving = lazy(() => import("./pages/GoodsReceiving"));
+const GoodsReceivingDetail = lazy(() => import("./pages/GoodsReceivingDetail"));
 const Suppliers = lazy(() => import("./pages/Suppliers"));
 const Staff = lazy(() => import("./pages/Staff"));
 const StaffNew = lazy(() => import("./pages/StaffNew"));
@@ -102,7 +103,8 @@ const App = () => (
             <Route path="/inventory/expiring" element={<ExpiringProducts />} />
             <Route path="/purchases" element={<Purchases />} />
             <Route path="/purchases/receiving" element={<GoodsReceiving />} />
-            <Route path="/purchases/receiving/:id" element={<GoodsReceivingNew />} />
+            <Route path="/purchases/receiving/view/:id" element={<GoodsReceivingDetail />} />
+            <Route path="/purchases/receiving/new/:id" element={<GoodsReceivingNew />} />
             <Route path="/purchases/suppliers" element={<Suppliers />} />
             <Route path="/purchases/new" element={<PurchaseOrderNew />} />
             <Route path="/purchases/:id" element={<PurchaseOrderDetail />} />

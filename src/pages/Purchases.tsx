@@ -82,7 +82,7 @@ export default function Purchases() {
     <MainLayout title="Purchases" subtitle="Manage supplier orders and deliveries">
       <div className="space-y-6 animate-fade-in">
         {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        {/* <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="bg-card rounded-xl p-5 shadow-card border border-border/50">
             <p className="text-sm text-muted-foreground">Total Orders</p>
             <p className="text-2xl font-bold text-foreground mt-1">{isLoading ? "..." : totalOrders}</p>
@@ -105,7 +105,7 @@ export default function Purchases() {
             </p>
             <p className="text-xs text-muted-foreground mt-1">This month</p>
           </div>
-        </div>
+        </div> */}
 
         {/* Actions Bar */}
         <div className="flex flex-col sm:flex-row gap-4 justify-between">
