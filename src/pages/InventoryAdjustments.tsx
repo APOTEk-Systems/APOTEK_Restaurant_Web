@@ -1,166 +1,449 @@
+import { useState } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, ArrowUp, ArrowDown, RefreshCw } from "lucide-react";
-
-const adjustments = [
-  {
-    id: "ADJ-001",
-    date: "2024-01-15",
-    item: "Olive Oil",
-    type: "increase",
-    quantity: 10,
-    reason: "New shipment received",
-    adjustedBy: "John Doe",
-  },
-  {
-    id: "ADJ-002",
-    date: "2024-01-14",
-    item: "Tomatoes",
-    type: "decrease",
-    quantity: 5,
-    reason: "Spoilage",
-    adjustedBy: "Jane Smith",
-  },
-  {
-    id: "ADJ-003",
-    date: "2024-01-13",
-    item: "Chicken Breast",
-    type: "correction",
-    quantity: 3,
-    reason: "Physical count discrepancy",
-    adjustedBy: "Mike Johnson",
-  },
-  {
-    id: "ADJ-004",
-    date: "2024-01-12",
-    item: "Flour",
-    type: "increase",
-    quantity: 25,
-    reason: "Restock from supplier",
-    adjustedBy: "John Doe",
-  },
-  {
-    id: "ADJ-005",
-    date: "2024-01-11",
-    item: "Fresh Salmon",
-    type: "decrease",
-    quantity: 2,
-    reason: "Quality issue - returned to supplier",
-    adjustedBy: "Jane Smith",
-  },
-];
+import { Plus, Search, ArrowUp, ArrowDown, Loader2, Package } from "lucide-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { inventoryAdjustmentService, type InventoryAdjustment } from "@/services/inventoryAdjustmentService";
+import { adjustmentReasonService, type AdjustmentReason } from "@/services/adjustmentReasonService";
+import { inventoryItemService, type InventoryItem } from "@/services/inventoryItemService";
+import { toast } from "sonner";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { batchService, type Batch } from "@/services/batchService";
 
 const typeStyles = {
   increase: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20",
   decrease: "bg-red-500/10 text-red-500 border-red-500/20",
-  correction: "bg-amber-500/10 text-amber-500 border-amber-500/20",
 };
 
-const typeIcons = {
-  increase: ArrowUp,
-  decrease: ArrowDown,
-  correction: RefreshCw,
-};
+export default function InventoryAdjustments() {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [formData, setFormData] = useState({
+    inventoryItemId: "",
+    batchId: "general",
+    adjustmentReasonId: "",
+    adjustmentType: "decrease" as "increase" | "decrease",
+    quantity: "",
+    notes: "",
+  });
 
-const InventoryAdjustments = () => {
+  const queryClient = useQueryClient();
+
+  // Fetch adjustments
+  const { data: adjustments = [] as InventoryAdjustment[], isLoading } = useQuery({
+    queryKey: ["inventoryAdjustments"],
+    queryFn: () => inventoryAdjustmentService.getAllInventoryAdjustments(),
+  });
+
+  // Fetch inventory items for dropdown
+  const { data: inventoryItems = [] } = useQuery({
+    queryKey: ["inventoryItems"],
+    queryFn: () => inventoryItemService.getAllInventoryItems(),
+  });
+
+  // Fetch adjustment reasons for dropdown
+  const { data: adjustmentReasons = [] } = useQuery({
+    queryKey: ["adjustmentReasons"],
+    queryFn: adjustmentReasonService.getAllAdjustmentReasons,
+  });
+
+  // Fetch batches for selected inventory item
+  const { data: batches = [] } = useQuery({
+    queryKey: ["batches", formData.inventoryItemId],
+    queryFn: () => formData.inventoryItemId ? batchService.getBatchesByItem(parseInt(formData.inventoryItemId)) : Promise.resolve([]),
+    enabled: !!formData.inventoryItemId,
+  });
+
+  // Filter reasons based on adjustment type
+  const filteredReasons = adjustmentReasons.filter((reason: AdjustmentReason) => {
+    if (formData.adjustmentType === "increase") {
+      return reason.type === "increase" || reason.type === "both";
+    }
+    return reason.type === "decrease" || reason.type === "both";
+  });
+
+  // Create mutation
+  const createMutation = useMutation({
+    mutationFn: (data: typeof formData) =>
+      inventoryAdjustmentService.createInventoryAdjustment({
+        inventoryItemId: parseInt(data.inventoryItemId),
+        adjustmentReasonId: parseInt(data.adjustmentReasonId),
+        adjustmentType: data.adjustmentType,
+        quantity: parseFloat(data.quantity),
+        notes: data.notes || undefined,
+        ...(data.batchId && data.batchId !== "general" && { batchId: parseInt(data.batchId) }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["inventoryAdjustments"] });
+      queryClient.invalidateQueries({ queryKey: ["inventoryItems"] });
+      queryClient.invalidateQueries({ queryKey: ["batches"] });
+      toast.success("Inventory adjustment created successfully");
+      handleCloseDialog();
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || "Failed to create inventory adjustment");
+    },
+  });
+
+  // Get selected inventory item
+  const selectedItem = inventoryItems.find(
+    (item: InventoryItem) => item.id === parseInt(formData.inventoryItemId)
+  );
+
+  // Get selected batch
+  const selectedBatch = batches.find(
+    (batch: Batch) => batch.id === parseInt(formData.batchId)
+  );
+
+  const handleCloseDialog = () => {
+    setIsDialogOpen(false);
+    setFormData({
+      inventoryItemId: "",
+      batchId: "general",
+      adjustmentReasonId: "",
+      adjustmentType: "decrease",
+      quantity: "",
+      notes: "",
+    });
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.inventoryItemId || !formData.adjustmentReasonId || !formData.quantity) {
+      toast.error("Please fill in all required fields");
+      return;
+    }
+    createMutation.mutate(formData);
+  };
+
+  // Calculate stats
+  const todayAdjustments = adjustments.filter((adj: InventoryAdjustment) => {
+    const today = new Date().toDateString();
+    return new Date(adj.createdAt).toDateString() === today;
+  });
+
+  const totalIncreases = todayAdjustments
+    .filter((adj: InventoryAdjustment) => adj.adjustmentType === "increase")
+    .reduce((sum: number, adj: InventoryAdjustment) => sum + adj.quantity, 0);
+
+  const totalDecreases = todayAdjustments
+    .filter((adj: InventoryAdjustment) => adj.adjustmentType === "decrease")
+    .reduce((sum: number, adj: InventoryAdjustment) => sum + adj.quantity, 0);
+
+  // Filter adjustments based on search
+  const filteredAdjustments = adjustments.filter((adj: InventoryAdjustment) => {
+    const searchLower = searchQuery.toLowerCase();
+    return (
+      adj.adjustmentNumber?.toLowerCase().includes(searchLower) ||
+      adj.inventoryItem?.name?.toLowerCase().includes(searchLower) ||
+      adj.adjustmentReason?.name?.toLowerCase().includes(searchLower) ||
+      adj.adjustedBy?.toLowerCase().includes(searchLower) ||
+      adj.batch?.batchNumber?.toLowerCase().includes(searchLower)
+    );
+  });
+
   return (
     <MainLayout title="Inventory Adjustments" subtitle="Track and manage stock level changes">
       <div className="space-y-6">
         {/* Action Button */}
-        <div className="flex justify-end">
-          <Button className="gradient-primary shadow-glow">
-            <Plus className="h-4 w-4 mr-2" />
-            New Adjustment
-          </Button>
-        </div>
+        <div className="flex flex-row-reverse justify-between items-center">
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button onClick={() => setIsDialogOpen(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                New Adjustment
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Create Inventory Adjustment</DialogTitle>
+              </DialogHeader>
+              <form onSubmit={handleSubmit}>
+                <div className="grid grid-cols-2 gap-4 py-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="adjustmentType">Adjustment Type</Label>
+                    <Select
+                      value={formData.adjustmentType}
+                      onValueChange={(value: "increase" | "decrease") =>
+                        setFormData({
+                          ...formData,
+                          adjustmentType: value,
+                          adjustmentReasonId: "",
+                        })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="decrease">Decrease (Remove Stock)</SelectItem>
+                        <SelectItem value="increase">Increase (Add Stock)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="inventoryItem">Inventory Item</Label>
+                    <Select
+                      value={formData.inventoryItemId}
+                      onValueChange={(value) =>
+                        setFormData({ ...formData, inventoryItemId: value, batchId: "general" })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select an item..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {inventoryItems.map((item: InventoryItem) => (
+                          <SelectItem key={item.id} value={String(item.id)}>
+                            {item.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {/* Batch Selection - Show for decrease type */}
+                  {formData.adjustmentType === "decrease" && (
+                    <div className="space-y-2">
+                      <Label htmlFor="batch">Batch (Optional)</Label>
+                      <Select
+                        value={formData.batchId}
+                        onValueChange={(value) =>
+                          setFormData({ ...formData, batchId: value })
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a batch..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="general">General Stock</SelectItem>
+                          {batches.length === 0 ? (
+                            <div className="p-2 text-sm text-muted-foreground">
+                              No batches available
+                            </div>
+                          ) : (
+                            batches.map((batch: Batch) => (
+                              <SelectItem key={batch.id} value={String(batch.id)}>
+                                <div className="flex items-center gap-2">
+                                  <Package className="h-3 w-3" />
+                                  {batch.batchNumber}
+                                  {batch.expiryDate && (
+                                    <span className="text-muted-foreground">
+                                      (Exp: {new Date(batch.expiryDate).toLocaleDateString()})
+                                    </span>
+                                  )}
+                                  <Badge variant="outline" className="ml-auto">
+                                    {batch.quantity}
+                                  </Badge>
+                                </div>
+                              </SelectItem>
+                            ))
+                          )}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                  <div className="space-y-2">
+                    <Label htmlFor="adjustmentReason">Reason</Label>
+                    <Select
+                      value={formData.adjustmentReasonId}
+                      onValueChange={(value) =>
+                        setFormData({ ...formData, adjustmentReasonId: value })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a reason..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {filteredReasons.map((reason: AdjustmentReason) => (
+                          <SelectItem key={reason.id} value={String(reason.id)}>
+                            {reason.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="quantity">Quantity ({selectedItem?.unit || "units"})</Label>
+                    <Input
+                      id="quantity"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={formData.quantity}
+                      onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
+                      placeholder="Enter quantity"
+                      required
+                    />
+                    {selectedItem && (
+                      <p className="text-sm text-muted-foreground">
+                        Current: {selectedItem.quantity} {selectedItem.unit}
+                      </p>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="notes">Notes (Optional)</Label>
+                    <Input
+                      id="notes"
+                      value={formData.notes}
+                      onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                      placeholder="Add notes..."
+                    />
+                  </div>
+                </div>
+                {formData.adjustmentType === "decrease" && selectedBatch && (
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Batch: {selectedBatch.batchNumber} ({selectedBatch.quantity} {selectedItem?.unit} available)
+                  </p>
+                )}
+                <DialogFooter>
+                  <Button type="button" variant="outline" onClick={handleCloseDialog}>
+                    Cancel
+                  </Button>
+                  <Button type="submit" disabled={createMutation.isPending}>
+                    {createMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                    Create Adjustment
+                  </Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
 
-        {/* Summary Cards */}
-        <div className="grid gap-4 md:grid-cols-3">
-          <Card className="glass-card">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Today's Adjustments</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-foreground">5</div>
-            </CardContent>
-          </Card>
-          <Card className="glass-card">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Total Increases</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-emerald-500">+35 units</div>
-            </CardContent>
-          </Card>
-          <Card className="glass-card">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Total Decreases</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-red-500">-7 units</div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Search */}
+           {/* Search */}
         <div className="flex items-center gap-4">
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Search adjustments..." className="pl-9 glass-card" />
+            <Input
+              placeholder="Search adjustments..."
+              className="pl-9 glass-card"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
           </div>
         </div>
+        </div>
+
+       
+
+       
+
 
         {/* Adjustments List */}
         <Card className="glass-card">
           <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-border">
-                    <th className="text-left p-4 text-sm font-medium text-muted-foreground">ID</th>
-                    <th className="text-left p-4 text-sm font-medium text-muted-foreground">Date</th>
-                    <th className="text-left p-4 text-sm font-medium text-muted-foreground">Item</th>
-                    <th className="text-left p-4 text-sm font-medium text-muted-foreground">Type</th>
-                    <th className="text-left p-4 text-sm font-medium text-muted-foreground">Quantity</th>
-                    <th className="text-left p-4 text-sm font-medium text-muted-foreground">Reason</th>
-                    <th className="text-left p-4 text-sm font-medium text-muted-foreground">Adjusted By</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {adjustments.map((adjustment) => {
-                    const TypeIcon = typeIcons[adjustment.type as keyof typeof typeIcons];
-                    return (
-                      <tr key={adjustment.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
-                        <td className="p-4 text-sm font-medium text-foreground">{adjustment.id}</td>
-                        <td className="p-4 text-sm text-muted-foreground">{adjustment.date}</td>
-                        <td className="p-4 text-sm text-foreground">{adjustment.item}</td>
-                        <td className="p-4">
-                          <Badge className={typeStyles[adjustment.type as keyof typeof typeStyles]}>
-                            <TypeIcon className="h-3 w-3 mr-1" />
-                            {adjustment.type}
-                          </Badge>
+            {isLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <span className="ml-3 text-muted-foreground">Loading adjustments...</span>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-border">
+                      <th className="text-left p-4 text-sm font-medium text-muted-foreground">ID</th>
+                      <th className="text-left p-4 text-sm font-medium text-muted-foreground">Date</th>
+                      <th className="text-left p-4 text-sm font-medium text-muted-foreground">Item</th>
+                      <th className="text-left p-4 text-sm font-medium text-muted-foreground">Type</th>
+                      <th className="text-left p-4 text-sm font-medium text-muted-foreground">
+                        Quantity
+                      </th>
+                      <th className="text-left p-4 text-sm font-medium text-muted-foreground">Batch</th>
+                      <th className="text-left p-4 text-sm font-medium text-muted-foreground">Reason</th>
+                      <th className="text-left p-4 text-sm font-medium text-muted-foreground">
+                        Adjusted By
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredAdjustments.length === 0 ? (
+                      <tr>
+                        <td
+                          colSpan={8}
+                          className="p-12 text-center text-muted-foreground"
+                        >
+                          No adjustments found.
                         </td>
-                        <td className="p-4 text-sm font-medium">
-                          <span className={adjustment.type === "decrease" ? "text-red-500" : "text-emerald-500"}>
-                            {adjustment.type === "decrease" ? "-" : "+"}{adjustment.quantity}
-                          </span>
-                        </td>
-                        <td className="p-4 text-sm text-muted-foreground">{adjustment.reason}</td>
-                        <td className="p-4 text-sm text-muted-foreground">{adjustment.adjustedBy}</td>
                       </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                    ) : (
+                      filteredAdjustments.map((adjustment: InventoryAdjustment) => (
+                        <tr
+                          key={adjustment.id}
+                          className="border-b border-border/50 hover:bg-muted/30 transition-colors"
+                        >
+                          <td className="p-4 text-sm font-medium text-foreground">
+                            {adjustment.adjustmentNumber}
+                          </td>
+                          <td className="p-4 text-sm text-muted-foreground">
+                            {new Date(adjustment.createdAt).toLocaleDateString()}
+                          </td>
+                          <td className="p-4 text-sm text-foreground">
+                            {adjustment.inventoryItem?.name || `Item #${adjustment.inventoryItemId}`}
+                          </td>
+                          <td className="p-4">
+                            <Badge
+                              className={
+                                typeStyles[adjustment.adjustmentType as keyof typeof typeStyles]
+                              }
+                            >
+                              {adjustment.adjustmentType === "increase" ? (
+                                <ArrowUp className="h-3 w-3 mr-1" />
+                              ) : (
+                                <ArrowDown className="h-3 w-3 mr-1" />
+                              )}
+                              {adjustment.adjustmentType}
+                            </Badge>
+                          </td>
+                          <td className="p-4 text-sm font-medium">
+                            <span
+                              className={
+                                adjustment.adjustmentType === "decrease"
+                                  ? "text-red-500"
+                                  : "text-emerald-500"
+                              }
+                            >
+                              {adjustment.adjustmentType === "decrease" ? "-" : "+"}
+                              {adjustment.quantity}
+                            </span>
+                          </td>
+                          <td className="p-4 text-sm text-muted-foreground">
+                            {adjustment.batch?.batchNumber ? (
+                              <div className="flex items-center gap-1">
+                                <Package className="h-3 w-3" />
+                                {adjustment.batch.batchNumber}
+                              </div>
+                            ) : (
+                              "-"
+                            )}
+                          </td>
+                          <td className="p-4 text-sm text-muted-foreground">
+                            {adjustment.adjustmentReason?.name || "-"}
+                          </td>
+                          <td className="p-4 text-sm text-muted-foreground">
+                            {adjustment.adjustedBy || "-"}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
     </MainLayout>
   );
-};
-
-export default InventoryAdjustments;
+}

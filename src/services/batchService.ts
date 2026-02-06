@@ -1,4 +1,4 @@
-import { api } from './api';
+import { api } from "./api";
 
 export interface Batch {
   id: number;
@@ -10,35 +10,15 @@ export interface Batch {
     unit: string;
   };
   quantity: number;
+  receivedAt?: string;
   expiryDate?: string;
-  receivedDate?: string;
-  location?: string;
-  status?: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface CreateBatchData {
-  batchNumber: string;
-  inventoryItemId: number;
-  quantity: number;
-  expiryDate?: string;
-  receivedDate?: string;
-  location?: string;
-}
-
-export interface UpdateBatchData {
-  batchNumber?: string;
-  inventoryItemId?: number;
-  quantity?: number;
-  expiryDate?: string;
-  receivedDate?: string;
-  location?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export const batchService = {
   getAllBatches: async (): Promise<Batch[]> => {
-    const response = await api.get('/batches');
+    const response = await api.get("/batches");
     return response.data;
   },
 
@@ -47,18 +27,23 @@ export const batchService = {
     return response.data;
   },
 
-  getExpiringBatches: async (): Promise<Batch[]> => {
-    const response = await api.get('/batches/expiring');
+  getBatchesByItem: async (itemId: number): Promise<Batch[]> => {
+    const response = await api.get(`/batches/item/${itemId}`);
     return response.data;
   },
 
-  createBatch: async (data: CreateBatchData): Promise<Batch> => {
-    const response = await api.post('/batches', data);
+  getExpiringBatches: async (days: number = 10): Promise<Batch[]> => {
+    const response = await api.get(`/batches/expiring?days=${days}`);
     return response.data;
   },
 
-  updateBatch: async (id: number, data: UpdateBatchData): Promise<Batch> => {
-    const response = await api.patch(`/batches/${id}`, data);
+  createBatch: async (data: Partial<Batch>): Promise<Batch> => {
+    const response = await api.post("/batches", data);
+    return response.data;
+  },
+
+  updateBatch: async (id: number, data: Partial<Batch>): Promise<Batch> => {
+    const response = await api.put(`/batches/${id}`, data);
     return response.data;
   },
 

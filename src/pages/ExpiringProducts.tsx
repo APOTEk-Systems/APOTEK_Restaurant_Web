@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { batchService, type Batch } from "@/services/batchService";
+import { api } from "@/services/api";
 
 const statusStyles = {
   critical: "bg-red-500/10 text-red-500 border-red-500/20",
@@ -41,9 +42,12 @@ const ExpiringProducts = () => {
   const [searchQuery, setSearchQuery] = useState("");
 
   // Fetch expiring batches from API
-  const { data: batches = [], isLoading, isError, error } = useQuery<Batch[]>({
+  const { data: batches = [], isLoading, isError, error } = useQuery({
     queryKey: ["expiringBatches"],
-    queryFn: batchService.getExpiringBatches,
+    queryFn: async () => {
+      const response = await api.get(`/batches/expiring?days=10`);
+      return response.data as Batch[];
+    },
   });
 
   // Calculate days left and status for each batch
@@ -58,8 +62,7 @@ const ExpiringProducts = () => {
     const searchLower = searchQuery.toLowerCase();
     return (
       batch.batchNumber?.toLowerCase().includes(searchLower) ||
-      batch.inventoryItem?.name?.toLowerCase().includes(searchLower) ||
-      batch.location?.toLowerCase().includes(searchLower)
+      batch.inventoryItem?.name?.toLowerCase().includes(searchLower)
     );
   });
 
