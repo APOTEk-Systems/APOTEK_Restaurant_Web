@@ -23,31 +23,23 @@ import {
   PlusCircle,
   Loader2,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { Link, useSearchParams, useNavigate } from "react-router-dom";
+import {
+  Plus,
+  Search,
+  Utensils,
+  GlassWater,
+  PlusCircle,
+} from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
 import { useState, useEffect, useMemo } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { MenuService, type MenuItem, type MenuAddon, type MenuSideDish, type MenuCategory } from "@/services/menuService";
 import { useToast } from "@/hooks/use-toast";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+import { SideDishDialog } from "@/components/kitchen/SideDishDialog";
+import { AddonDialog } from "@/components/kitchen/AddonDialog";
+import { KitchenMenuCard } from "@/components/kitchen/KitchenMenuCard";
+import { AddonCard } from "@/components/kitchen/AddonCard";
+import { SideDishCard } from "@/components/kitchen/SideDishCard";
 
 // Use the MenuItem type from the service with kitchen-specific category
 interface KitchenMenuItem
@@ -57,332 +49,16 @@ interface KitchenMenuItem
   categoryName?: string; // Store the actual category name
 }
 
-function KitchenMenuCard({
-  item,
-  onToggleAvailability,
-  onEdit,
-  onDelete,
-  isToggling,
-}: {
-  item: KitchenMenuItem;
-  onToggleAvailability: (id: number, currentStatus: boolean) => void;
-  onEdit: (item: KitchenMenuItem) => void;
-  onDelete: (id: number) => void;
-  isToggling?: boolean;
-}) {
-  return (
-    <div
-      className={cn(
-        "bg-card rounded-xl p-5 shadow-card border border-border/50 hover:shadow-card-hover transition-all duration-300 hover-lift",
-        !item.isAvailable && "opacity-60"
-      )}
-    >
-      <div className="flex items-start justify-between mb-3">
-        <div className="flex-1">
-          <div className="flex items-center gap-2">
-            <h3 className="font-semibold text-foreground">{item.name}</h3>
-            {!item.isAvailable && (
-              <Badge variant="secondary" className="text-xs">
-                Unavailable
-              </Badge>
-            )}
-          </div>
-          <p className="text-sm text-muted-foreground mt-1">
-            {item.description}
-          </p>
-          {item.categoryName && (
-            <Badge variant="outline" className="mt-2 text-xs">
-              {item.categoryName}
-            </Badge>
-          )}
-        </div>
-        <span className="text-lg font-bold text-primary">
-          ${item.price.toLocaleString("en-US")}
-        </span>
-      </div>
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4 text-sm text-muted-foreground">
-          {item.rating && (
-            <span className="flex items-center gap-1">
-              <Star className="h-4 w-4 text-warning fill-warning" />
-              {item.rating}
-            </span>
-          )}
-          {item.orders && <span>{item.orders} orders</span>}
-        </div>
-        <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8"
-            onClick={() => onEdit(item)}
-          >
-            <Edit className="h-4 w-4" />
-          </Button>
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 text-destructive hover:text-destructive"
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Delete Menu Item</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Are you sure you want to delete "{item.name}"? This action cannot be undone.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={() => onDelete(item.id)}
-                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                >
-                  Delete
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8"
-            onClick={() => onToggleAvailability(item.id, item.isAvailable)}
-            disabled={isToggling}
-          >
-            {isToggling ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : item.isAvailable ? (
-              <ToggleRight className="h-4 w-4 text-success" />
-            ) : (
-              <ToggleLeft className="h-4 w-4 text-muted-foreground" />
-            )}
-          </Button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function AddonCard({
-  addon,
-  onToggleAvailability,
-  onEdit,
-  onDelete,
-  isToggling,
-}: {
-  addon: MenuAddon;
-  onToggleAvailability: (id: number, currentStatus: boolean) => void;
-  onEdit: (addon: MenuAddon) => void;
-  onDelete: (id: number) => void;
-  isToggling?: boolean;
-}) {
-  return (
-    <div
-      className={cn(
-        "bg-card rounded-xl p-5 shadow-card border border-border/50 hover:shadow-card-hover transition-all duration-300 hover-lift",
-        !addon.isAvailable && "opacity-60"
-      )}
-    >
-      <div className="flex items-start justify-between mb-3">
-        <div className="flex-1">
-          <div className="flex items-center gap-2">
-            <h3 className="font-semibold text-foreground">{addon.name}</h3>
-            {!addon.isAvailable && (
-              <Badge variant="secondary" className="text-xs">
-                Unavailable
-              </Badge>
-            )}
-          </div>
-          <p className="text-sm text-muted-foreground mt-1">
-            {addon.description}
-          </p>
-        </div>
-        <span className="text-lg font-bold text-primary">
-          ${addon.price.toLocaleString("en-US")}
-        </span>
-      </div>
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4 text-sm text-muted-foreground">
-          {addon.isAvailable && (
-            <Badge variant="outline" className="text-xs">
-              Available as addon
-            </Badge>
-          )}
-        </div>
-        <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8"
-            onClick={() => onEdit(addon)}
-          >
-            <Edit className="h-4 w-4" />
-          </Button>
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 text-destructive hover:text-destructive"
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Delete Addon</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Are you sure you want to delete "{addon.name}"? This action cannot be undone.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={() => onDelete(addon.id)}
-                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                >
-                  Delete
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8"
-            onClick={() => onToggleAvailability(addon.id, addon.isAvailable)}
-            disabled={isToggling}
-          >
-            {isToggling ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : addon.isAvailable ? (
-              <ToggleRight className="h-4 w-4 text-success" />
-            ) : (
-              <ToggleLeft className="h-4 w-4 text-muted-foreground" />
-            )}
-          </Button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function SideDishCard({
-  sideDish,
-  onToggleAvailability,
-  onEdit,
-  onDelete,
-  isToggling,
-}: {
-  sideDish: MenuSideDish;
-  onToggleAvailability: (id: number, currentStatus: boolean) => void;
-  onEdit: (sideDish: MenuSideDish) => void;
-  onDelete: (id: number) => void;
-  isToggling?: boolean;
-}) {
-  return (
-    <div
-      className={cn(
-        "bg-card rounded-xl p-5 shadow-card border border-border/50 hover:shadow-card-hover transition-all duration-300 hover-lift",
-        !sideDish.isAvailable && "opacity-60"
-      )}
-    >
-      <div className="flex items-start justify-between mb-3">
-        <div className="flex-1">
-          <div className="flex items-center gap-2">
-            <h3 className="font-semibold text-foreground">{sideDish.name}</h3>
-            {!sideDish.isAvailable && (
-              <Badge variant="secondary" className="text-xs">
-                Unavailable
-              </Badge>
-            )}
-          </div>
-          <p className="text-sm text-muted-foreground mt-1">
-            {sideDish.description}
-          </p>
-        </div>
-        <span className="text-lg font-bold text-primary">
-          ${sideDish.price.toLocaleString("en-US")}
-        </span>
-      </div>
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4 text-sm text-muted-foreground">
-          {sideDish.isAvailable && (
-            <Badge variant="outline" className="text-xs">
-              Available as side
-            </Badge>
-          )}
-        </div>
-        <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8"
-            onClick={() => onEdit(sideDish)}
-          >
-            <Edit className="h-4 w-4" />
-          </Button>
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 text-destructive hover:text-destructive"
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Delete Side Dish</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Are you sure you want to delete "{sideDish.name}"? This action cannot be undone.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={() => onDelete(sideDish.id)}
-                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                >
-                  Delete
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8"
-            onClick={() => onToggleAvailability(sideDish.id, sideDish.isAvailable)}
-            disabled={isToggling}
-          >
-            {isToggling ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : sideDish.isAvailable ? (
-              <ToggleRight className="h-4 w-4 text-success" />
-            ) : (
-              <ToggleLeft className="h-4 w-4 text-muted-foreground" />
-            )}
-          </Button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export default function KitchenMenu() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState("items");
-  const [togglingId, setTogglingId] = useState<number | null>(null);
+  const [sideDishDialogOpen, setSideDishDialogOpen] = useState(false);
+  const [editingSideDish, setEditingSideDish] = useState<MenuSideDish | null>(null);
+  const [addonDialogOpen, setAddonDialogOpen] = useState(false);
+  const [editingAddon, setEditingAddon] = useState<MenuAddon | null>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -428,70 +104,6 @@ export default function KitchenMenu() {
 
   // Check if any error occurred
   const error = menuItemsError || addonsError || sideDishesError || categoriesError;
-
-  // Mutations
-  const toggleMenuItemMutation = useMutation({
-    mutationFn: ({ id, isAvailable }: { id: number; isAvailable: boolean }) =>
-      MenuService.toggleMenuItemAvailability(id, !isAvailable),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['menuItems'] });
-      toast({
-        title: "Success",
-        description: "Menu item availability updated",
-      });
-      setTogglingId(null);
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to update availability",
-        variant: "destructive",
-      });
-      setTogglingId(null);
-    },
-  });
-
-  const toggleAddonMutation = useMutation({
-    mutationFn: ({ id, isAvailable }: { id: number; isAvailable: boolean }) =>
-      MenuService.toggleAddonAvailability(id, !isAvailable),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['menuAddons'] });
-      toast({
-        title: "Success",
-        description: "Addon availability updated",
-      });
-      setTogglingId(null);
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to update availability",
-        variant: "destructive",
-      });
-      setTogglingId(null);
-    },
-  });
-
-  const toggleSideDishMutation = useMutation({
-    mutationFn: ({ id, isAvailable }: { id: number; isAvailable: boolean }) =>
-      MenuService.toggleSideDishAvailability(id, !isAvailable),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['menuSideDishes'] });
-      toast({
-        title: "Success",
-        description: "Side dish availability updated",
-      });
-      setTogglingId(null);
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to update availability",
-        variant: "destructive",
-      });
-      setTogglingId(null);
-    },
-  });
 
   const deleteMenuItemMutation = useMutation({
     mutationFn: (id: number) => MenuService.deleteMenuItem(id),
@@ -583,17 +195,8 @@ export default function KitchenMenu() {
     }
   }, [error, toast]);
 
-  const handleToggleAvailability = (id: number, currentStatus: boolean, type: "menu" | "addon" | "side") => {
-    setTogglingId(id);
-    if (type === "menu") {
-      toggleMenuItemMutation.mutate({ id, isAvailable: currentStatus });
-    } else if (type === "addon") {
-      toggleAddonMutation.mutate({ id, isAvailable: currentStatus });
-    } else {
-      toggleSideDishMutation.mutate({ id, isAvailable: currentStatus });
-    }
-  };
-
+  // Availability toggling is handled inside each card component now.
+  // Removed the empty/awkward `handleToggleAvailability` wrapper.
   const handleDelete = (id: number, type: "menu" | "addon" | "side") => {
     if (type === "menu") {
       deleteMenuItemMutation.mutate(id);
@@ -609,11 +212,13 @@ export default function KitchenMenu() {
       // Navigate to MenuNew with the item ID for full editing
       navigate(`/menu/new?type=kitchen&id=${item.id}`);
     } else if (type === "addon") {
-      // Navigate to MenuNew with the addon ID for editing
-      navigate(`/menu/new?type=kitchen&id=${item.id}&itemType=addon`);
+      // Open addon dialog for editing
+      setEditingAddon(item as MenuAddon);
+      setAddonDialogOpen(true);
     } else {
-      // Navigate to MenuNew with the side dish ID for editing
-      navigate(`/menu/new?type=kitchen&id=${item.id}&itemType=sideDish`);
+      // Open side dish dialog for editing
+      setEditingSideDish(item as MenuSideDish);
+      setSideDishDialogOpen(true);
     }
   };
 
@@ -749,12 +354,8 @@ export default function KitchenMenu() {
                         <KitchenMenuCard
                           key={item.id}
                           item={item}
-                          onToggleAvailability={(id, status) =>
-                            handleToggleAvailability(id, status, "menu")
-                          }
                           onEdit={(item) => handleEdit(item, "menu")}
                           onDelete={(id) => handleDelete(id, "menu")}
-                          isToggling={togglingId === item.id}
                         />
                       ))}
                     </div>
@@ -775,12 +376,16 @@ export default function KitchenMenu() {
                         onChange={(e) => setSearchQuery(e.target.value)}
                       />
                     </div>
-                    <Link to="/menu/new?type=kitchen&itemType=sideDish">
-                      <Button className="gradient-primary text-primary-foreground shadow-glow hover:shadow-lg transition-shadow">
-                        <Plus className="h-4 w-4 mr-2" />
-                        Add Side Dish
-                      </Button>
-                    </Link>
+                    <Button 
+                      className="gradient-primary text-primary-foreground shadow-glow hover:shadow-lg transition-shadow"
+                      onClick={() => {
+                        setEditingSideDish(null);
+                        setSideDishDialogOpen(true);
+                      }}
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Side Dish
+                    </Button>
                   </div>
 
                   {filteredSideDishes.length === 0 ? (
@@ -794,12 +399,8 @@ export default function KitchenMenu() {
                         <SideDishCard
                           key={side.id}
                           sideDish={side}
-                          onToggleAvailability={(id, status) =>
-                            handleToggleAvailability(id, status, "side")
-                          }
                           onEdit={(sideDish) => handleEdit(sideDish, "side")}
                           onDelete={(id) => handleDelete(id, "side")}
-                          isToggling={togglingId === side.id}
                         />
                       ))}
                     </div>
@@ -820,12 +421,16 @@ export default function KitchenMenu() {
                         onChange={(e) => setSearchQuery(e.target.value)}
                       />
                     </div>
-                    <Link to="/menu/addons/new">
-                      <Button className="gradient-primary text-primary-foreground shadow-glow hover:shadow-lg transition-shadow">
-                        <Plus className="h-4 w-4 mr-2" />
-                        Add Addon
-                      </Button>
-                    </Link>
+                    <Button 
+                      className="gradient-primary text-primary-foreground shadow-glow hover:shadow-lg transition-shadow"
+                      onClick={() => {
+                        setEditingAddon(null);
+                        setAddonDialogOpen(true);
+                      }}
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Addon
+                    </Button>
                   </div>
 
                   {filteredAddons.length === 0 ? (
@@ -839,14 +444,10 @@ export default function KitchenMenu() {
                         <AddonCard
                           key={addon.id}
                           addon={addon}
-                          onToggleAvailability={(id, status) =>
-                            handleToggleAvailability(id, status, "addon")
-                          }
                           onEdit={(addon) => handleEdit(addon, "addon")}
                           onDelete={(id) => handleDelete(id, "addon")}
-                          isToggling={togglingId === addon.id}
                         />
-                      ))}
+                      ))}}
                     </div>
                   )}
                 </div>
@@ -855,6 +456,20 @@ export default function KitchenMenu() {
           </>
         )}
       </div>
+
+      {/* Side Dish Dialog */}
+      <SideDishDialog
+        open={sideDishDialogOpen}
+        onOpenChange={setSideDishDialogOpen}
+        sideDish={editingSideDish}
+      />
+
+      {/* Addon Dialog */}
+      <AddonDialog
+        open={addonDialogOpen}
+        onOpenChange={setAddonDialogOpen}
+        addon={editingAddon}
+      />
     </MainLayout>
   );
 }

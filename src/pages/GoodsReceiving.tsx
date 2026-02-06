@@ -109,8 +109,8 @@ export default function GoodsReceiving() {
         </div> */}
 
         {/* Actions Bar */}
-        <div className="flex flex-col sm:flex-row gap-4 justify-between">
-          <div className="flex gap-3">
+        <div className="flex flex-col sm:flex-row gap-4">
+          <div className="flex gap-3 w-full">
             <div className="relative flex-1 sm:w-80">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input 
@@ -156,10 +156,12 @@ export default function GoodsReceiving() {
               <table className="w-full">
                 <thead className="bg-muted/50">
                   <tr>
-                    <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground">Receiving ID</th>
-                    <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground">PO Reference</th>
-                    <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground">Supplier</th>
+                   
+                    <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground">Order #</th>
+                  
                     <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground">Received Date</th>
+                      <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground">Supplier</th>
+                       <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground">Received By</th>
                     <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground">Status</th>
                     <th className="text-right px-6 py-4 text-sm font-medium text-muted-foreground">Actions</th>
                   </tr>
@@ -178,14 +180,16 @@ export default function GoodsReceiving() {
                       
                       return (
                         <tr key={receiving.id} className="hover:bg-muted/30 transition-colors">
-                          <td className="px-6 py-4 font-medium text-foreground">{receiving.grnNumber}</td>
+                          {/* <td className="px-6 py-4 font-medium text-foreground">{receiving.grnNumber}</td> */}
                           <td className="px-6 py-4 text-primary font-medium">
                             {receiving.purchaseOrder?.poNumber || "-"}
                           </td>
-                          <td className="px-6 py-4 text-foreground">{receiving.supplier?.name || "-"}</td>
-                          <td className="px-6 py-4 text-muted-foreground">
+                           <td className="px-6 py-4 text-muted-foreground">
                             {receiving.receivedAt ? new Date(receiving.receivedAt).toLocaleDateString() : "-"}
                           </td>
+                          <td className="px-6 py-4 text-foreground">{receiving.supplier?.name || "-"}</td>
+                                                   <td className="px-6 py-4 text-foreground">{"-"}</td>
+
                           <td className="px-6 py-4">
                             <Badge className={cn("capitalize", statusStyles[status])}>
                               <StatusIcon className="h-3 w-3 mr-1" />

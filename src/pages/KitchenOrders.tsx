@@ -283,16 +283,7 @@ export default function KitchenOrders() {
     }
   };
 
-  const getCourseFromItems = (items: OrderItem[]): "starter" | "main" | "dessert" => {
-    const itemNames = items.map(item => item.menuItem.name.toLowerCase());
-    if (itemNames.some(name => name.includes('salad') || name.includes('soup') || name.includes('bread'))) {
-      return "starter";
-    } else if (itemNames.some(name => name.includes('cake') || name.includes('tiramisu') || name.includes('dessert'))) {
-      return "dessert";
-    } else {
-      return "main";
-    }
-  };
+
 
   const getPriorityFromItems = (items: OrderItem[]): "high" | "normal" => {
     const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
@@ -314,10 +305,7 @@ export default function KitchenOrders() {
     return (
       <MainLayout title="Kitchen Orders">
         <div className="space-y-6">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">Kitchen Orders</h1>
-            <p className="text-muted-foreground mt-1">Loading orders...</p>
-          </div>
+          
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             {[...Array(4)].map((_, i) => (
               <Card key={i} className="glass-card h-24 animate-pulse" />
@@ -335,12 +323,9 @@ export default function KitchenOrders() {
 
   if (isError) {
     return (
-      <MainLayout title="Kitchen Orders">
+      <MainLayout title="Kitchen Orders" subtitle="Manage incoming food orders">
         <div className="space-y-6">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">Kitchen Orders</h1>
-            <p className="text-muted-foreground mt-1">Manage incoming food orders</p>
-          </div>
+          
           <div className="flex items-center justify-center h-64">
             <div className="text-center">
               <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
@@ -361,13 +346,9 @@ export default function KitchenOrders() {
   }
 
   return (
-    <MainLayout title="Kitchen Orders">
+    <MainLayout title="Kitchen Orders" subtitle="Manage incoming food orders">
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Kitchen Orders</h1>
-          <p className="text-muted-foreground mt-1">Manage incoming food orders</p>
-        </div>
-
+        
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card className="glass-card">

@@ -75,7 +75,7 @@ const InventoryRequests = () => {
   };
 
   return (
-    <MainLayout title="Inventory Requests" subtitle="Manage stock requests from kitchen and bar">
+    <MainLayout title="Stock Requests" subtitle="Manage stock requests from kitchen and bar">
       <div className="space-y-6">
         {/* Summary Cards */}
         {/* <div className="grid gap-4 md:grid-cols-4">

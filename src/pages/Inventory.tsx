@@ -1,11 +1,13 @@
+// Helper to get unit symbol from unit name
+
+
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Search, Package, AlertTriangle, TrendingDown, Loader2 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, getUnitSymbol } from "@/lib/utils";
 import { Link } from "react-router-dom";
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@/components/ui/table";
 import { useState, useMemo } from "react";
@@ -93,7 +95,7 @@ export default function Inventory() {
   });
 
   return (
-    <MainLayout title="Inventory" subtitle="Track and manage your stock levels">
+    <MainLayout title="Current Stock" subtitle="Track and manage your stock levels">
       <div className="space-y-6 animate-fade-in">
         {/* Loading State */}
         {isLoading ? (
@@ -112,8 +114,8 @@ export default function Inventory() {
            
 
             {/* Actions Bar */}
-            <div className="flex flex-col sm:flex-row gap-4 justify-between">
-              <div className="flex gap-3">
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="flex gap-3 w-full">
                 <div className="relative flex-1 sm:w-80">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input 
@@ -151,9 +153,9 @@ export default function Inventory() {
                 <TableRow>
                   <TableHead>Item</TableHead>
                   <TableHead>Category</TableHead>
-                  <TableHead>Current Stock</TableHead>
+                  <TableHead>Quantity</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Unit Price</TableHead>
+                  <TableHead>Price</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -167,7 +169,7 @@ export default function Inventory() {
                   filteredItems.map((item) => {
                     const status = getItemStatus(item);
                     const StatusIcon = statusIcons[status] || Package;
-                    const percentage = item.maxStock ? (item.quantity / item.maxStock) * 100 : 0;
+                    const unitSymbol = getUnitSymbol(item.unit);
 
                     return (
                       <TableRow key={item.id}>
@@ -180,15 +182,9 @@ export default function Inventory() {
                         <TableCell>
                           <div className="text-sm text-muted-foreground">{item.category?.name || "Uncategorized"}</div>
                         </TableCell>
-                      
                         <TableCell>
-                          <div className="space-y-1">
-                            <div className="font-medium text-foreground">
-                              {item.quantity} {item.unit}
-                            </div>
-                            {item.maxStock && (
-                              <Progress value={percentage} className="h-1 w-20" />
-                            )}
+                          <div className="font-medium text-foreground">
+                            {item.quantity} {unitSymbol}
                           </div>
                         </TableCell>
                         <TableCell>
@@ -199,7 +195,7 @@ export default function Inventory() {
                         </TableCell>
                         <TableCell>
                           <div className="font-semibold text-primary">
-                            {item.price.toLocaleString('en-US')} TZS/{item.unit}
+                            {item.price.toLocaleString('en-US')}
                           </div>
                         </TableCell>
                       </TableRow>

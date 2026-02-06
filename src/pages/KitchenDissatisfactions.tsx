@@ -41,75 +41,10 @@ export default function KitchenDissatisfactions() {
   const pendingCount = dissatisfactions.filter((d) => d.status === "pending").length;
 
   return (
-    <MainLayout title="Dissatisfactions">
+    <MainLayout title="Dissatisfactions" subtitle="Track and resolve customer complaints about food">
       <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">Dissatisfactions</h1>
-            <p className="text-muted-foreground mt-1">Track and resolve customer complaints about food</p>
-          </div>
-          <Button>
-            <Plus className="h-4 w-4 mr-2" />
-            Log Dissatisfaction
-          </Button>
-        </div>
-
-        {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card className="glass-card">
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Pending</p>
-                  <p className="text-2xl font-bold text-amber-500">{pendingCount}</p>
-                </div>
-                <Clock className="h-8 w-8 text-amber-500" />
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="glass-card">
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Remade</p>
-                  <p className="text-2xl font-bold text-blue-500">
-                    {dissatisfactions.filter((d) => d.status === "remade").length}
-                  </p>
-                </div>
-                <RefreshCw className="h-8 w-8 text-blue-500" />
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="glass-card">
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Resolved</p>
-                  <p className="text-2xl font-bold text-emerald-500">
-                    {dissatisfactions.filter((d) => d.status === "resolved").length}
-                  </p>
-                </div>
-                <CheckCircle2 className="h-8 w-8 text-emerald-500" />
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="glass-card">
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Refunded</p>
-                  <p className="text-2xl font-bold text-purple-500">
-                    {dissatisfactions.filter((d) => d.status === "refunded").length}
-                  </p>
-                </div>
-                <XCircle className="h-8 w-8 text-purple-500" />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Search */}
-        <div className="relative max-w-md">
+        <div className="flex flex-col sm:flex-row sm:items-center  gap-4">
+          <div className="relative flex-1 ">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search dissatisfactions..."
@@ -118,6 +53,17 @@ export default function KitchenDissatisfactions() {
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
+          <Button>
+            <Plus className="h-4 w-4 mr-2" />
+            Log Dissatisfaction
+          </Button>
+        </div>
+
+        {/* Stats */}
+       
+
+        {/* Search */}
+        
 
         {/* Dissatisfactions Table */}
         <Card className="glass-card">

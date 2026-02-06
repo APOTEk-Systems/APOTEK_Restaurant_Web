@@ -34,6 +34,8 @@ export const inventoryAdjustmentService = {
   getAllInventoryAdjustments: async (filters?: {
     inventoryItemId?: number;
     batchId?: number;
+    fromDate?: string;
+    toDate?: string;
   }): Promise<InventoryAdjustment[]> => {
     const params = new URLSearchParams();
     if (filters?.inventoryItemId) {
@@ -41,6 +43,12 @@ export const inventoryAdjustmentService = {
     }
     if (filters?.batchId) {
       params.append('batchId', String(filters.batchId));
+    }
+    if (filters?.fromDate) {
+      params.append('fromDate', filters.fromDate);
+    }
+    if (filters?.toDate) {
+      params.append('toDate', filters.toDate);
     }
     const queryString = params.toString();
     const url = queryString ? `/inventory-adjustments?${queryString}` : '/inventory-adjustments';
