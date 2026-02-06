@@ -37,7 +37,7 @@ export interface GoodsReceiving {
 }
 
 export interface CreateGoodsReceivingData {
-  grnNumber: string;
+  grnNumber?: string;
   purchaseOrderId?: number;
   supplierId: number;
   notes?: string;
@@ -73,5 +73,10 @@ export const goodsReceivingService = {
 
   deleteGoodsReceiving: async (id: number): Promise<void> => {
     await api.delete(`/goods-receiving/${id}`);
+  },
+
+  getGoodsReceivingByPurchaseOrderId: async (purchaseOrderId: number): Promise<GoodsReceiving[]> => {
+    const response = await api.get(`/goods-receiving/po/${purchaseOrderId}`);
+    return response.data;
   },
 };

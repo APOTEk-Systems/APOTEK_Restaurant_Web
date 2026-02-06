@@ -11,41 +11,40 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { SupplierService, Supplier } from "@/services/supplierService";
 import { inventoryItemService, InventoryItem } from "@/services/inventoryItemService";
 import { purchaseOrderService } from "@/services/purchaseOrderService";
+import { toast } from "sonner";
 
-interface PurchaseItem {
+interface ItemForm {
   id: number;
-  name: string;
-  unit: string;
+  itemId: string;
   quantity: number;
-  price: number;
 }
 
 export default function PurchaseOrderNew() {
   const [selectedSupplier, setSelectedSupplier] = useState<string>("");
-  const [purchaseItems, setPurchaseItems] = useState<PurchaseItem[]>([]);
-  const [newItem, setNewItem] = useState({
-    itemId: "",
-    quantity: 1
-  });
+  const [itemForms, setItemForms] = useState<ItemForm[]>([
+    { id: Date.now(), itemId: "", quantity: 1 }
+  ]);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
   // Fetch suppliers using React Query
-  const { data: suppliers = [] } = useQuery({
+  const { data: suppliers = [], isLoading: isLoadingSuppliers } = useQuery({
     queryKey: ["suppliers"],
     queryFn: SupplierService.getAllSuppliers,
   });
 
   // Fetch inventory items using React Query
-  const { data: inventoryItems = [] } = useQuery({
+  const { data: inventoryItems = [], isLoading: isLoadingItems } = useQuery({
     queryKey: ["inventoryItems"],
     queryFn: inventoryItemService.getAllInventoryItems,
   });
 
+  const isLoading = isLoadingSuppliers || isLoadingItems;
+
   // Create purchase order mutation
   const createMutation = useMutation({
     mutationFn: (data: {
-      poNumber: string;
+      poNumber?: string;
       supplierId: number;
       notes?: string;
       expectedDeliveryAt?: string;
@@ -57,83 +56,71 @@ export default function PurchaseOrderNew() {
     }) => purchaseOrderService.createPurchaseOrder(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["purchaseOrders"] });
+      toast.success("Purchase order created successfully");
       navigate("/purchases");
+    },
+    onError: (error: any) => {
+      console.error("Failed to create purchase order:", error);
+      const errorMessage = error.response?.data?.message || error.message || "Failed to create purchase order";
+      toast.error(errorMessage);
     },
   });
 
-  const addItem = () => {
-    if (!newItem.itemId) return;
-
-    const selectedItem = inventoryItems.find((item: InventoryItem) => item.id.toString() === newItem.itemId);
-    if (!selectedItem) return;
-
-    const existingItem = purchaseItems.find(item => item.id === selectedItem.id);
-    if (existingItem) {
-      setPurchaseItems(purchaseItems.map(item =>
-        item.id === selectedItem.id
-          ? { ...item, quantity: item.quantity + newItem.quantity }
-          : item
-      ));
-    } else {
-      setPurchaseItems([...purchaseItems, {
-        id: selectedItem.id,
-        name: selectedItem.name,
-        unit: selectedItem.unit,
-        quantity: newItem.quantity,
-        price: selectedItem.price || 0
-      }]);
-    }
-
-    // Reset form
-    setNewItem({ itemId: "", quantity: 1 });
+  const updateForm = (id: number, field: 'itemId' | 'quantity', value: string | number) => {
+    setItemForms(forms => 
+      forms.map(form => 
+        form.id === id ? { ...form, [field]: value } : form
+      )
+    );
   };
 
-  const removeItem = (id: number) => {
-    setPurchaseItems(purchaseItems.filter(item => item.id !== id));
+  const addNewForm = () => {
+    setItemForms([...itemForms, { id: Date.now(), itemId: "", quantity: 1 }]);
   };
 
-  const updateQuantity = (id: number, quantity: number) => {
-    if (quantity < 1) return;
-    setPurchaseItems(purchaseItems.map(item =>
-      item.id === id ? { ...item, quantity } : item
-    ));
+  const removeForm = (id: number) => {
+    setItemForms(forms => forms.filter(form => form.id !== id));
   };
 
-  const subtotal = purchaseItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const tax = subtotal * 0.1; // 10% tax
+  const getItemDetails = (itemId: string) => {
+    return inventoryItems.find((item: InventoryItem) => item.id.toString() === itemId);
+  };
+
+  const getFormTotal = (form: ItemForm) => {
+    const item = getItemDetails(form.itemId);
+    return item ? (item.price || 0) * form.quantity : 0;
+  };
+
+  const subtotal = itemForms.reduce((sum, form) => sum + getFormTotal(form), 0);
+  const tax = subtotal * 0.1;
   const total = subtotal + tax;
 
-  // Generate PO number
-  const generatePONumber = () => {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
-    const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-    return `PO-${year}${month}${day}-${random}`;
-  };
+  const isFormValid = selectedSupplier && itemForms.some(f => f.itemId && f.quantity > 0);
 
   const handleSubmit = () => {
-    if (!selectedSupplier || purchaseItems.length === 0) return;
+    if (!selectedSupplier) return;
+
+    const validItems = itemForms
+      .filter(form => form.itemId)
+      .map(form => {
+        const item = getItemDetails(form.itemId);
+        return {
+          inventoryItemId: parseInt(form.itemId),
+          quantityOrdered: form.quantity,
+          unitPrice: item?.price || 0
+        };
+      });
+
+    if (validItems.length === 0) {
+      toast.error("Please add at least one item");
+      return;
+    }
 
     const supplierId = parseInt(selectedSupplier);
 
     createMutation.mutate({
-      poNumber: generatePONumber(),
       supplierId,
-      items: purchaseItems.map(item => ({
-        inventoryItemId: item.id,
-        quantityOrdered: item.quantity,
-        unitPrice: item.price
-      }))
-    });
-  };
-
-  const handleSaveDraft = () => {
-    // For now, just save locally or implement draft functionality
-    console.log("Saving draft...", {
-      supplierId: selectedSupplier,
-      items: purchaseItems
+      items: validItems
     });
   };
 
@@ -179,107 +166,94 @@ export default function PurchaseOrderNew() {
                 <Label className="text-sm font-medium">Items *</Label>
               </div>
 
-              {/* Add Item Form */}
-              <div className="flex flex-col sm:flex-row gap-3 items-end">
-                <div className="flex-1 space-y-2">
-                  <Label htmlFor="item" className="xs text-muted-foreground">Item</Label>
-                  <Select
-                    value={newItem.itemId}
-                    onValueChange={(value) => setNewItem({...newItem, itemId: value})}
-                  >
-                    <SelectTrigger id="item">
-                      <SelectValue placeholder="Select item" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {inventoryItems.map((item: InventoryItem) => (
-                        <SelectItem key={item.id} value={item.id.toString()}>
-                          {item.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+              {/* Stacked Item Forms */}
+              {itemForms.map((form, index) => {
+                const itemDetails = getItemDetails(form.itemId);
+                
+                return (
+                  <div key={form.id} className="flex flex-col sm:flex-row gap-3 items-end border-b border-border/50 pb-4">
+                    <div className="flex-1 space-y-2">
+                      <Label className="xs text-muted-foreground">Item {index + 1}</Label>
+                      <Select
+                        value={form.itemId}
+                        onValueChange={(value) => updateForm(form.id, 'itemId', value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select item" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {inventoryItems.map((item: InventoryItem) => (
+                            <SelectItem key={item.id} value={item.id.toString()}>
+                              {item.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
 
-                <div className="w-24 space-y-2">
-                  <Label htmlFor="quantity" className="xs text-muted-foreground">Quantity</Label>
-                  <Input
-                    id="quantity"
-                    type="number"
-                    min="1"
-                    value={newItem.quantity}
-                    onChange={(e) => setNewItem({...newItem, quantity: parseInt(e.target.value) || 1})}
-                    className="h-9"
-                  />
-                </div>
+                    <div className="w-24 space-y-2">
+                      <Label className="xs text-muted-foreground">Quantity</Label>
+                      <Input
+                        type="number"
+                        min="1"
+                        value={form.quantity}
+                        onChange={(e) => updateForm(form.id, 'quantity', parseInt(e.target.value) || 1)}
+                        className="h-9"
+                      />
+                    </div>
 
-                <div className="w-24 space-y-2">
-                  <Label className="xs text-muted-foreground">Unit</Label>
-                  <Input
-                    value={inventoryItems.find((item: InventoryItem) => item.id.toString() === newItem.itemId)?.unit || ""}
-                    readOnly
-                    className="h-9 bg-muted/50"
-                  />
-                </div>
+                    <div className="w-24 space-y-2">
+                      <Label className="xs text-muted-foreground">Unit</Label>
+                      <Input
+                        value={itemDetails?.unit || ""}
+                        readOnly
+                        className="h-9 bg-muted/50"
+                      />
+                    </div>
 
-                <div className="w-24 space-y-2">
-                  <Label className="xs text-muted-foreground">Price</Label>
-                  <Input
-                    value={inventoryItems.find((item: InventoryItem) => item.id.toString() === newItem.itemId)?.price?.toFixed(2) || "0.00"}
-                    readOnly
-                    className="h-9 bg-muted/50"
-                  />
-                </div>
+                    <div className="w-24 space-y-2">
+                      <Label className="xs text-muted-foreground">Price</Label>
+                      <Input
+                        value={itemDetails?.price?.toFixed(2) || "0.00"}
+                        readOnly
+                        className="h-9 bg-muted/50"
+                      />
+                    </div>
 
-                <Button
-                  onClick={addItem}
-                  className="h-9 gap-2"
-                  disabled={!newItem.itemId}
-                >
-                  <Plus className="h-4 w-4" />
-                  Add Item
-                </Button>
-              </div>
+                    <div className="w-24 space-y-2">
+                      <Label className="xs text-muted-foreground">Total</Label>
+                      <Input
+                        value={getFormTotal(form).toFixed(2)}
+                        readOnly
+                        className="h-9 bg-muted/50 font-semibold"
+                      />
+                    </div>
 
-              {/* Items List */}
-              {purchaseItems.length > 0 && (
-                <div className="space-y-3 border-t border-border pt-4">
-                  <div className="grid grid-cols-5 gap-3 text-xs font-medium text-muted-foreground pb-2">
-                    <div>Item</div>
-                    <div className="text-center">Quantity</div>
-                    <div className="text-center">Unit</div>
-                    <div className="text-right">Price</div>
-                    <div className="text-right">Total</div>
-                  </div>
-
-                  {purchaseItems.map(item => (
-                    <div key={item.id} className="grid grid-cols-5 gap-3 items-center py-2 border-b border-border/50">
-                      <div className="font-medium">{item.name}</div>
-                      <div className="text-center">
-                        <Input
-                          type="number"
-                          min="1"
-                          value={item.quantity}
-                          onChange={(e) => updateQuantity(item.id, parseInt(e.target.value) || 1)}
-                          className="h-8 w-16 mx-auto text-center"
-                        />
-                      </div>
-                      <div className="text-center text-muted-foreground">{item.unit}</div>
-                      <div className="text-right">${item.price.toFixed(2)}</div>
-                      <div className="text-right font-semibold">${(item.price * item.quantity).toFixed(2)}</div>
-                      <div className="flex justify-end">
+                    <div className="flex gap-2">
+                      {itemForms.length > 1 && (
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 text-destructive hover:text-destructive"
-                          onClick={() => removeItem(item.id)}
+                          className="h-9 w-9 text-destructive hover:text-destructive"
+                          onClick={() => removeForm(form.id)}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
-                      </div>
+                      )}
                     </div>
-                  ))}
-                </div>
-              )}
+                  </div>
+                );
+              })}
+
+              {/* Add New Item Button */}
+              <Button
+                variant="outline"
+                className="w-full gap-2"
+                onClick={addNewForm}
+              >
+                <Plus className="h-4 w-4" />
+                Add Another Item
+              </Button>
 
               {/* Order Summary */}
               <div className="mt-6 pt-4 border-t border-border space-y-3">
@@ -302,13 +276,13 @@ export default function PurchaseOrderNew() {
                 <Button 
                   variant="outline" 
                   className="flex-1"
-                  onClick={handleSaveDraft}
+                  onClick={() => navigate("/purchases")}
                 >
-                  Save Draft
+                  Cancel
                 </Button>
                 <Button
                   className="flex-1 gradient-primary text-primary-foreground shadow-glow hover:shadow-lg transition-shadow"
-                  disabled={!selectedSupplier || purchaseItems.length === 0 || createMutation.isPending}
+                  disabled={isLoading || !isFormValid || createMutation.isPending}
                   onClick={handleSubmit}
                 >
                   {createMutation.isPending ? (

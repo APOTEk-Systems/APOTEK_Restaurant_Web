@@ -31,7 +31,7 @@ export interface PurchaseOrder {
 }
 
 export interface CreatePurchaseOrderData {
-  poNumber: string;
+  poNumber?: string;
   supplierId: number;
   notes?: string;
   expectedDeliveryAt?: string;

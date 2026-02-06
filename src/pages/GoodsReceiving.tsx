@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Search, Eye, MoreHorizontal, CheckCircle2, Clock, AlertCircle, Package, Loader2, AlertCircle as AlertIcon } from "lucide-react";
+import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -132,10 +133,6 @@ export default function GoodsReceiving() {
               </SelectContent>
             </Select>
           </div>
-          <Button className="gradient-primary text-primary-foreground shadow-glow hover:shadow-lg transition-shadow">
-            <Plus className="h-4 w-4 mr-2" />
-            Record Receiving
-          </Button>
         </div>
 
         {/* Error State */}

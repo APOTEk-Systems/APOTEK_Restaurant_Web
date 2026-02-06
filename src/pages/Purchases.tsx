@@ -3,13 +3,12 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Search, Eye, MoreHorizontal, Truck, Package, FileText, Loader2, AlertCircle, Check, X } from "lucide-react";
+import { Plus, Search, Eye, Truck, Package, FileText, Loader2, AlertCircle, Check, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Link } from "react-router-dom";
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { purchaseOrderService, type PurchaseOrder } from "@/services/purchaseOrderService";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 const statusStyles: Record<string, string> = {
   pending: "bg-warning/10 text-warning border-warning/20",
@@ -50,8 +49,6 @@ const statusIcons: Record<string, React.ComponentType<{ className?: string }>> =
 export default function Purchases() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
-  const [rejectReason, setRejectReason] = useState("");
-  const [selectedPO, setSelectedPO] = useState<number | null>(null);
   const queryClient = useQueryClient();
 
   // Fetch purchase orders using React Query
@@ -59,37 +56,6 @@ export default function Purchases() {
     queryKey: ["purchaseOrders"],
     queryFn: purchaseOrderService.getAllPurchaseOrders,
   });
-
-  // Approve mutation
-  const approveMutation = useMutation({
-    mutationFn: (id: number) => purchaseOrderService.approvePurchaseOrder(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["purchaseOrders"] });
-    },
-  });
-
-  // Reject mutation
-  const rejectMutation = useMutation({
-    mutationFn: ({ id, reason }: { id: number; reason?: string }) =>
-      purchaseOrderService.rejectPurchaseOrder(id, reason),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["purchaseOrders"] });
-      setRejectReason("");
-      setSelectedPO(null);
-    },
-  });
-
-  const handleApprove = (id: number) => {
-    if (confirm("Are you sure you want to approve this purchase order?")) {
-      approveMutation.mutate(id);
-    }
-  };
-
-  const handleReject = () => {
-    if (selectedPO) {
-      rejectMutation.mutate({ id: selectedPO, reason: rejectReason });
-    }
-  };
 
   // Filter purchase orders based on search and status
   const filteredOrders = purchaseOrders.filter((po: PurchaseOrder) => {
@@ -243,73 +209,6 @@ export default function Purchases() {
                                 <Link to={`/purchases/${purchaseOrder.id}`}>
                                   <Eye className="h-4 w-4" />
                                 </Link>
-                              </Button>
-                              
-                              {/* Approve/Reject buttons for pending orders */}
-                              {purchaseOrder.status === "PENDING" && (
-                                <>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-8 w-8 text-success hover:text-success hover:bg-success/10"
-                                    onClick={() => handleApprove(purchaseOrder.id)}
-                                    disabled={approveMutation.isPending}
-                                  >
-                                    {approveMutation.isPending && approveMutation.variables === purchaseOrder.id ? (
-                                      <Loader2 className="h-4 w-4 animate-spin" />
-                                    ) : (
-                                      <Check className="h-4 w-4" />
-                                    )}
-                                  </Button>
-                                  
-                                  <AlertDialog>
-                                    <AlertDialogTrigger asChild>
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                                        onClick={() => setSelectedPO(purchaseOrder.id)}
-                                      >
-                                        <X className="h-4 w-4" />
-                                      </Button>
-                                    </AlertDialogTrigger>
-                                    <AlertDialogContent>
-                                      <AlertDialogHeader>
-                                        <AlertDialogTitle>Reject Purchase Order</AlertDialogTitle>
-                                        <AlertDialogDescription>
-                                          Please provide a reason for rejecting this purchase order.
-                                        </AlertDialogDescription>
-                                      </AlertDialogHeader>
-                                      <div className="py-4">
-                                        <Input
-                                          placeholder="Rejection reason..."
-                                          value={rejectReason}
-                                          onChange={(e) => setRejectReason(e.target.value)}
-                                        />
-                                      </div>
-                                      <AlertDialogFooter>
-                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                        <AlertDialogAction 
-                                          onClick={handleReject}
-                                          disabled={rejectMutation.isPending}
-                                        >
-                                          {rejectMutation.isPending ? (
-                                            <>
-                                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                              Rejecting...
-                                            </>
-                                          ) : (
-                                            "Reject"
-                                          )}
-                                        </AlertDialogAction>
-                                      </AlertDialogFooter>
-                                    </AlertDialogContent>
-                                  </AlertDialog>
-                                </>
-                              )}
-                              
-                              <Button variant="ghost" size="icon" className="h-8 w-8">
-                                <MoreHorizontal className="h-4 w-4" />
                               </Button>
                             </div>
                           </td>

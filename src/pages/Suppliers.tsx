@@ -34,7 +34,7 @@ const getCategoryName = (supplier: Supplier): string => {
   return "Other";
 };
 
-// Category name to ID mapping (you may need to adjust based on your inventory categories)
+// Category name to ID mapping
 const categoryMapping: Record<string, number> = {
   "Produce": 1,
   "Meat & Poultry": 2,
@@ -106,7 +106,6 @@ export default function Suppliers() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Map category name to category ID if needed
     const categoryId = categoryMapping[newSupplier.category];
     
     createMutation.mutate({
@@ -362,81 +361,79 @@ export default function Suppliers() {
             <span className="ml-3 text-muted-foreground">Loading suppliers...</span>
           </div>
         ) : (
-          /* Suppliers Grid */
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          /* Suppliers Table */
+          <div className="bg-card rounded-xl border border-border/50 overflow-hidden">
             {filteredSuppliers.length === 0 ? (
-              <div className="col-span-full text-center py-12 text-muted-foreground">
+              <div className="text-center py-12 text-muted-foreground">
                 No suppliers found. Add your first supplier to get started.
               </div>
             ) : (
-              filteredSuppliers.map((supplier: Supplier) => (
-                <div key={supplier.id} className="bg-card rounded-xl p-5 shadow-card border border-border/50 hover:shadow-lg transition-all">
-                  <div className="flex items-start justify-between mb-4">
-                    <div>
-                      <h3 className="font-semibold text-foreground">{supplier.name}</h3>
-                      <p className="text-sm text-muted-foreground">SUP-{String(supplier.id).padStart(3, '0')}</p>
-                    </div>
-                    <Badge className={cn(statusStyles[supplier.status as keyof typeof statusStyles] || statusStyles.pending, "capitalize")}>
-                      {supplier.status || "active"}
-                    </Badge>
-                  </div>
-
-                  <div className="space-y-3 mb-4">
-                    <Badge className={cn("text-xs", categoryColors[getCategoryName(supplier)] || categoryColors["Other"])}>
-                      {getCategoryName(supplier)}
-                    </Badge>
-                    
-                    <div className="flex items-center gap-1">
-                      {[...Array(5)].map((_, i) => (
-                        <Star 
-                          key={i} 
-                          className={cn(
-                            "h-4 w-4",
-                            i < (supplier.rating || 0) ? "fill-warning text-warning" : "text-muted"
-                          )} 
-                        />
-                      ))}
-                      <span className="text-sm text-muted-foreground ml-2">({supplier.totalOrders || 0} orders)</span>
-                    </div>
-
-                    <div className="pt-2 space-y-2 text-sm">
-                      {supplier.contactPerson && (
-                        <div className="flex items-center gap-2 text-muted-foreground">
-                          <span className="font-medium">{supplier.contactPerson}</span>
-                        </div>
-                      )}
-                      <div className="flex items-center gap-2 text-muted-foreground">
-                        <Phone className="h-4 w-4" />
-                        <span>{supplier.phone}</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-muted-foreground">
-                        <Mail className="h-4 w-4" />
-                        <span className="truncate">{supplier.email}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2 pt-3 border-t border-border">
-                    <Button variant="outline" size="sm" className="flex-1">
-                      <Eye className="h-4 w-4 mr-1" />
-                      View
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                      onClick={() => supplier.id && handleDelete(supplier.id)}
-                      disabled={deletingId === supplier.id}
-                    >
-                      {deletingId === supplier.id ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <MoreHorizontal className="h-4 w-4" />
-                      )}
-                    </Button>
-                  </div>
-                </div>
-              ))
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-muted/50 border-b border-border">
+                    <tr>
+                      <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Supplier</th>
+                      <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Category</th>
+                      <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Contact</th>
+                      <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Phone</th>
+                      <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Status</th>
+                      <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {filteredSuppliers.map((supplier: Supplier) => (
+                      <tr key={supplier.id} className="hover:bg-muted/50 transition-colors">
+                        <td className="py-4 px-4">
+                          <div>
+                            <p className="font-medium">{supplier.name}</p>
+                            <p className="text-sm text-muted-foreground">SUP-{String(supplier.id).padStart(3, '0')}</p>
+                          </div>
+                        </td>
+                        <td className="py-4 px-4">
+                          <Badge className={cn("text-xs", categoryColors[getCategoryName(supplier)] || categoryColors["Other"])}>
+                            {getCategoryName(supplier)}
+                          </Badge>
+                        </td>
+                        <td className="py-4 px-4">
+                          <div>
+                            <p className="text-sm">{supplier.contactPerson || "-"}</p>
+                            <p className="text-sm text-muted-foreground truncate max-w-[200px]">{supplier.email || "-"}</p>
+                          </div>
+                        </td>
+                        <td className="py-4 px-4">
+                          <p className="text-sm">{supplier.phone || "-"}</p>
+                        </td>
+                        <td className="py-4 px-4">
+                          <Badge className={cn(statusStyles[supplier.status as keyof typeof statusStyles] || statusStyles.pending, "capitalize")}>
+                            {supplier.status || "active"}
+                          </Badge>
+                        </td>
+                        <td className="py-4 px-4">
+                          <div className="flex justify-end gap-2">
+                            <Button variant="outline" size="sm">
+                              <Eye className="h-4 w-4 mr-1" />
+                              View
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                              onClick={() => supplier.id && handleDelete(supplier.id)}
+                              disabled={deletingId === supplier.id}
+                            >
+                              {deletingId === supplier.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <MoreHorizontal className="h-4 w-4" />
+                              )}
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
         )}
