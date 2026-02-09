@@ -27,8 +27,8 @@ interface MenuSideDish {
 }
 
 interface SideDishCardProps {
-  sideDish: MenuSideDish;
-  onEdit: (sideDish: MenuSideDish) => void;
+  sideDish: any;
+  onEdit: (sideDish: any) => void;
   onDelete: (id: number) => void;
 }
 

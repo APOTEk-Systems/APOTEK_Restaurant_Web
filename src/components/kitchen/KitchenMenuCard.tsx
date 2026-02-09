@@ -30,8 +30,8 @@ interface KitchenMenuItem {
 }
 
 interface KitchenMenuCardProps {
-  item: KitchenMenuItem;
-  onEdit: (item: KitchenMenuItem) => void;
+  item: any;
+  onEdit: (item: any) => void;
   onDelete: (id: number) => void;
 }
 

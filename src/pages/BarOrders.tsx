@@ -338,12 +338,9 @@ export default function BarOrders() {
 
   if (isError) {
     return (
-      <MainLayout title="Bar Orders">
+      <MainLayout title="Bar Orders" subtitle="Manage incoming drink orders">
         <div className="space-y-6">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">Bar Orders</h1>
-            <p className="text-muted-foreground mt-1">Manage incoming drink orders</p>
-          </div>
+         
           <div className="flex items-center justify-center h-64">
             <div className="text-center">
               <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
@@ -364,15 +361,12 @@ export default function BarOrders() {
   }
 
   return (
-    <MainLayout title="Bar Orders">
+    <MainLayout title="Bar Orders" subtitle="Manage incoming drink orders">
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Bar Orders</h1>
-          <p className="text-muted-foreground mt-1">Manage incoming drink orders</p>
-        </div>
+     
 
         {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        {/* <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card className="glass-card">
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
@@ -412,7 +406,7 @@ export default function BarOrders() {
               </div>
             </CardContent>
           </Card>
-        </div>
+        </div> */}
 
         {/* Orders Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

@@ -27,8 +27,8 @@ interface MenuAddon {
 }
 
 interface AddonCardProps {
-  addon: MenuAddon;
-  onEdit: (addon: MenuAddon) => void;
+  addon: any;
+  onEdit: (addon: any) => void;
   onDelete: (id: number) => void;
 }
 

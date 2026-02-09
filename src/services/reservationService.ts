@@ -1,20 +1,25 @@
 import { api } from './api';
 
-interface Reservation {
+export interface Reservation {
   id: number;
   customerName: string;
   customerPhone: string;
   customerEmail: string | null;
   date: string;
-OfGuests: number;
+  numberOfGuests: number;
   status: string;
   notes: string | null;
   createdAt: string;
   updatedAt: string;
   tables: {
     id: number;
-    number: number;
-    capacity: number;
+    tableId: number;
+    table: {
+      id: number;
+      number: number;
+      capacity: number;
+      status: string;
+    };
   }[];
 }
 
@@ -42,20 +47,13 @@ interface UpdateReservationData {
 }
 
 export const ReservationService = {
-  getAllReservations: async (): Promise<Reservation[]> => {
-    const response = await api.get('/reservations');
-    return response.data;
-  },
-
-  getTodayReservations: async (): Promise<Reservation[]> => {
-    const response = await api.get('/reservations/today');
-    return response.data;
-  },
-
-  getReservationsByDateRange: async (startDate: string, endDate: string): Promise<Reservation[]> => {
-    const response = await api.get('/reservations/by-date-range', {
-      params: { startDate, endDate },
-    });
+  getReservations: async (params?: {
+    startDate?: string;
+    endDate?: string;
+    status?: string;
+    search?: string;
+  }): Promise<Reservation[]> => {
+    const response = await api.get('/reservations', { params });
     return response.data;
   },
 

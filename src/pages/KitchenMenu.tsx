@@ -23,16 +23,9 @@ import {
   PlusCircle,
   Loader2,
 } from "lucide-react";
-import {
-  Plus,
-  Search,
-  Utensils,
-  GlassWater,
-  PlusCircle,
-} from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useState, useEffect, useMemo } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { MenuService, type MenuItem, type MenuAddon, type MenuSideDish, type MenuCategory } from "@/services/menuService";
 import { useToast } from "@/hooks/use-toast";
 import { SideDishDialog } from "@/components/kitchen/SideDishDialog";
@@ -53,7 +46,6 @@ export default function KitchenMenu() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
-  const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState("items");
   const [sideDishDialogOpen, setSideDishDialogOpen] = useState(false);
   const [editingSideDish, setEditingSideDish] = useState<MenuSideDish | null>(null);
@@ -353,8 +345,8 @@ export default function KitchenMenu() {
                       {filteredMenuItems.map((item) => (
                         <KitchenMenuCard
                           key={item.id}
-                          item={item}
-                          onEdit={(item) => handleEdit(item, "menu")}
+                          item={item as any}
+                          onEdit={(item: any) => handleEdit(item, "menu")}
                           onDelete={(id) => handleDelete(id, "menu")}
                         />
                       ))}
@@ -398,8 +390,8 @@ export default function KitchenMenu() {
                       {filteredSideDishes.map((side) => (
                         <SideDishCard
                           key={side.id}
-                          sideDish={side}
-                          onEdit={(sideDish) => handleEdit(sideDish, "side")}
+                          sideDish={side as any}
+                          onEdit={(sideDish) => handleEdit(sideDish as any, "side")}
                           onDelete={(id) => handleDelete(id, "side")}
                         />
                       ))}
@@ -443,11 +435,11 @@ export default function KitchenMenu() {
                       {filteredAddons.map((addon) => (
                         <AddonCard
                           key={addon.id}
-                          addon={addon}
-                          onEdit={(addon) => handleEdit(addon, "addon")}
+                          addon={addon as any}
+                          onEdit={(addon) => handleEdit(addon as any, "addon")}
                           onDelete={(id) => handleDelete(id, "addon")}
                         />
-                      ))}}
+                      ))}
                     </div>
                   )}
                 </div>

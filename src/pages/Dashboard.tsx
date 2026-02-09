@@ -29,7 +29,16 @@ export default function Dashboard() {
   // Fetch today's reservations
   const { data: reservations = [], isLoading: loadingReservations } = useQuery({
     queryKey: ['today-reservations'],
-    queryFn: ReservationService.getTodayReservations,
+    queryFn: async () => {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      return ReservationService.getReservations({
+        startDate: today.toISOString(),
+        endDate: tomorrow.toISOString(),
+      });
+    },
   });
 
   // Fetch all tables

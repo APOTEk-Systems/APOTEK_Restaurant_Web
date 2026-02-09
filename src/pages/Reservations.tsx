@@ -56,30 +56,33 @@ const statusStyles = {
 };
 
 export default function Reservations() {
-  const [dateRange, setDateRange] = useState<DateRange | undefined>();
+  // Default to today's date
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  
+  const [dateRange, setDateRange] = useState<DateRange | undefined>({
+    from: today,
+    to: tomorrow,
+  });
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const queryClient = useQueryClient();
 
   // Fetch reservations based on date range
   const { data: reservations = [], isLoading, isError, error, refetch } = useQuery({
-    queryKey: ['reservations', dateRange?.from, dateRange?.to],
+    queryKey: ['reservations', dateRange?.from, dateRange?.to, statusFilter, searchQuery],
     queryFn: async () => {
-      if (dateRange?.from && dateRange?.to) {
-        return ReservationService.getReservationsByDateRange(
-          dateRange.from.toISOString(),
-          dateRange.to.toISOString()
-        );
-      }
-      return ReservationService.getAllReservations();
+      return ReservationService.getReservations({
+        startDate: dateRange?.from?.toISOString(),
+        endDate: dateRange?.to?.toISOString(),
+        status: statusFilter,
+        search: searchQuery,
+      });
     },
   });
 
-  // Fetch all tables for summary
-  const { data: allTables = [] } = useQuery({
-    queryKey: ['tables'],
-    queryFn: TableService.getAllTables,
-  });
 
   // Confirm reservation mutation
   const confirmMutation = useMutation({
@@ -119,25 +122,11 @@ export default function Reservations() {
     },
   });
 
-  // Filter reservations based on search and status
-  const filteredReservations = (reservations as unknown as Reservation[]).filter((reservation) => {
-    const matchesSearch = 
-      reservation.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      reservation.customerPhone.includes(searchQuery) ||
-      (reservation.customerEmail?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false);
-    
-    const matchesStatus = statusFilter === "all" || reservation.status === statusFilter;
-    
-    return matchesSearch && matchesStatus;
-  });
+  // Use reservations directly as backend now handles filtering
+  const filteredReservations = reservations as unknown as Reservation[];
 
-  // Calculate summary stats for the filtered date range
-  const summaryReservations = (reservations as unknown as Reservation[]).filter((r) => {
-    const reservationDate = new Date(r.date);
-    return dateRange 
-      ? reservationDate >= dateRange.from && reservationDate <= dateRange.to
-      : true;
-  });
+  // Calculate summary stats
+  const summaryReservations = filteredReservations;
 
   const totalGuestsSummary = summaryReservations.reduce((sum, r) => sum + r.numberOfGuests, 0);
   const tablesReservedSummary = summaryReservations.reduce((sum, r) => sum + (r.tables?.length || 0), 0);
@@ -190,8 +179,8 @@ export default function Reservations() {
     <MainLayout title="Reservations" subtitle="Manage table bookings and reservations">
       <div className="space-y-6 animate-fade-in">
         {/* Actions Bar */}
-        <div className="flex flex-col sm:flex-row gap-4 justify-between">
-          <div className="flex gap-3 flex-wrap">
+        <div className="flex flex-col sm:flex-row gap-4">
+          <div className="flex gap-3 flex-wrap w-full">
             <div className="relative flex-1 sm:w-80">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input 
@@ -216,11 +205,7 @@ export default function Reservations() {
               dateRange={dateRange}
               onDateRangeChange={setDateRange}
             />
-            {dateRange && (
-              <Button variant="outline" size="sm" onClick={clearDateRange}>
-                Clear
-              </Button>
-            )}
+            
           </div>
           <Link to="/reservations/new">
             <Button className="gradient-primary text-primary-foreground shadow-glow hover:shadow-lg transition-shadow">
