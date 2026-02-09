@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft, Plus, Trash2, Loader2 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
 	Select,
 	SelectContent,
@@ -27,6 +27,8 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 
 export default function PurchaseOrderNew() {
 	const [selectedSupplier, setSelectedSupplier] = useState('');
+	const [selectedSupplierDetails, setSelectedSupplierDetails] =
+		useState<Supplier | null>(null);
 	const [purchaseItems, setPurchaseItems] = useState<PurchaseItem[]>([]);
 	const [newItem, setNewItem] = useState({
 		itemId: '',
@@ -46,6 +48,27 @@ export default function PurchaseOrderNew() {
 		retry: false,
 	});
 
+	// Query for fetching supplier details when a supplier is selected
+	const { data: supplierDetails } = useQuery({
+		queryKey: ['supplier', selectedSupplier],
+		queryFn: async () => {
+			if (!selectedSupplier) return null;
+			const response = await SupplierService.getSupplierById(
+				Number(selectedSupplier),
+			);
+			return response;
+		},
+		enabled: !!selectedSupplier,
+		retry: false,
+	});
+
+	// Update supplier details when data changes
+	useState(() => {
+		if (supplierDetails) {
+			setSelectedSupplierDetails(supplierDetails);
+		}
+	});
+
 	// Query for fetching inventory items
 	const { data: inventoryItems = [], isLoading: inventoryLoading } = useQuery({
 		queryKey: ['inventoryItems'],
@@ -59,6 +82,10 @@ export default function PurchaseOrderNew() {
 	// Mutation for creating purchase order
 	const createMutation = useMutation({
 		mutationFn: async (data: CreatePurchaseOrderDto) => {
+			console.log(
+				'[PurchaseOrder] Creating with data:',
+				JSON.stringify(data, null, 2),
+			);
 			const response = await PurchaseOrderService.createPurchaseOrder(data);
 			return response;
 		},
@@ -70,10 +97,15 @@ export default function PurchaseOrderNew() {
 			navigate('/purchases');
 		},
 		onError: (error: unknown) => {
+			console.error('[PurchaseOrder] Error:', error);
 			const err = error as Record<string, unknown>;
 			const response = err?.response as Record<string, unknown>;
 			const data = response?.data as Record<string, unknown>;
-			const message = data?.message || 'Failed to create purchase order';
+			const message =
+				data?.message ||
+				data?.error ||
+				JSON.stringify(data) ||
+				'Failed to create purchase order';
 			toast({
 				title: 'Error',
 				description: String(message),
@@ -84,11 +116,30 @@ export default function PurchaseOrderNew() {
 
 	const isSubmitting = createMutation.isPending;
 
+	// Generate PO number
+	const poNumber = `PO-${Date.now()}`;
+
+	// Get current timestamp for orderedAt
+	const orderedAt = new Date().toISOString();
+
+	// Calculate totals
+	const subtotal = useMemo(() => {
+		return purchaseItems.reduce(
+			(sum, item) => sum + item.price * item.quantity,
+			0,
+		);
+	}, [purchaseItems]);
+
+	// Use supplier tax rate if available, otherwise default to 10%
+	const taxRate = selectedSupplierDetails?.tax_rate ?? 0.1;
+	const tax = Math.round((subtotal * taxRate + Number.EPSILON) * 100) / 100;
+	const total = Math.round((subtotal + tax + Number.EPSILON) * 100) / 100;
+
 	const addItem = () => {
 		if (!newItem.itemId) return;
 
 		const selectedItem = inventoryItems.find(
-			(item) => item.id.toString() === newItem.itemId,
+			(item) => item.id === Number(newItem.itemId),
 		);
 		if (!selectedItem) return;
 
@@ -111,7 +162,7 @@ export default function PurchaseOrderNew() {
 					name: selectedItem.name,
 					unit: selectedItem.unit,
 					quantity: newItem.quantity,
-					price: selectedItem.price,
+					price: selectedItem.price ?? 0,
 				},
 			]);
 		}
@@ -132,13 +183,6 @@ export default function PurchaseOrderNew() {
 		);
 	};
 
-	const subtotal = purchaseItems.reduce(
-		(sum, item) => sum + item.price * item.quantity,
-		0,
-	);
-	const tax = subtotal * 0.1;
-	const total = subtotal + tax;
-
 	const handleCreatePurchaseOrder = () => {
 		if (!selectedSupplier || purchaseItems.length === 0 || !deliveryDate) {
 			toast({
@@ -149,16 +193,37 @@ export default function PurchaseOrderNew() {
 			return;
 		}
 
-		const createData: CreatePurchaseOrderDto = {
-			supplierId: parseInt(selectedSupplier),
+		const supplierIdNum = parseInt(selectedSupplier, 10);
+		if (isNaN(supplierIdNum)) {
+			toast({
+				title: 'Validation Error',
+				description: 'Invalid supplier selected',
+				variant: 'destructive',
+			});
+			return;
+		}
+
+		// Convert delivery date to ISO-8601 DateTime format
+		const expectedDeliveryAt = deliveryDate
+			? new Date(deliveryDate + 'T00:00:00.000Z').toISOString()
+			: '';
+
+		// Create payload matching backend API schema
+		const createData = {
+			poNumber,
+			supplierId: supplierIdNum,
+			status: 'PENDING' as const,
+			notes: '',
+			orderedAt,
+			expectedDeliveryAt,
 			items: purchaseItems.map((item) => ({
-				itemId: item.id,
-				quantity: item.quantity,
+				inventoryItemId: item.id,
+				quantityOrdered: item.quantity,
+				unitPrice: Math.round((item.price + Number.EPSILON) * 100) / 100,
 			})),
-			deliveryDate,
 		};
 
-		createMutation.mutate(createData);
+		createMutation.mutate(createData as CreatePurchaseOrderDto);
 	};
 
 	// Check if form is valid
@@ -167,6 +232,11 @@ export default function PurchaseOrderNew() {
 
 	// Check if data is loading
 	const isLoading = suppliersLoading || inventoryLoading;
+
+	// Helper function to find inventory item by ID
+	const findInventoryItem = (itemId: string): InventoryItem | undefined => {
+		return inventoryItems.find((item) => item.id === Number(itemId));
+	};
 
 	return (
 		<MainLayout
@@ -235,7 +305,7 @@ export default function PurchaseOrderNew() {
 							<Label
 								htmlFor='deliveryDate'
 								className='text-sm font-medium'>
-								Delivery Date *
+								Expected Delivery Date *
 							</Label>
 							<Input
 								id='deliveryDate'
@@ -320,11 +390,7 @@ export default function PurchaseOrderNew() {
 								<div className='w-24 space-y-2'>
 									<Label className='text-xs text-muted-foreground'>Unit</Label>
 									<Input
-										value={
-											inventoryItems.find(
-												(item) => item.id.toString() === newItem.itemId,
-											)?.unit || ''
-										}
+										value={findInventoryItem(newItem.itemId)?.unit || ''}
 										readOnly
 										className='h-9 bg-muted/50'
 									/>
@@ -334,9 +400,8 @@ export default function PurchaseOrderNew() {
 									<Label className='text-xs text-muted-foreground'>Price</Label>
 									<Input
 										value={
-											inventoryItems
-												.find((item) => item.id.toString() === newItem.itemId)
-												?.price?.toFixed(2) || '0.00'
+											findInventoryItem(newItem.itemId)?.price?.toFixed(2) ||
+											'0.00'
 										}
 										readOnly
 										className='h-9 bg-muted/50'
@@ -413,7 +478,9 @@ export default function PurchaseOrderNew() {
 									<span className='font-semibold'>${subtotal.toFixed(2)}</span>
 								</div>
 								<div className='flex justify-between text-sm'>
-									<span className='text-muted-foreground'>Tax (10%)</span>
+									<span className='text-muted-foreground'>
+										Tax ({(taxRate * 100).toFixed(0)}%)
+									</span>
 									<span className='font-semibold'>${tax.toFixed(2)}</span>
 								</div>
 								<div className='flex justify-between text-lg font-bold pt-2 border-t border-border'>

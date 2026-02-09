@@ -33,6 +33,7 @@ import InventoryAdjustments from './pages/InventoryAdjustments';
 import InventoryAdjustmentNew from './pages/InventoryAdjustmentNew';
 import InventoryRequests from './pages/InventoryRequests';
 import ExpiringProducts from './pages/ExpiringProducts';
+import UseStock from './pages/UseStock';
 import Purchases from './pages/Purchases';
 import PurchaseOrderNew from './pages/PurchaseOrderNew';
 import GoodsReceiving from './pages/GoodsReceiving';
@@ -191,6 +192,10 @@ const App = () => (
 					<Route
 						path='/inventory/expiring'
 						element={<ExpiringProducts />}
+					/>
+					<Route
+						path='/inventory/expiring/use-stock/:id'
+						element={<UseStock />}
 					/>
 					<Route
 						path='/purchases'

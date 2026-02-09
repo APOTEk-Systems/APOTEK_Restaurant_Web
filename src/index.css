@@ -136,6 +136,10 @@
     background: var(--gradient-success);
   }
 
+  .shadow-glow {
+    box-shadow: 0 0 20px rgba(245, 158, 11, 0.3);
+  }
+
   .hover-lift {
     @apply transition-all duration-300 ease-out;
   }

@@ -5,7 +5,9 @@ export type Department =
 	| 'OPERATIONS'
 	| 'MANAGEMENT';
 
-export interface Supplier {
+// Forward declaration of Supplier type to avoid circular dependency
+// The actual Supplier type is defined in supplier.types.ts
+export interface SupplierType {
 	id: number;
 	name: string;
 	description?: string;
@@ -45,7 +47,7 @@ export interface InventoryItem {
 	stock?: number; // For backward compatibility
 	category?: Category;
 	description?: string;
-	supplier?: Supplier;
+	supplier?: SupplierType;
 }
 
 export interface DepartmentInventoryItem {

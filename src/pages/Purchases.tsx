@@ -21,7 +21,7 @@ import {
 	Trash2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useState, useMemo } from 'react';
 import { PurchaseOrderService } from '@/services/purchaseOrderService';
 import type {
@@ -42,20 +42,47 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
-// Status styles mapping
-const statusStyles = {
+// Status styles mapping - supports both uppercase and lowercase
+const statusStyles: Record<string, string> = {
 	pending: 'bg-warning/10 text-warning border-warning/20',
+	PENDING: 'bg-warning/10 text-warning border-warning/20',
 	'in-transit': 'bg-primary/10 text-primary border-primary/20',
+	'IN-TRANSIT': 'bg-primary/10 text-primary border-primary/20',
 	delivered: 'bg-success/10 text-success border-success/20',
+	DELIVERED: 'bg-success/10 text-success border-success/20',
 	cancelled: 'bg-destructive/10 text-destructive border-destructive/20',
+	CANCELLED: 'bg-destructive/10 text-destructive border-destructive/20',
+	approved: 'bg-success/10 text-success border-success/20',
+	APPROVED: 'bg-success/10 text-success border-success/20',
+	ordered: 'bg-primary/10 text-primary border-primary/20',
+	ORDERED: 'bg-primary/10 text-primary border-primary/20',
+	partially_received: 'bg-warning/10 text-warning border-warning/20',
+	PARTIALLY_RECEIVED: 'bg-warning/10 text-warning border-warning/20',
+	completed: 'bg-success/10 text-success border-success/20',
+	COMPLETED: 'bg-success/10 text-success border-success/20',
 };
 
 // Status icons mapping
-const statusIcons = {
+const statusIcons: Record<
+	string,
+	React.ComponentType<{ className?: string }>
+> = {
 	pending: FileText,
+	PENDING: FileText,
 	'in-transit': Truck,
+	'IN-TRANSIT': Truck,
 	delivered: Package,
+	DELIVERED: Package,
 	cancelled: FileText,
+	CANCELLED: FileText,
+	approved: FileText,
+	APPROVED: FileText,
+	ordered: FileText,
+	ORDERED: FileText,
+	partially_received: Package,
+	PARTIALLY_RECEIVED: Package,
+	completed: Package,
+	COMPLETED: Package,
 };
 
 // API error handler
@@ -69,11 +96,51 @@ const handleApiError = (error: unknown, defaultMessage: string): string => {
 	return String(data?.message || data?.error || defaultMessage);
 };
 
+// Safe date formatter
+const formatDate = (dateString: string | undefined | null): string => {
+	if (!dateString) return 'N/A';
+	try {
+		const date = new Date(dateString);
+		if (isNaN(date.getTime())) {
+			return 'Invalid Date';
+		}
+		return date.toLocaleDateString('en-US', {
+			month: 'short',
+			day: 'numeric',
+			year: 'numeric',
+		});
+	} catch {
+		return 'Invalid Date';
+	}
+};
+
+// Format currency safely
+const formatCurrency = (value: number | undefined | null): string => {
+	if (value === undefined || value === null || isNaN(value)) {
+		return '0.00';
+	}
+	return value.toLocaleString('en-US', {
+		minimumFractionDigits: 2,
+		maximumFractionDigits: 2,
+	});
+};
+
+// Get status display name
+const getStatusDisplayName = (status: string | undefined): string => {
+	if (!status) return 'Unknown';
+	return status
+		.replace(/_/g, ' ')
+		.replace(/-/g, ' ')
+		.toLowerCase()
+		.replace(/\b\w/g, (c) => c.toUpperCase());
+};
+
 export default function Purchases() {
 	const [searchTerm, setSearchTerm] = useState('');
 	const [statusFilter, setStatusFilter] = useState('all');
 	const queryClient = useQueryClient();
 	const { toast } = useToast();
+	const navigate = useNavigate();
 
 	// Query for fetching purchase orders
 	const {
@@ -87,6 +154,7 @@ export default function Purchases() {
 			const response = await PurchaseOrderService.getAllPurchaseOrders();
 			return response;
 		},
+		retry: false,
 	});
 
 	// Calculate stats from purchase orders data
@@ -94,8 +162,15 @@ export default function Purchases() {
 		const currentMonth = new Date().getMonth();
 		const currentYear = new Date().getFullYear();
 
+		// Handle both response formats: nested supplier object or flat supplier_name
 		const thisMonthPurchases = purchases.filter((purchase) => {
-			const purchaseDate = new Date(purchase.date);
+			// Get order date from either orderedAt or date field
+			const orderDate =
+				((purchase as unknown as Record<string, unknown>).orderedAt as string) ||
+				purchase.date;
+			if (!orderDate) return false;
+			const purchaseDate = new Date(orderDate);
+			if (isNaN(purchaseDate.getTime())) return false;
 			return (
 				purchaseDate.getMonth() === currentMonth &&
 				purchaseDate.getFullYear() === currentYear
@@ -104,11 +179,22 @@ export default function Purchases() {
 
 		return {
 			totalOrders: purchases.length,
-			pending: purchases.filter((p) => p.status === 'pending').length,
-			inTransit: purchases.filter((p) => p.status === 'in-transit').length,
-			delivered: purchases.filter((p) => p.status === 'delivered').length,
-			cancelled: purchases.filter((p) => p.status === 'cancelled').length,
-			totalSpent: thisMonthPurchases.reduce((sum, p) => sum + p.total, 0),
+			pending: purchases.filter(
+				(p) => p.status === 'pending' || p.status === 'PENDING',
+			).length,
+			inTransit: purchases.filter(
+				(p) => p.status === 'in-transit' || p.status === 'IN-TRANSIT',
+			).length,
+			delivered: purchases.filter(
+				(p) => p.status === 'delivered' || p.status === 'DELIVERED',
+			).length,
+			cancelled: purchases.filter(
+				(p) => p.status === 'cancelled' || p.status === 'CANCELLED',
+			).length,
+			totalSpent: thisMonthPurchases.reduce(
+				(sum, p) => sum + (p.total ?? 0),
+				0,
+			),
 		};
 	}, [purchases]);
 
@@ -132,11 +218,40 @@ export default function Purchases() {
 		},
 	});
 
+	// Helper to get supplier name from either nested object or flat field
+	const getSupplierName = (purchase: PurchaseOrder): string => {
+		// Check if supplier is a nested object
+		if (purchase.supplier && typeof purchase.supplier === 'object') {
+			const supplier = purchase.supplier as unknown as Record<string, unknown>;
+			return (supplier.name as string) || 'Unknown';
+		}
+		// Fall back to flat field
+		return purchase.supplier_name || 'Unknown';
+	};
+
+	// Helper to get order ID - use poNumber if available, otherwise use id
+	const getOrderId = (purchase: PurchaseOrder): string => {
+		const poNumber = (purchase as unknown as Record<string, unknown>)
+			.poNumber as string;
+		if (poNumber) return poNumber;
+		return purchase.id || 'N/A';
+	};
+
+	// Helper to get order date from either orderedAt or date
+	const getOrderDate = (purchase: PurchaseOrder): string => {
+		const orderedAt = (purchase as unknown as Record<string, unknown>)
+			.orderedAt as string;
+		if (orderedAt) return formatDate(orderedAt);
+		return formatDate(purchase.date);
+	};
+
 	// Filter purchases based on search and status
 	const filteredPurchases = purchases.filter((purchase) => {
+		const supplierName = getSupplierName(purchase);
+		const orderId = getOrderId(purchase);
 		const matchesSearch =
-			purchase.supplierName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-			purchase.id?.toLowerCase().includes(searchTerm.toLowerCase());
+			supplierName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+			orderId.toLowerCase().includes(searchTerm.toLowerCase());
 		const matchesStatus =
 			statusFilter === 'all' || purchase.status === statusFilter;
 		return matchesSearch && matchesStatus;
@@ -159,7 +274,10 @@ export default function Purchases() {
 						Error Loading Purchase Orders
 					</h2>
 					<p className='text-muted-foreground mb-4'>
-						{handleApiError(purchasesErrorMsg, 'An unexpected error occurred')}
+						{handleApiError(
+							purchasesErrorMsg,
+							'An unexpected error occurred. Please try again.',
+						)}
 					</p>
 					<Button
 						onClick={() =>
@@ -203,7 +321,7 @@ export default function Purchases() {
 					/>
 					<StatCard
 						title='Total Spent'
-						value={stats.totalSpent.toLocaleString('en-US')}
+						value={formatCurrency(stats.totalSpent)}
 						subtitle='This month'
 						loading={purchasesLoading}
 						textColor='foreground'
@@ -231,18 +349,22 @@ export default function Purchases() {
 							<SelectContent>
 								<SelectItem value='all'>All Status</SelectItem>
 								<SelectItem value='pending'>Pending</SelectItem>
+								<SelectItem value='PENDING'>PENDING</SelectItem>
 								<SelectItem value='in-transit'>In Transit</SelectItem>
+								<SelectItem value='IN-TRANSIT'>IN TRANSIT</SelectItem>
 								<SelectItem value='delivered'>Delivered</SelectItem>
+								<SelectItem value='DELIVERED'>DELIVERED</SelectItem>
 								<SelectItem value='cancelled'>Cancelled</SelectItem>
+								<SelectItem value='CANCELLED'>CANCELLED</SelectItem>
 							</SelectContent>
 						</Select>
 					</div>
-					<Link to='/purchases/new'>
-						<Button className='gradient-primary text-primary-foreground shadow-glow hover:shadow-lg transition-shadow'>
-							<Plus className='h-4 w-4 mr-2' />
-							New Purchase Order
-						</Button>
-					</Link>
+					<Button
+						onClick={() => navigate('/purchases/new')}
+						className='gradient-primary text-primary-foreground shadow-glow hover:shadow-lg transition-shadow'>
+						<Plus className='h-4 w-4 mr-2' />
+						New Purchase Order
+					</Button>
 				</div>
 
 				{/* Purchases Table */}
@@ -294,42 +416,40 @@ export default function Purchases() {
 									</tr>
 								) : (
 									filteredPurchases.map((purchase) => {
-										const StatusIcon =
-											statusIcons[purchase.status as keyof typeof statusIcons];
+										const statusKey =
+											purchase.status in statusStyles
+												? purchase.status
+												: 'pending';
+										const StatusIcon = statusIcons[statusKey] || FileText;
 										return (
 											<tr
 												key={purchase.id}
 												className='hover:bg-muted/30 transition-colors'>
 												<td className='px-6 py-4 font-medium text-foreground'>
-													{purchase.id}
+													{getOrderId(purchase)}
 												</td>
 												<td className='px-6 py-4 text-foreground'>
-													{purchase.supplierName}
+													{getSupplierName(purchase)}
 												</td>
 												<td className='px-6 py-4 text-foreground'>
 													{purchase.items?.length || 0} items
 												</td>
 												<td className='px-6 py-4 text-muted-foreground'>
-													{new Date(purchase.date).toLocaleDateString('en-US', {
-														month: 'short',
-														day: 'numeric',
-														year: 'numeric',
-													})}
+													{getOrderDate(purchase)}
 												</td>
 												<td className='px-6 py-4'>
 													<Badge
 														className={cn(
 															'capitalize',
-															statusStyles[
-																purchase.status as keyof typeof statusStyles
-															],
+															statusStyles[statusKey] ||
+																statusStyles['pending'],
 														)}>
 														<StatusIcon className='h-3 w-3 mr-1' />
-														{purchase.status.replace('-', ' ')}
+														{getStatusDisplayName(purchase.status)}
 													</Badge>
 												</td>
 												<td className='px-6 py-4 font-semibold text-foreground'>
-													{purchase.total.toLocaleString('en-US')}
+													{formatCurrency(purchase.total)}
 												</td>
 												<td className='px-6 py-4'>
 													<div className='flex items-center justify-end gap-2'>
@@ -360,15 +480,15 @@ export default function Purchases() {
 																	</AlertDialogTitle>
 																	<AlertDialogDescription>
 																		Are you sure you want to delete purchase
-																		order {purchase.id}? This action cannot be
-																		undone.
+																		order {getOrderId(purchase)}? This action
+																		cannot be undone.
 																	</AlertDialogDescription>
 																</AlertDialogHeader>
 																<AlertDialogFooter>
 																	<AlertDialogCancel>Cancel</AlertDialogCancel>
 																	<AlertDialogAction
 																		onClick={() =>
-																			deleteMutation.mutate(purchase.id)
+																			deleteMutation.mutate(purchase.id!)
 																		}
 																		className='bg-destructive text-destructive-foreground hover:bg-destructive/90'>
 																		Delete

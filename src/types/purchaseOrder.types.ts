@@ -6,36 +6,63 @@ export interface PurchaseItem {
 	price: number;
 }
 
+// PurchaseOrder type that handles both response formats
+// The API may return either nested supplier object or flat supplier_name
 export interface PurchaseOrder {
 	id: string;
-	supplierId: number;
-	supplierName: string;
+	poNumber?: string;
+	supplier_id: number;
+	supplier_name?: string;
+	supplier?: {
+		id: number;
+		name: string;
+		contactPerson?: string;
+		email?: string;
+		phone?: string;
+		address?: string;
+	};
 	items: PurchaseItem[];
 	total: number;
-	date: string;
-	deliveryDate: string;
-	status: 'pending' | 'in-transit' | 'delivered' | 'cancelled';
-	createdAt: string;
-	updatedAt: string;
+	date?: string;
+	orderedAt?: string;
+	expectedDeliveryAt?: string;
+	delivery_date?: string;
+	status: string;
+	created_at?: string;
+	updated_at?: string;
 }
 
+// Backend API schema for creating purchase orders - uses camelCase naming
 export interface CreatePurchaseOrderDto {
+	poNumber: string;
 	supplierId: number;
+	status:
+		| 'PENDING'
+		| 'APPROVED'
+		| 'ORDERED'
+		| 'PARTIALLY_RECEIVED'
+		| 'COMPLETED'
+		| 'CANCELLED';
+	notes?: string;
+	orderedAt: string;
+	expectedDeliveryAt: string;
 	items: {
-		itemId: number;
-		quantity: number;
+		inventoryItemId: number;
+		quantityOrdered: number;
+		unitPrice: number;
 	}[];
-	deliveryDate: string;
 }
 
 export interface UpdatePurchaseOrderDto {
-	supplierId?: number;
+	supplier_id?: number;
 	items?: {
-		itemId: number;
+		item_id: number;
 		quantity: number;
+		unit_price?: number;
+		discount?: number;
 	}[];
-	deliveryDate?: string;
-	status?: 'pending' | 'in-transit' | 'delivered' | 'cancelled';
+	delivery_date?: string;
+	status?: string;
 }
 
 export interface PurchaseOrderStats {

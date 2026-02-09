@@ -1,13 +1,14 @@
 export interface Supplier {
 	id: number;
 	name: string;
-	contactPerson: string;
-	email: string;
-	phone: string;
-	address: string;
+	contact_person?: string;
+	email?: string;
+	phone?: string;
+	address?: string;
+	tax_rate?: number;
 	isActive: boolean;
-	createdAt: string;
-	updatedAt: string;
+	created_at?: string;
+	updated_at?: string;
 	inventoryCategories?: Array<{
 		id: number;
 		name: string;
@@ -19,23 +20,27 @@ export interface Supplier {
 
 export interface CreateSupplierDto {
 	name: string;
-	contactPerson: string;
-	email: string;
-	phone: string;
-	address: string;
+	contact_person?: string;
+	email?: string;
+	phone?: string;
+	address?: string;
+	tax_rate?: number;
 }
 
 export interface UpdateSupplierDto {
 	name?: string;
-	contactPerson?: string;
+	contact_person?: string;
 	email?: string;
 	phone?: string;
 	address?: string;
+	tax_rate?: number;
 }
 
 export interface SupplierStats {
-	totalSuppliers: number;
-	activeSuppliers: number;
-	topRated: number;
-	categories: number;
+	totalOrders: number;
+	pending: number;
+	inTransit: number;
+	delivered: number;
+	cancelled: number;
+	totalSpent: number;
 }
