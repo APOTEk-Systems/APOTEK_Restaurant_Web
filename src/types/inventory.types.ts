@@ -25,6 +25,17 @@ export interface Category {
 	supplierId?: number;
 }
 
+export interface InventoryUnit {
+	id: number;
+	name: string;
+	type: string;
+	symbol: string;
+	description?: string;
+	isActive: boolean;
+	createdAt: string;
+	updatedAt: string;
+}
+
 export interface InventoryItem {
 	id: number;
 	name: string;

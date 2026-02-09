@@ -6,7 +6,23 @@ import type {
 	StockRequest,
 	CreateStockRequest,
 	UpdateStockRequestStatus,
+	Category,
+	InventoryUnit,
 } from '../types/inventory.types';
+
+export interface CreateInventoryItemDto {
+	name: string;
+	sku?: string;
+	categoryId?: number;
+	supplier?: string;
+	description?: string;
+	quantity: number;
+	unit: string;
+	price: number;
+	minStock?: number;
+	maxStock?: number;
+	location?: string;
+}
 
 const getErrorMessage = (error: unknown, defaultMessage: string): string => {
 	if (!error) return defaultMessage;
@@ -31,6 +47,44 @@ const getErrorMessage = (error: unknown, defaultMessage: string): string => {
 };
 
 export const InventoryService = {
+	// Get all inventory categories
+	getAllCategories: async (): Promise<Category[]> => {
+		try {
+			const response = await api.get('/inventory-category');
+			return response.data;
+		} catch (error) {
+			throw new Error(
+				getErrorMessage(error, 'Failed to fetch inventory categories'),
+			);
+		}
+	},
+
+	// Get all inventory units
+	getAllUnits: async (): Promise<InventoryUnit[]> => {
+		try {
+			const response = await api.get('/inventory-unit');
+			return response.data;
+		} catch (error) {
+			throw new Error(
+				getErrorMessage(error, 'Failed to fetch inventory units'),
+			);
+		}
+	},
+
+	// Create new inventory item
+	createInventoryItem: async (
+		itemData: CreateInventoryItemDto,
+	): Promise<InventoryItem> => {
+		try {
+			const response = await api.post('/inventory-item', itemData);
+			return response.data;
+		} catch (error) {
+			throw new Error(
+				getErrorMessage(error, 'Failed to create inventory item'),
+			);
+		}
+	},
+
 	// Get all stock requests
 	getAllStockRequests: async (): Promise<StockRequest[]> => {
 		try {
