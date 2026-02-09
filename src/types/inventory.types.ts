@@ -41,7 +41,8 @@ export interface InventoryItem {
 	name: string;
 	unit: string;
 	price: number;
-	stock?: number;
+	quantity?: number;
+	stock?: number; // For backward compatibility
 	category?: Category;
 	description?: string;
 	supplier?: Supplier;

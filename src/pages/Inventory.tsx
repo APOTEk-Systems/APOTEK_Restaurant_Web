@@ -62,8 +62,9 @@ export default function Inventory() {
 	const lowStockItems =
 		inventoryItems?.filter((item) => {
 			// Assuming items with stock < 10 are low, < 5 are critical
-			if (!item.stock) return false;
-			return item.stock < 10;
+			const currentStock = item.quantity ?? item.stock;
+			if (!currentStock) return false;
+			return currentStock < 10;
 		}).length || 0;
 
 	// Calculate unique categories
@@ -224,10 +225,11 @@ export default function Inventory() {
 						{filteredItems.map((item) => {
 							// Determine status based on stock level
 							let status: keyof typeof statusStyles = 'normal';
-							if (item.stock !== undefined) {
-								if (item.stock < 5) {
+							const currentStock = item.quantity ?? item.stock;
+							if (currentStock !== undefined) {
+								if (currentStock < 5) {
 									status = 'critical';
-								} else if (item.stock < 10) {
+								} else if (currentStock < 10) {
 									status = 'low';
 								}
 							}
@@ -248,7 +250,7 @@ export default function Inventory() {
 									</TableCell>
 									<TableCell>
 										<div className='font-medium text-foreground'>
-											{item.stock || 0} {item.unit}
+											{(currentStock ?? 0)} {item.unit}
 										</div>
 									</TableCell>
 									<TableCell>

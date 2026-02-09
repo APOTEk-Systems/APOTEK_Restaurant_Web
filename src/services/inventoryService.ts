@@ -10,6 +10,70 @@ import type {
 	InventoryUnit,
 } from '../types/inventory.types';
 
+// Define inventory adjustment types
+export interface InventoryAdjustment {
+	id: number;
+	adjustmentNumber: string;
+	inventoryItemId: number;
+	batchId: number | null;
+	adjustmentReasonId: number;
+	adjustmentType: 'increase' | 'decrease' | 'correction';
+	quantity: number;
+	previousQuantity: number;
+	newQuantity: number;
+	notes: string | null;
+	adjustedBy: string | null;
+	createdAt: string;
+	updatedAt: string;
+	inventoryItem: {
+		id: number;
+		name: string;
+		description: string;
+		sku: string;
+		categoryId: number;
+		unit: string;
+		department: string[];
+		quantity: number;
+		minStock: number;
+		maxStock: number;
+		price: number;
+		supplier: string | null;
+		location: string;
+		storageLocation: string | null;
+		status: string;
+		createdAt: string;
+		updatedAt: string;
+	};
+	batch: {
+		id: number;
+		batchNumber: string;
+		inventoryItemId: number;
+		quantity: number;
+		receivedAt: string;
+		expiryDate: string;
+		createdAt: string;
+		updatedAt: string;
+	} | null;
+	adjustmentReason: {
+		id: number;
+		name: string;
+		type: 'increase' | 'decrease' | 'both';
+		description: string;
+		isActive: boolean;
+		createdAt: string;
+		updatedAt: string;
+	};
+}
+
+export interface CreateInventoryAdjustmentDto {
+	inventoryItemId: number;
+	batchId?: number | null;
+	adjustmentReasonId: number;
+	adjustmentType: 'increase' | 'decrease' | 'correction';
+	quantity: number;
+	notes?: string;
+}
+
 export interface CreateInventoryItemDto {
 	name: string;
 	sku?: string;
@@ -197,6 +261,70 @@ export const InventoryService = {
 					getErrorMessage(error, 'Failed to fetch available items'),
 				);
 			}
+		}
+	},
+
+	// Get all inventory adjustments
+	getAllInventoryAdjustments: async (): Promise<InventoryAdjustment[]> => {
+		try {
+			const response = await api.get('/inventory-adjustments');
+			return response.data;
+		} catch (error) {
+			throw new Error(
+				getErrorMessage(error, 'Failed to fetch inventory adjustments'),
+			);
+		}
+	},
+
+	// Get inventory adjustment by ID
+	getInventoryAdjustmentById: async (id: string): Promise<InventoryAdjustment> => {
+		try {
+			const response = await api.get(`/inventory-adjustments/${id}`);
+			return response.data;
+		} catch (error) {
+			throw new Error(
+				getErrorMessage(error, 'Failed to fetch inventory adjustment'),
+			);
+		}
+	},
+
+	// Create new inventory adjustment
+	createInventoryAdjustment: async (
+		adjustmentData: CreateInventoryAdjustmentDto,
+	): Promise<InventoryAdjustment> => {
+		try {
+			const response = await api.post('/inventory-adjustments', adjustmentData);
+			return response.data;
+		} catch (error) {
+			throw new Error(
+				getErrorMessage(error, 'Failed to create inventory adjustment'),
+			);
+		}
+	},
+
+	// Update inventory adjustment
+	updateInventoryAdjustment: async (
+		id: string,
+		adjustmentData: Partial<CreateInventoryAdjustmentDto>,
+	): Promise<InventoryAdjustment> => {
+		try {
+			const response = await api.patch(`/inventory-adjustments/${id}`, adjustmentData);
+			return response.data;
+		} catch (error) {
+			throw new Error(
+				getErrorMessage(error, 'Failed to update inventory adjustment'),
+			);
+		}
+	},
+
+	// Delete inventory adjustment
+	deleteInventoryAdjustment: async (id: string): Promise<void> => {
+		try {
+			await api.delete(`/inventory-adjustments/${id}`);
+		} catch (error) {
+			throw new Error(
+				getErrorMessage(error, 'Failed to delete inventory adjustment'),
+			);
 		}
 	},
 };

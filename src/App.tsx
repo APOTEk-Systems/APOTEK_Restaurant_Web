@@ -30,6 +30,7 @@ import ReservationNew from './pages/ReservationNew';
 import Inventory from './pages/Inventory';
 import InventoryNew from './pages/InventoryNew';
 import InventoryAdjustments from './pages/InventoryAdjustments';
+import InventoryAdjustmentNew from './pages/InventoryAdjustmentNew';
 import InventoryRequests from './pages/InventoryRequests';
 import ExpiringProducts from './pages/ExpiringProducts';
 import Purchases from './pages/Purchases';
@@ -170,6 +171,18 @@ const App = () => (
 					<Route
 						path='/inventory/adjustments'
 						element={<InventoryAdjustments />}
+					/>
+					<Route
+						path='/inventory-adjustments'
+						element={<InventoryAdjustments />}
+					/>
+					<Route
+						path='/inventory-adjustments/new'
+						element={<InventoryAdjustmentNew />}
+					/>
+					<Route
+						path='/inventory/adjustments/new'
+						element={<InventoryAdjustmentNew />}
 					/>
 					<Route
 						path='/inventory/requests'
