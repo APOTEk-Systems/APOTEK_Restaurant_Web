@@ -155,7 +155,7 @@ const ExpiringProducts = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Batch Number</TableHead>
+                    <TableHead>Batch #</TableHead>
                     <TableHead>Item</TableHead>
                     <TableHead className="text-center">Quantity</TableHead>
                     <TableHead>Received</TableHead>

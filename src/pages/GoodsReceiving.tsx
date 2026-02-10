@@ -3,13 +3,16 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { Plus, Search, Eye, MoreHorizontal, CheckCircle2, Clock, AlertCircle, Package, Loader2, AlertCircle as AlertIcon } from "lucide-react";
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { goodsReceivingService, type GoodsReceiving } from "@/services/goodsReceivingService";
 import { purchaseOrderService } from "@/services/purchaseOrderService";
+import { format } from "date-fns";
+import type { DateRange } from "@/components/ui/date-range-picker";
 
 const statusStyles: Record<string, string> = {
   pending: "bg-warning/10 text-warning border-warning/20",
@@ -35,30 +38,41 @@ const statusIcons: Record<string, React.ComponentType<{ className?: string }>> =
 export default function GoodsReceiving() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
+  const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const queryClient = useQueryClient();
 
-  // Fetch goods receiving records using React Query
+  // Fetch goods receiving records using React Query with date range
   const { data: receivings = [], isLoading, isError, error } = useQuery({
-    queryKey: ["goodsReceiving"],
-    queryFn: goodsReceivingService.getAllGoodsReceiving,
+    queryKey: ["goodsReceiving", dateRange?.from, dateRange?.to],
+    queryFn: () => {
+      const startDate = dateRange?.from ? format(dateRange.from, "yyyy-MM-dd") : undefined;
+      const endDate = dateRange?.to ? format(dateRange.to, "yyyy-MM-dd") : undefined;
+      return goodsReceivingService.getAllGoodsReceiving(startDate, endDate);
+    },
   });
 
   // Fetch purchase orders for partial receiving functionality
   const { data: purchaseOrders = [] } = useQuery({
-    queryKey: ["purchaseOrders"],
-    queryFn: purchaseOrderService.getAllPurchaseOrders,
+    queryKey: ["purchaseOrders", dateRange?.from, dateRange?.to],
+    queryFn: () => {
+      const startDate = dateRange?.from ? format(dateRange.from, "yyyy-MM-dd") : undefined;
+      const endDate = dateRange?.to ? format(dateRange.to, "yyyy-MM-dd") : undefined;
+      return purchaseOrderService.getAllPurchaseOrders(startDate, endDate);
+    },
   });
 
   // Filter records based on search and status
-  const filteredReceivings = receivings.filter((receiving: GoodsReceiving) => {
-    const matchesSearch = receiving.grnNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          receiving.supplier?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          receiving.purchaseOrder?.poNumber?.toLowerCase().includes(searchQuery.toLowerCase());
-    // Determine status based on items
-    const status = determineStatus(receiving);
-    const matchesStatus = selectedStatus === "all" || status === selectedStatus;
-    return matchesSearch && matchesStatus;
-  });
+  const filteredReceivings = useMemo(() => {
+    return receivings.filter((receiving: GoodsReceiving) => {
+      const matchesSearch = receiving.grnNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                            receiving.supplier?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                            receiving.purchaseOrder?.poNumber?.toLowerCase().includes(searchQuery.toLowerCase());
+      // Determine status based on items
+      const status = determineStatus(receiving);
+      const matchesStatus = selectedStatus === "all" || status === selectedStatus;
+      return matchesSearch && matchesStatus;
+    });
+  }, [receivings, searchQuery, selectedStatus]);
 
   // Calculate stats
   const totalReceived = receivings.length;
@@ -109,8 +123,9 @@ export default function GoodsReceiving() {
         </div> */}
 
         {/* Actions Bar */}
-        <div className="flex flex-col sm:flex-row gap-4">
-          <div className="flex gap-3 w-full">
+        <div className="flex sm:flex-row gap-4">
+          <div className="flex gap-3 w-full flex-wrap">
+        
             <div className="relative flex-1 sm:w-80">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input 
@@ -120,6 +135,11 @@ export default function GoodsReceiving() {
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
+                <DateRangePicker
+              dateRange={dateRange}
+              onDateRangeChange={setDateRange}
+              className="w-auto"
+            />
             <Select value={selectedStatus} onValueChange={setSelectedStatus}>
               <SelectTrigger className="w-40">
                 <SelectValue placeholder="Status" />
@@ -162,7 +182,7 @@ export default function GoodsReceiving() {
                     <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground">Received Date</th>
                       <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground">Supplier</th>
                        <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground">Received By</th>
-                    <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground">Status</th>
+                    {/* <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground">Status</th> */}
                     <th className="text-right px-6 py-4 text-sm font-medium text-muted-foreground">Actions</th>
                   </tr>
                 </thead>
@@ -190,17 +210,18 @@ export default function GoodsReceiving() {
                           <td className="px-6 py-4 text-foreground">{receiving.supplier?.name || "-"}</td>
                                                    <td className="px-6 py-4 text-foreground">{"-"}</td>
 
-                          <td className="px-6 py-4">
+                          {/* <td className="px-6 py-4">
                             <Badge className={cn("capitalize", statusStyles[status])}>
                               <StatusIcon className="h-3 w-3 mr-1" />
                               {statusLabels[status]}
                             </Badge>
-                          </td>
+                          </td> */}
                           <td className="px-6 py-4">
                             <div className="flex items-center justify-end gap-2">
                               <Link to={`/purchases/receiving/view/${receiving.id}`}>
-                                <Button variant="ghost" size="icon" className="h-8 w-8">
+                                <Button variant="outline" size="icon" className="w-full p-2">
                                   <Eye className="h-4 w-4" />
+                                  <span>View</span>
                                 </Button>
                               </Link>
                              

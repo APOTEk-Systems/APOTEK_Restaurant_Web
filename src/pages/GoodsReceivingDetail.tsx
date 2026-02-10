@@ -7,7 +7,9 @@ import { Link, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { goodsReceivingService, type GoodsReceiving } from "@/services/goodsReceivingService";
 import { purchaseOrderService } from "@/services/purchaseOrderService";
+import { inventoryUnitService, type InventoryUnit } from "@/services/inventoryUnitService";
 import { cn } from "@/lib/utils";
+import { useMemo } from "react";
 
 const statusStyles: Record<string, string> = {
   pending: "bg-warning/10 text-warning border-warning/20",
@@ -40,6 +42,43 @@ export default function GoodsReceivingDetail() {
     queryFn: () => purchaseOrderService.getPurchaseOrderById(receiving?.purchaseOrderId || 0),
     enabled: !!receiving?.purchaseOrderId,
   });
+
+  // Fetch inventory units for symbol lookup
+  const { data: inventoryUnits = [] } = useQuery({
+    queryKey: ["inventory-units"],
+    queryFn: () => inventoryUnitService.getAll(),
+  });
+
+  // Create a map of unit name (lowercase) to symbol for case-insensitive lookup
+  const unitSymbolMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    (inventoryUnits as InventoryUnit[]).forEach((unit) => {
+      const key = unit.name.toLowerCase();
+      map[key] = unit.symbol || unit.name;
+    });
+    return map;
+  }, [inventoryUnits]);
+
+  // Helper function to get unit symbol with contains matching
+  const getUnitSymbol = (unitName: string): string => {
+    if (!unitName) return "";
+    
+    const normalizedName = unitName.toLowerCase();
+    
+    // Try exact match first
+    if (unitSymbolMap[normalizedName]) {
+      return unitSymbolMap[normalizedName];
+    }
+    
+    // Try contains match (e.g., "kilograms" contains "kilogram")
+    for (const [key, value] of Object.entries(unitSymbolMap)) {
+      if (normalizedName.includes(key) || key.includes(normalizedName)) {
+        return value;
+      }
+    }
+    
+    return unitName;
+  };
 
   // Calculate status
   const determineStatus = (receiving: GoodsReceiving): string => {
@@ -80,7 +119,7 @@ export default function GoodsReceivingDetail() {
   const status = determineStatus(receiving);
 
   return (
-    <MainLayout title={`Goods Received: ${receiving.grnNumber}`} subtitle="View goods received details">
+    <MainLayout title={`Goods Received`} subtitle="View goods received details">
       <div className="space-y-6 animate-fade-in">
         {/* Back Button */}
         <Link to="/purchases/receiving">
@@ -111,12 +150,7 @@ export default function GoodsReceivingDetail() {
           <CardContent className="pt-6">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
               <div>
-                <div className="flex items-center gap-3">
-                  <h2 className="text-xl font-bold">{receiving.grnNumber}</h2>
-                  <Badge className={cn("capitalize", statusStyles[status])}>
-                    {statusLabels[status]}
-                  </Badge>
-                </div>
+                <h2 className="text-xl font-semibold">Summary</h2>
                 <p className="text-muted-foreground mt-1">
                   Supplier: {receiving.supplier?.name || `Supplier #${receiving.supplierId}`}
                 </p>
@@ -129,10 +163,14 @@ export default function GoodsReceivingDetail() {
                   </p>
                 )}
               </div>
-              <div className="text-right">
-                <p className="text-sm text-muted-foreground">Items Received</p>
-                <p className="text-2xl font-bold">{receiving.receivedItems?.length || 0}</p>
-              </div>
+
+              <div className="flex items-center gap-3">
+                  
+                  <Badge className={cn("capitalize", statusStyles[status])}>
+                    {statusLabels[status]}
+                  </Badge>
+                </div>
+              
             </div>
           </CardContent>
         </Card>
@@ -164,7 +202,8 @@ export default function GoodsReceivingDetail() {
                   <tr>
                     <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Item</th>
                     <th className="text-center px-4 py-3 text-sm font-medium text-muted-foreground">Quantity Received</th>
-                    <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Batch/Expiry</th>
+                    <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Batch</th>
+                    <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Expiry Date</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
@@ -172,15 +211,23 @@ export default function GoodsReceivingDetail() {
                     <tr key={index} className="hover:bg-muted/30 transition-colors">
                       <td className="px-4 py-3">
                         <div className="font-medium">{item.inventoryItem?.name || `Item #${item.inventoryItemId}`}</div>
-                        <div className="text-sm text-muted-foreground">{item.inventoryItem?.unit}</div>
                       </td>
-                      <td className="px-4 py-3 text-center font-medium">{item.quantityReceived}</td>
+                      <td className="px-4 py-3 text-center font-medium">
+                        {item.quantityReceived} {getUnitSymbol(item.inventoryItem?.unit || "")}
+                      </td>
                       <td className="px-4 py-3 text-muted-foreground">
                         {item.batch?.batchNumber && (
-                          <div>Batch: {item.batch.batchNumber}</div>
+                          <div>{item.batch.batchNumber}</div>
                         )}
+                       
+                        {!item.batch?.batchNumber && !item.batch?.expiryDate && (
+                          <span className="text-muted-foreground">-</span>
+                        )}
+                      </td>
+                       <td className="px-4 py-3 text-muted-foreground">
+                       
                         {item.batch?.expiryDate && (
-                          <div>Expires: {new Date(item.batch.expiryDate).toLocaleDateString()}</div>
+                          <div>{new Date(item.batch.expiryDate).toLocaleDateString()}</div>
                         )}
                         {!item.batch?.batchNumber && !item.batch?.expiryDate && (
                           <span className="text-muted-foreground">-</span>

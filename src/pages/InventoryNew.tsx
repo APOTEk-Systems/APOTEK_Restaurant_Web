@@ -9,7 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ArrowLeft, Package, AlertTriangle, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { InventoryService, type InventoryCategory, type InventoryUnit, type CreateInventoryItemData } from "@/services/inventoryService";
 import { SupplierService, type Supplier } from "@/services/supplierService";
@@ -111,6 +111,18 @@ export default function InventoryNew() {
     });
   };
 
+  // Check if form is valid for button state
+  const isFormValid = useMemo(() => {
+    return (
+      formData.name.trim() !== "" &&
+      formData.categoryId !== "" &&
+      formData.unit !== "" &&
+      formData.price !== null &&
+      formData.price !== undefined &&
+      formData.price > 0
+    );
+  }, [formData.name, formData.categoryId, formData.unit, formData.price]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -142,6 +154,15 @@ export default function InventoryNew() {
       return;
     }
 
+    if (formData.price === null || formData.price === undefined || formData.price <= 0) {
+      toast({
+        title: "Validation Error",
+        description: "Please enter a valid price greater than 0",
+        variant: "destructive",
+      });
+      return;
+    }
+
     // Prepare data for API
     const data = {
       name: formData.name,
@@ -163,13 +184,13 @@ export default function InventoryNew() {
   };
 
   return (
-    <MainLayout title="Add Inventory Item" subtitle="Add a new item to your inventory">
+    <MainLayout title="Add New Item" subtitle="Add a new item to your inventory">
       <div className="space-y-6 animate-fade-in max-w-3xl">
         {/* Back Button */}
         <Link to="/inventory">
           <Button variant="ghost" className="gap-2">
             <ArrowLeft className="h-4 w-4" />
-            Back to Inventory
+            Back to Current Stock
           </Button>
         </Link>
 
@@ -275,8 +296,11 @@ export default function InventoryNew() {
                       type="number"
                       min="0"
                       placeholder="0"
-                      value={formData.quantity}
-                      onChange={(e) => handleInputChange("quantity", parseFloat(e.target.value) || 0)}
+                      value={formData.quantity || ""}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        handleInputChange("quantity", val === "" ? 0 : parseFloat(val) || 0);
+                      }}
                     />
                   </div>
                   <div className="space-y-2">
@@ -305,8 +329,11 @@ export default function InventoryNew() {
                       min="0"
                       step="0.01"
                       placeholder="0.00"
-                      value={formData.price}
-                      onChange={(e) => handleInputChange("price", parseFloat(e.target.value) || 0)}
+                      value={formData.price || ""}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        handleInputChange("price", val === "" ? 0 : parseFloat(val) || 0);
+                      }}
                     />
                   </div>
                 </div>
@@ -318,8 +345,11 @@ export default function InventoryNew() {
                       type="number"
                       min="0"
                       placeholder="Alert when below this"
-                      value={formData.minStock}
-                      onChange={(e) => handleInputChange("minStock", parseFloat(e.target.value) || 0)}
+                      value={formData.minStock || ""}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        handleInputChange("minStock", val === "" ? 0 : parseFloat(val) || 0);
+                      }}
                     />
                   </div>
                   <div className="space-y-2">
@@ -329,8 +359,11 @@ export default function InventoryNew() {
                       type="number"
                       min="0"
                       placeholder="Maximum capacity"
-                      value={formData.maxStock}
-                      onChange={(e) => handleInputChange("maxStock", parseFloat(e.target.value) || 0)}
+                      value={formData.maxStock || ""}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        handleInputChange("maxStock", val === "" ? 0 : parseFloat(val) || 0);
+                      }}
                     />
                   </div>
                 </div>
@@ -343,7 +376,7 @@ export default function InventoryNew() {
                 <CardTitle className="text-lg">Additional Settings</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="location">Storage Location</Label>
                     <Select
@@ -371,7 +404,7 @@ export default function InventoryNew() {
                       onChange={(e) => handleInputChange("storageLocation", e.target.value)}
                     />
                   </div>
-                </div>
+                </div> */}
                 <div className="space-y-3">
                   <Label className="text-sm font-medium">Departments</Label>
                   <p className="text-xs text-muted-foreground">Select one or more departments this item belongs to</p>
@@ -393,7 +426,7 @@ export default function InventoryNew() {
                     ))}
                   </div>
                 </div>
-                <div className="flex items-center justify-between p-4 rounded-lg bg-muted/30">
+                {/* <div className="flex items-center justify-between p-4 rounded-lg bg-muted/30">
                   <div>
                     <Label htmlFor="trackExpiry" className="font-medium">Track Expiry Dates</Label>
                     <p className="text-sm text-muted-foreground">Get alerts before items expire</p>
@@ -403,7 +436,7 @@ export default function InventoryNew() {
                     checked={formData.trackExpiry}
                     onCheckedChange={(checked) => handleInputChange("trackExpiry", checked)}
                   />
-                </div>
+                </div> */}
               </CardContent>
             </Card>
 
@@ -415,7 +448,7 @@ export default function InventoryNew() {
               <Button
                 type="submit"
                 className="gradient-primary text-primary-foreground shadow-glow hover:shadow-lg transition-shadow"
-                disabled={createMutation.isPending}
+                disabled={createMutation.isPending || !isFormValid}
               >
                 {createMutation.isPending ? (
                   <>
@@ -425,7 +458,7 @@ export default function InventoryNew() {
                 ) : (
                   <>
                     <Package className="h-4 w-4 mr-2" />
-                    Add Inventory Item
+                    Add Item
                   </>
                 )}
               </Button>

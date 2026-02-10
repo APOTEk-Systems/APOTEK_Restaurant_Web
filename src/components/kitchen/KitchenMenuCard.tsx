@@ -96,7 +96,7 @@ export function KitchenMenuCard({
           )}
         </div>
         <span className="text-lg font-bold text-primary">
-          ${item.price.toLocaleString("en-US")}
+          {item.price.toLocaleString("en-US")}
         </span>
       </div>
       <div className="flex items-center justify-between">

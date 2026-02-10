@@ -95,7 +95,7 @@ const purchaseSubItems = [
   { title: "New Purchase Order", url: "/purchases/new", icon: Plus },
   { title: "Purchase Orders", url: "/purchases", icon: FileText },
   { title: "Goods Received", url: "/purchases/receiving", icon: PackageCheck },
-  { title: "Suppliers", url: "/purchases/suppliers", icon: Building2 },
+  { title: "Suppliers", url: "/purchases/suppliers", icon: Users },
 ];
 
 const settingsSubItems = [

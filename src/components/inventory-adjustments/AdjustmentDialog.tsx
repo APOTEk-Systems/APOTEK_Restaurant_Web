@@ -177,7 +177,7 @@ export function AdjustmentDialog({ isDialogOpen, onOpenChange }: AdjustmentDialo
             {/* Batch Selection - Show for decrease type */}
             {formData.adjustmentType === "decrease" && (
               <div className="space-y-2">
-                <Label htmlFor="batch">Batch (Optional)</Label>
+                <Label htmlFor="batch">Batch</Label>
                 <Select
                   value={formData.batchId}
                   onValueChange={(value) =>
@@ -236,7 +236,7 @@ export function AdjustmentDialog({ isDialogOpen, onOpenChange }: AdjustmentDialo
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="quantity">Quantity ({selectedItem?.unit || "units"})</Label>
+              <Label htmlFor="quantity">Quantity</Label>
               <Input
                 id="quantity"
                 type="number"
@@ -254,7 +254,7 @@ export function AdjustmentDialog({ isDialogOpen, onOpenChange }: AdjustmentDialo
               )}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="notes">Notes (Optional)</Label>
+              <Label htmlFor="notes">Notes</Label>
               <Input
                 id="notes"
                 value={formData.notes}

@@ -56,8 +56,13 @@ export interface UpdatePurchaseOrderData {
 }
 
 export const purchaseOrderService = {
-  getAllPurchaseOrders: async (): Promise<PurchaseOrder[]> => {
-    const response = await api.get('/purchase-orders');
+  getAllPurchaseOrders: async (startDate?: string, endDate?: string): Promise<PurchaseOrder[]> => {
+    const params = new URLSearchParams();
+    if (startDate) params.append('startDate', startDate);
+    if (endDate) params.append('endDate', endDate);
+    const queryString = params.toString();
+    const url = queryString ? `/purchase-orders?${queryString}` : '/purchase-orders';
+    const response = await api.get(url);
     return response.data;
   },
 

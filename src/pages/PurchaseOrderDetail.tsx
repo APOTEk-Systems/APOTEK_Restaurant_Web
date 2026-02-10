@@ -7,9 +7,10 @@ import { ArrowLeft, Loader2, AlertCircle, Check, X, Package } from "lucide-react
 import { Link, useParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { purchaseOrderService, type PurchaseOrder } from "@/services/purchaseOrderService";
+import { inventoryUnitService, type InventoryUnit } from "@/services/inventoryUnitService";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -52,6 +53,43 @@ export default function PurchaseOrderDetail() {
     queryFn: () => purchaseOrderService.getPurchaseOrderById(purchaseOrderId),
     enabled: !!purchaseOrderId,
   });
+
+  // Fetch inventory units for symbol lookup
+  const { data: inventoryUnits = [] } = useQuery({
+    queryKey: ["inventory-units"],
+    queryFn: () => inventoryUnitService.getAll(),
+  });
+
+  // Create a map of unit name (lowercase) to symbol for case-insensitive lookup
+  const unitSymbolMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    (inventoryUnits as InventoryUnit[]).forEach((unit) => {
+      const key = unit.name.toLowerCase();
+      map[key] = unit.symbol || unit.name;
+    });
+    return map;
+  }, [inventoryUnits]);
+
+  // Helper function to get unit symbol with contains matching
+  const getUnitSymbol = (unitName: string): string => {
+    if (!unitName) return "";
+    
+    const normalizedName = unitName.toLowerCase();
+    
+    // Try exact match first
+    if (unitSymbolMap[normalizedName]) {
+      return unitSymbolMap[normalizedName];
+    }
+    
+    // Try contains match (e.g., "kilograms" contains "kilogram")
+    for (const [key, value] of Object.entries(unitSymbolMap)) {
+      if (normalizedName.includes(key) || key.includes(normalizedName)) {
+        return value;
+      }
+    }
+    
+    return unitName;
+  };
 
   // Approve mutation
   const approveMutation = useMutation({
@@ -115,7 +153,7 @@ export default function PurchaseOrderDetail() {
   );
 
   return (
-    <MainLayout title={`Purchase Order: ${purchaseOrder.poNumber}`} subtitle="View and manage purchase order">
+    <MainLayout title={`Purchase Order`} subtitle="View and manage purchase order">
       <div className="space-y-6 animate-fade-in">
         {/* Back Button */}
         <Link to="/purchases">
@@ -140,7 +178,7 @@ export default function PurchaseOrderDetail() {
                   Supplier: {purchaseOrder.supplier?.name || `Supplier #${purchaseOrder.supplierId}`}
                 </p>
                 <p className="text-muted-foreground text-sm">
-                  Ordered: {purchaseOrder.orderedAt ? new Date(purchaseOrder.orderedAt).toLocaleDateString() : "-"}
+                  Date: {purchaseOrder.orderedAt ? new Date(purchaseOrder.orderedAt).toLocaleDateString() : "-"}
                 </p>
                 {purchaseOrder.expectedDeliveryAt && (
                   <p className="text-muted-foreground text-sm">
@@ -152,7 +190,7 @@ export default function PurchaseOrderDetail() {
               {/* Action Buttons */}
               <div className="flex flex-col gap-2">
                 {/* Pending Actions */}
-                {purchaseOrder.status === "PENDING" && (
+                {purchaseOrder.status === "PENDING"  && (
                   <div className="flex gap-2">
                     {/* Approve Dialog */}
                     <AlertDialog>
@@ -232,7 +270,7 @@ export default function PurchaseOrderDetail() {
                 )}
 
                 {/* Receive Goods Button for Approved/Ordered POs */}
-                {(purchaseOrder.status === "APPROVED" || purchaseOrder.status ==="PARTIALLY_RECEIVED") && (
+                {(purchaseOrder.status === "APPROVED" || purchaseOrder.status ==="PARTIALLY_RECEIVED" || purchaseOrder.status === "ORDERED") && (
                   <Button asChild className="gap-2">
                     <Link to={`/purchases/receiving/new/${purchaseOrder.id}`}>
                       <Package className="h-4 w-4" />
@@ -244,7 +282,7 @@ export default function PurchaseOrderDetail() {
             </div>
 
             {/* Status Info */}
-            <div className="mt-4 pt-4 border-t border-border">
+            {/* <div className="mt-4 pt-4 border-t border-border">
               <p className="text-sm text-muted-foreground">
                 {purchaseOrder.status === "PENDING" && "This order is awaiting approval."}
                 {purchaseOrder.status === "ORDERED" && "This order has been approved and is awaiting delivery."}
@@ -252,7 +290,7 @@ export default function PurchaseOrderDetail() {
                 {purchaseOrder.status === "COMPLETED" && "All items have been received."}
                 {purchaseOrder.status === "CANCELLED" && "This order has been cancelled."}
               </p>
-            </div>
+            </div> */}
           </CardContent>
         </Card>
 
@@ -277,12 +315,13 @@ export default function PurchaseOrderDetail() {
                     <tr key={item.id} className="hover:bg-muted/30 transition-colors">
                       <td className="px-4 py-3">
                         <div className="font-medium">{item.inventoryItem?.name || `Item #${item.inventoryItemId}`}</div>
-                        <div className="text-sm text-muted-foreground">{item.inventoryItem?.unit || "N/A"}</div>
                       </td>
-                      <td className="px-4 py-3 text-center">{item.quantityOrdered}</td>
-                      <td className="px-4 py-3 text-right">${item.unitPrice.toFixed(2)}</td>
+                      <td className="px-4 py-3 text-center">
+                        {item.quantityOrdered} {getUnitSymbol(item.inventoryItem?.unit || "")}
+                      </td>
+                      <td className="px-4 py-3 text-right">{item.unitPrice.toLocaleString()}</td>
                       <td className="px-4 py-3 text-right font-semibold">
-                        ${(item.quantityOrdered * item.unitPrice).toFixed(2)}
+                        {(item.quantityOrdered * item.unitPrice).toLocaleString('en-US')}
                       </td>
                     </tr>
                   ))}
@@ -291,7 +330,7 @@ export default function PurchaseOrderDetail() {
                   <tr>
                     <td colSpan={3} className="px-4 py-3 text-right font-semibold">Total</td>
                     <td className="px-4 py-3 text-right font-bold text-primary">
-                      ${orderTotal.toFixed(2)}
+                      {orderTotal.toLocaleString('en-US')}
                     </td>
                   </tr>
                 </tfoot>

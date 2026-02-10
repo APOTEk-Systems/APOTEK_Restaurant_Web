@@ -10,6 +10,7 @@ import { useNavigate } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { DateRangePicker, type DateRange } from "@/components/ui/date-range-picker";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { DepartmentInventoryService, DepartmentInventoryItem } from "@/services/departmentInventoryService";
 import { StockRequestService, StockRequest } from "@/services/stockRequestService";
@@ -23,9 +24,16 @@ export default function BarInventory() {
   const [selectedItem, setSelectedItem] = useState<DepartmentInventoryItem | null>(null);
   const [updateAmount, setUpdateAmount] = useState("");
   const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
-  const [dateRange, setDateRange] = useState({
-    startDate: format(subDays(new Date(), 7), 'yyyy-MM-dd'),
-    endDate: format(new Date(), 'yyyy-MM-dd'),
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [selectedRequest, setSelectedRequest] = useState<StockRequest | null>(null);
+  // Initialize with today's date range (start of day to end of day, timezone-independent)
+  const today = new Date();
+  const startOfDay = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate(), 0, 0, 0, 0));
+  const endOfDay = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate(), 23, 59, 59, 999));
+  
+  const [dateRange, setDateRange] = useState<DateRange | undefined>({
+    from: startOfDay,
+    to: endOfDay,
   });
   const queryClient = useQueryClient();
 
@@ -40,12 +48,12 @@ export default function BarInventory() {
 
   // Fetch bar stock requests
   const { data: stockRequests = [], isLoading: isLoadingRequests } = useQuery({
-    queryKey: ['stock-requests', 'BAR', dateRange.startDate, dateRange.endDate],
+    queryKey: ['stock-requests', 'BAR', dateRange?.from, dateRange?.to],
     queryFn: async () => {
       const requests = await StockRequestService.getAllStockRequests({
         department: 'BAR',
-        startDate: dateRange.startDate,
-        endDate: dateRange.endDate,
+        startDate: dateRange?.from ? dateRange.from.toISOString() : undefined,
+        endDate: dateRange?.to ? dateRange.to.toISOString() : undefined,
       });
       return requests;
     },
@@ -218,22 +226,22 @@ export default function BarInventory() {
               {/* Date Filter and New Request Button */}
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4 text-muted-foreground" />
-                    <Input
-                      type="date"
-                      value={dateRange.startDate}
-                      onChange={(e) => setDateRange(prev => ({ ...prev, startDate: e.target.value }))}
-                      className="w-40"
-                    />
-                    <span className="text-muted-foreground">to</span>
-                    <Input
-                      type="date"
-                      value={dateRange.endDate}
-                      onChange={(e) => setDateRange(prev => ({ ...prev, endDate: e.target.value }))}
-                      className="w-40"
-                    />
-                  </div>
+                  <DateRangePicker
+                    dateRange={dateRange}
+                    onDateRangeChange={setDateRange}
+                  />
+                  {dateRange && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setDateRange({
+                        from: startOfDay,
+                        to: endOfDay,
+                      })}
+                    >
+                      Today
+                    </Button>
+                  )}
                 </div>
                 <Button onClick={() => navigate('/inventory-requests/new')} className="flex items-center gap-2">
                   New Request
@@ -261,6 +269,7 @@ export default function BarInventory() {
                           <TableHead>Items</TableHead>
                           <TableHead>Status</TableHead>
                           <TableHead>Requested By</TableHead>
+                          <TableHead>Actions</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -279,6 +288,18 @@ export default function BarInventory() {
                               </Badge>
                             </TableCell>
                             <TableCell>{request.requestedBy || '-'}</TableCell>
+                            <TableCell>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedRequest(request);
+                                  setIsViewModalOpen(true);
+                                }}
+                              >
+                                View
+                              </Button>
+                            </TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
@@ -289,6 +310,56 @@ export default function BarInventory() {
             </div>
           </TabsContent>
         </Tabs>
+
+        {/* View Request Modal */}
+        <Dialog open={isViewModalOpen} onOpenChange={setIsViewModalOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Stock Request Details</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                <Label className="text-sm text-muted-foreground">Request #</Label>
+                  <p className="font-medium">{selectedRequest?.requestId}</p>
+                </div>
+                <div>
+                  <Label className="text-sm text-muted-foreground">Requested By</Label>
+                  <p className="font-medium">{selectedRequest?.requestedBy || '-'}</p>
+                </div>
+                <div>
+                  <Label className="text-sm text-muted-foreground">Date</Label>
+                  <p className="font-medium">{selectedRequest ? format(new Date(selectedRequest.requestedAt), 'dd/MM/yyyy HH:mm') : '-'}</p>
+                </div>
+                <div>
+                  <Label className="text-sm text-muted-foreground">Status</Label>
+                  <p className="font-medium capitalize">{selectedRequest?.status}</p>
+                </div>
+              </div>
+              
+              <div className="border rounded-lg p-4">
+                <h4 className="font-medium mb-3">Requested Items</h4>
+                {selectedRequest?.requestItems && selectedRequest.requestItems.length > 0 ? (
+                  <div className="space-y-2">
+                    {selectedRequest.requestItems.map((item: any, idx: number) => (
+                      <div key={idx} className="flex justify-between items-center py-2 border-b last:border-0">
+                        <span className="text-sm">{item.item?.name || `Item #${item.itemId}`}</span>
+                        <span className="font-medium">{item.quantity} {item.item?.unit || ''}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No items in this request</p>
+                )}
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsViewModalOpen(false)}>
+                Close
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* Update Inventory Modal */}
         <Dialog open={isUpdateModalOpen} onOpenChange={setIsUpdateModalOpen}>

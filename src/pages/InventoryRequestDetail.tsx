@@ -50,7 +50,7 @@ const InventoryRequestDetail = () => {
       });
       queryClient.invalidateQueries({ queryKey: ['stock-request'] });
       queryClient.invalidateQueries({ queryKey: ['stock-requests'] });
-      navigate('/inventory/inventory-requests');
+      navigate('/inventory/requests');
     },
     onError: (error: any) => {
       toast({
@@ -95,10 +95,10 @@ const InventoryRequestDetail = () => {
 
   return (
     <MainLayout 
-      title={`Stock Request: ${stockRequest.requestId}`} 
+      title={`Stock Request`} 
       subtitle="View and manage stock request details"
     >
-      <div className="space-y-6">
+      <div className="space-y-2">
         {/* Back Button */}
         <Button 
           variant="ghost" 
@@ -110,8 +110,8 @@ const InventoryRequestDetail = () => {
         </Button>
 
         {/* Status and Actions */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div className="flex items-center gap-4">
+        <div className="flex flex-col sm:flex-row justify-end items-start sm:items-center gap-4">
+          {/* <div className="flex items-center gap-4">
             <Badge className={statusStyles[stockRequest.status] || "bg-gray-500/10 text-gray-500"}>
               {stockRequest.status}
             </Badge>
@@ -120,7 +120,7 @@ const InventoryRequestDetail = () => {
               {stockRequest.requestedFrom === "BAR" && <Wine className="h-3 w-3 mr-1" />}
               {stockRequest.requestedFrom || 'N/A'}
             </Badge>
-          </div>
+          </div> */}
           
           {stockRequest.status === "pending" && (
             <div className="flex gap-2">
@@ -155,7 +155,7 @@ const InventoryRequestDetail = () => {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Request ID</span>
+                <span className="text-muted-foreground">Request #</span>
                 <span className="font-medium">{stockRequest.requestId}</span>
               </div>
               <div className="flex justify-between">
@@ -218,7 +218,7 @@ const InventoryRequestDetail = () => {
                       <th className="text-left p-3 text-sm font-medium text-muted-foreground">Item</th>
                       <th className="text-right p-3 text-sm font-medium text-muted-foreground">Quantity</th>
                       <th className="text-right p-3 text-sm font-medium text-muted-foreground">On Hand</th>
-                      <th className="text-left p-3 text-sm font-medium text-muted-foreground">Status</th>
+                      <th className="text-right p-3 text-sm font-medium text-muted-foreground">Status</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -232,10 +232,10 @@ const InventoryRequestDetail = () => {
                         </td>
                         <td className="p-3 text-right font-medium">{item.quantity} {item.item.unit}{item.quantity > 1 ? "s":""}</td>
                         <td className="p-3 text-right font-medium text-muted-foreground">
-                          {item.item?.quantity ?? '-'} {item.item?.unit}
+                          {item.item?.quantity ?? '-'} {item.item?.unit}{item.quantity > 1 ? "s":""}
                         </td>
-                        <td className="p-3">
-                          <Badge variant="secondary">{item.status || 'pending'}</Badge>
+                        <td className="p-3 text-right">
+                          <Badge variant="secondary">{item.status}</Badge>
                         </td>
                       </tr>
                     ))}

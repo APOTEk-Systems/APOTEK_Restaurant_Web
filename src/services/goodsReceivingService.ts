@@ -51,8 +51,13 @@ export interface CreateGoodsReceivingData {
 }
 
 export const goodsReceivingService = {
-  getAllGoodsReceiving: async (): Promise<GoodsReceiving[]> => {
-    const response = await api.get('/goods-receiving');
+  getAllGoodsReceiving: async (startDate?: string, endDate?: string): Promise<GoodsReceiving[]> => {
+    const params = new URLSearchParams();
+    if (startDate) params.append('startDate', startDate);
+    if (endDate) params.append('endDate', endDate);
+    const queryString = params.toString();
+    const url = queryString ? `/goods-receiving?${queryString}` : '/goods-receiving';
+    const response = await api.get(url);
     return response.data;
   },
 

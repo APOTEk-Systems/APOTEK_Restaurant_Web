@@ -1,18 +1,27 @@
-// Helper to get unit symbol from unit name
-
-
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Search, Package, AlertTriangle, TrendingDown, Loader2 } from "lucide-react";
+import { Plus, Search, Package, AlertTriangle, TrendingDown, Loader2, Pencil, Trash2, Edit } from "lucide-react";
 import { cn, getUnitSymbol } from "@/lib/utils";
 import { Link } from "react-router-dom";
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@/components/ui/table";
 import { useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { InventoryService, type InventoryItem, type InventoryCategory } from "@/services/inventoryService";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { toast } from "sonner";
 
 const statusStyles: Record<string, string> = {
   NORMAL: "bg-success/10 text-success border-success/20",
@@ -46,6 +55,7 @@ const getItemStatus = (item: InventoryItem): string => {
 export default function Inventory() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const queryClient = useQueryClient();
 
   // Fetch inventory items using React Query
   const { 
@@ -93,6 +103,22 @@ export default function Inventory() {
     const status = getItemStatus(item);
     return status === "LOW" || status === "CRITICAL";
   });
+
+  // Delete mutation
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) => InventoryService.deleteItem(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['inventoryItems'] });
+      toast.success("Inventory item deleted successfully");
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to delete inventory item");
+    },
+  });
+
+  const handleDelete = (id: number) => {
+    deleteMutation.mutate(id);
+  };
 
   return (
     <MainLayout title="Current Stock" subtitle="Track and manage your stock levels">
@@ -156,6 +182,7 @@ export default function Inventory() {
                   <TableHead>Quantity</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Price</TableHead>
+                  <TableHead className="w-24">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -196,6 +223,41 @@ export default function Inventory() {
                         <TableCell>
                           <div className="font-semibold text-primary">
                             {item.price.toLocaleString('en-US')}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Link to={`/inventory/edit/${item.id}`}>
+                              <Button variant="outline" size="icon" className="w-full p-2">
+                                <Edit className="h-4 w-4" />
+                               Edit
+                              </Button>
+                            </Link>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="destructive" size="icon" className="w-full p-2  hover:bg-red-700">
+                                  <Trash2 className="h-4 w-4" />
+                                  Delete
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Delete Inventory Item</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Are you sure you want to delete "{item.name}"? This action cannot be undone.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => handleDelete(item.id)}
+                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                  >
+                                    Delete
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
                           </div>
                         </TableCell>
                       </TableRow>

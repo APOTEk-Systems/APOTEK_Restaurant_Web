@@ -10,6 +10,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { purchaseOrderService, type PurchaseOrder } from "@/services/purchaseOrderService";
 import { goodsReceivingService, type GoodsReceiving, type CreateGoodsReceivingData } from "@/services/goodsReceivingService";
 import { toast } from "sonner";
+import { Textarea } from "@/components/ui/textarea";
 
 interface ReceivedItem {
   inventoryItemId: number;
@@ -212,12 +213,12 @@ export default function GoodsReceivingNew() {
         <form onSubmit={handleSubmit}>
           {/* GRN Number & Notes */}
           <Card className="shadow-card border-border/50">
-            <CardHeader>
+            <CardHeader className="">
               <CardTitle className="text-lg">Receiving Details</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="">
               <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
+                {/* <div className="space-y-2">
                   <Label>Already Received</Label>
                   <Input
                     value={totalAlreadyReceived}
@@ -232,11 +233,11 @@ export default function GoodsReceivingNew() {
                     disabled
                     className="bg-muted"
                   />
-                </div>
+                </div> */}
               </div>
-              <div className="space-y-2">
+              <div className="">
                 <Label htmlFor="notes">Notes</Label>
-                <Input
+                <Textarea
                   id="notes"
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}

@@ -3,12 +3,15 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Search, Eye, Truck, Package, FileText, Loader2, AlertCircle, Check, X } from "lucide-react";
+import { DateRangePicker } from "@/components/ui/date-range-picker";
+import { Plus, Search, Eye, Truck, Package, FileText, Loader2, AlertCircle, Check, X, Calendar } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Link } from "react-router-dom";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { purchaseOrderService, type PurchaseOrder } from "@/services/purchaseOrderService";
+import { format } from "date-fns";
+import type { DateRange } from "@/components/ui/date-range-picker";
 
 const statusStyles: Record<string, string> = {
   pending: "bg-warning/10 text-warning border-warning/20",
@@ -49,34 +52,30 @@ const statusIcons: Record<string, React.ComponentType<{ className?: string }>> =
 export default function Purchases() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
+  const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const queryClient = useQueryClient();
 
-  // Fetch purchase orders using React Query
+  // Fetch purchase orders using React Query with date range
   const { data: purchaseOrders = [], isLoading, isError, error } = useQuery({
-    queryKey: ["purchaseOrders"],
-    queryFn: purchaseOrderService.getAllPurchaseOrders,
+    queryKey: ["purchaseOrders", dateRange?.from, dateRange?.to],
+    queryFn: () => {
+      const startDate = dateRange?.from ? format(dateRange.from, "yyyy-MM-dd") : undefined;
+      const endDate = dateRange?.to ? format(dateRange.to, "yyyy-MM-dd") : undefined;
+      return purchaseOrderService.getAllPurchaseOrders(startDate, endDate);
+    },
   });
 
   // Filter purchase orders based on search and status
-  const filteredOrders = purchaseOrders.filter((po: PurchaseOrder) => {
-    const matchesSearch = po.poNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          po.supplier?.name?.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus = selectedStatus === "all" || po.status === selectedStatus;
-    return matchesSearch && matchesStatus;
-  });
+  const filteredOrders = useMemo(() => {
+    return purchaseOrders.filter((po: PurchaseOrder) => {
+      const matchesSearch = po.poNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                            po.supplier?.name?.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesStatus = selectedStatus === "all" || po.status === selectedStatus;
+      return matchesSearch && matchesStatus;
+    });
+  }, [purchaseOrders, searchQuery, selectedStatus]);
 
-  // Calculate stats
-  const totalOrders = purchaseOrders.length;
-  const pendingOrders = purchaseOrders.filter((po: PurchaseOrder) => po.status === "PENDING").length;
-  const inTransitOrders = purchaseOrders.filter((po: PurchaseOrder) => 
-    po.status === "ORDERED" || po.status === "PARTIALLY_RECEIVED"
-  ).length;
-  const totalSpent = purchaseOrders.reduce((sum: number, po: PurchaseOrder) => {
-    const poTotal = po.items.reduce((itemSum: number, item: any) => 
-      itemSum + (item.quantityOrdered * item.unitPrice), 0
-    );
-    return sum + poTotal;
-  }, 0);
+
 
   return (
     <MainLayout title="Purchases" subtitle="Manage supplier orders and deliveries">
@@ -108,8 +107,9 @@ export default function Purchases() {
         </div> */}
 
         {/* Actions Bar */}
-        <div className="flex flex-col sm:flex-row gap-4 justify-between">
-          <div className="flex gap-3">
+        <div className="flex flex-col sm:flex-row gap-4">
+          <div className="flex gap-3 w-full flex-wrap">
+          
             <div className="relative flex-1 sm:w-80">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input 
@@ -119,6 +119,11 @@ export default function Purchases() {
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
+              <DateRangePicker
+              dateRange={dateRange}
+              onDateRangeChange={setDateRange}
+              className="w-auto"
+            />
             <Select value={selectedStatus} onValueChange={setSelectedStatus}>
               <SelectTrigger className="w-40">
                 <SelectValue placeholder="Status" />
@@ -163,12 +168,13 @@ export default function Purchases() {
               <table className="w-full">
                 <thead className="bg-muted/50">
                   <tr>
-                    <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground">Order ID</th>
+                    <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground">Order #</th>
+                    <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground">Date</th>
                     <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground">Supplier</th>
-                    <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground">Items</th>
-                    <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground">Order Date</th>
+                    {/* <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground">Items</th> */}
+                    
                     <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground">Status</th>
-                    <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground">Total</th>
+                    <th className="px-6 py-4 text-sm font-medium text-muted-foreground text-right">Total</th>
                     <th className="text-right px-6 py-4 text-sm font-medium text-muted-foreground">Actions</th>
                   </tr>
                 </thead>
@@ -189,25 +195,28 @@ export default function Purchases() {
                       return (
                         <tr key={purchaseOrder.id} className="hover:bg-muted/30 transition-colors">
                           <td className="px-6 py-4 font-medium text-foreground">{purchaseOrder.poNumber}</td>
-                          <td className="px-6 py-4 text-foreground">{purchaseOrder.supplier?.name || `Supplier #${purchaseOrder.supplierId}`}</td>
-                          <td className="px-6 py-4 text-foreground">{purchaseOrder.items.length} items</td>
-                          <td className="px-6 py-4 text-muted-foreground">
+                               <td className="px-6 py-4 text-muted-foreground">
                             {purchaseOrder.orderedAt ? new Date(purchaseOrder.orderedAt).toLocaleDateString() : "-"}
                           </td>
+                          <td className="px-6 py-4 text-foreground">{purchaseOrder.supplier?.name || `Supplier #${purchaseOrder.supplierId}`}</td>
+                       
+                          {/* <td className="px-6 py-4 text-foreground">{purchaseOrder.items.length} items</td> */}
+                        
                           <td className="px-6 py-4">
                             <Badge className={cn("capitalize", statusStyles[purchaseOrder.status] || statusStyles.pending)}>
                               <StatusIcon className="h-3 w-3 mr-1" />
                               {statusLabels[purchaseOrder.status] || purchaseOrder.status}
                             </Badge>
                           </td>
-                          <td className="px-6 py-4 font-semibold text-foreground">
-                            ${orderTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          <td className="px-6 py-4 font-semibold text-foreground text-right">
+                            {orderTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </td>
                           <td className="px-6 py-4">
                             <div className="flex items-center justify-end gap-2">
-                              <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
+                              <Button variant="default" size="icon" className="w-full p-2" asChild>
                                 <Link to={`/purchases/${purchaseOrder.id}`}>
                                   <Eye className="h-4 w-4" />
+                                  <span>View</span>
                                 </Link>
                               </Button>
                             </div>

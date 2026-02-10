@@ -27,6 +27,7 @@ const Reservations = lazy(() => import("./pages/Reservations"));
 const ReservationNew = lazy(() => import("./pages/ReservationNew"));
 const Inventory = lazy(() => import("./pages/Inventory"));
 const InventoryNew = lazy(() => import("./pages/InventoryNew"));
+const InventoryEdit = lazy(() => import("./pages/InventoryEdit"));
 const InventoryAdjustments = lazy(() => import("./pages/InventoryAdjustments"));
 const InventoryRequests = lazy(() => import("./pages/InventoryRequests"));
 const InventoryRequestDetail = lazy(() => import("./pages/InventoryRequestDetail"));
@@ -98,6 +99,7 @@ const App = () => (
             <Route path="/reservations/new" element={<ReservationNew />} />
             <Route path="/inventory" element={<Inventory />} />
             <Route path="/inventory/new" element={<InventoryNew />} />
+            <Route path="/inventory/edit/:id" element={<InventoryEdit />} />
             <Route path="/inventory/adjustments" element={<InventoryAdjustments />} />
             <Route path="/inventory/requests" element={<InventoryRequests />} />
             <Route path="/inventory/requests/:id" element={<InventoryRequestDetail />} />

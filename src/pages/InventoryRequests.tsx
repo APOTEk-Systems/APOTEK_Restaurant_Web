@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Search, Clock, Flame, Wine, Eye } from "lucide-react";
+import { Search, Flame, Wine, Eye } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -11,6 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { DateRangePicker, type DateRange } from "@/components/ui/date-range-picker";
 import { useQuery } from "@tanstack/react-query";
 import { StockRequestService } from "@/services/stockRequestService";
 import { useState } from "react";
@@ -33,15 +34,28 @@ const InventoryRequests = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedDepartment, setSelectedDepartment] = useState<string>("");
   const [selectedStatus, setSelectedStatus] = useState<string>("");
+  
+  // Initialize with today's date range (start of day to end of day, timezone-independent)
+  const today = new Date();
+  const startOfDay = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate(), 0, 0, 0, 0));
+  const endOfDay = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate(), 23, 59, 59, 999));
+  
+  const [dateRange, setDateRange] = useState<DateRange | undefined>({
+    from: startOfDay,
+    to: endOfDay,
+  });
+  
   const navigate = useNavigate();
 
   // Fetch stock requests
   const { data: stockRequests = [], isLoading } = useQuery({
-    queryKey: ['stock-requests', selectedDepartment, selectedStatus],
+    queryKey: ['stock-requests', selectedDepartment, selectedStatus, dateRange?.from?.toISOString(), dateRange?.to?.toISOString()],
     queryFn: async () => {
       return StockRequestService.getAllStockRequests({
         department: selectedDepartment || undefined,
         status: selectedStatus || undefined,
+        startDate: dateRange?.from ? dateRange.from.toISOString() : undefined,
+        endDate: dateRange?.to ? dateRange.to.toISOString() : undefined,
       });
     },
   });
@@ -127,7 +141,7 @@ const InventoryRequests = () => {
 
         {/* Search and Filters */}
         <div className="flex flex-col sm:flex-row gap-4">
-          <div className="relative flex-1 max-w-md">
+          <div className="relative flex-1 w-full">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input 
               placeholder="Search by request ID, requested by, or item name..." 
@@ -136,7 +150,11 @@ const InventoryRequests = () => {
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
+            <DateRangePicker
+              dateRange={dateRange}
+              onDateRangeChange={setDateRange}
+            />
             <Select value={selectedDepartment || "all"} onValueChange={(val) => setSelectedDepartment(val === "all" ? "" : val)}>
               <SelectTrigger className="w-[150px]">
                 <SelectValue placeholder="All Departments" />
@@ -160,6 +178,7 @@ const InventoryRequests = () => {
                 <SelectItem value="rejected">Rejected</SelectItem>
               </SelectContent>
             </Select>
+           
           </div>
         </div>
 
@@ -177,10 +196,10 @@ const InventoryRequests = () => {
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-border">
-                      <th className="text-left p-4 text-sm font-medium text-muted-foreground">Request ID</th>
+                      <th className="text-left p-4 text-sm font-medium text-muted-foreground">Request #</th>
                       <th className="text-left p-4 text-sm font-medium text-muted-foreground">Date</th>
-                      <th className="text-left p-4 text-sm font-medium text-muted-foreground">Source</th>
-                      <th className="text-left p-4 text-sm font-medium text-muted-foreground">Items</th>
+                      <th className="text-left p-4 text-sm font-medium text-muted-foreground">Department</th>
+                      {/* <th className="text-left p-4 text-sm font-medium text-muted-foreground">Items</th> */}
                       <th className="text-left p-4 text-sm font-medium text-muted-foreground">Requested By</th>
                       <th className="text-left p-4 text-sm font-medium text-muted-foreground">Status</th>
                       <th className="text-left p-4 text-sm font-medium text-muted-foreground">Actions</th>
@@ -198,20 +217,7 @@ const InventoryRequests = () => {
                             {request.requestedFrom || 'N/A'}
                           </Badge>
                         </td>
-                        <td className="p-4">
-                          <div className="space-y-1">
-                            {request.requestItems?.slice(0, 2).map((item: any, idx: number) => (
-                              <div key={idx} className="text-sm">
-                                {item.quantity}x {item.item?.name || `Item #${item.itemId}`}
-                              </div>
-                            ))}
-                            {request.requestItems?.length > 2 && (
-                              <div className="text-xs text-muted-foreground">
-                                +{request.requestItems.length - 2} more
-                              </div>
-                            )}
-                          </div>
-                        </td>
+                        
                         <td className="p-4 text-sm text-muted-foreground">{request.requestedBy || 'N/A'}</td>
                         <td className="p-4">
                           <Badge className={statusStyles[request.status] || "bg-gray-500/10 text-gray-500"}>
@@ -220,10 +226,11 @@ const InventoryRequests = () => {
                         </td>
                         <td className="p-4">
                           <Button
-                            variant="ghost"
+                            variant="outline"
                             size="sm"
                             onClick={() => handleViewDetails(request.id)}
                           >
+                            <Eye className="h-4 w-4" />
                             View
                           </Button>
                         </td>

@@ -17,7 +17,16 @@ const typeStyles = {
 
 export default function InventoryAdjustments() {
   const [searchQuery, setSearchQuery] = useState("");
-  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+  
+  // Initialize with today's date range (start of day to end of day, timezone-independent)
+  const today = new Date();
+  const startOfDay = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate(), 0, 0, 0, 0));
+  const endOfDay = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate(), 23, 59, 59, 999));
+  
+  const [dateRange, setDateRange] = useState<DateRange | undefined>({
+    from: startOfDay,
+    to: endOfDay,
+  });
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   // Fetch adjustments with date range filter
@@ -74,15 +83,7 @@ export default function InventoryAdjustments() {
             onDateRangeChange={setDateRange}
             className="mr-2"
           />
-          {dateRange && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setDateRange(undefined)}
-            >
-              Clear
-            </Button>
-          )}
+         
         </div>
         </div>
 
