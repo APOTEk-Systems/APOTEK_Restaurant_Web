@@ -2,8 +2,10 @@ export interface PurchaseItem {
 	id: number;
 	name: string;
 	unit: string;
-	quantity: number;
-	price: number;
+	quantity?: number;
+	quantityOrdered?: number;
+	price?: number;
+	unitPrice?: number;
 }
 
 // PurchaseOrder type that handles both response formats

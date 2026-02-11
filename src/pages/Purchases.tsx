@@ -13,7 +13,7 @@ import {
 import {
 	Plus,
 	Search,
-	Eye,
+	Edit,
 	Truck,
 	Package,
 	FileText,
@@ -21,7 +21,7 @@ import {
 	Trash2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useState, useMemo } from 'react';
 import { PurchaseOrderService } from '@/services/purchaseOrderService';
 import type {
@@ -42,24 +42,16 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
-// Status styles mapping - supports both uppercase and lowercase
+// Status styles mapping - supports both lowercase
 const statusStyles: Record<string, string> = {
 	pending: 'bg-warning/10 text-warning border-warning/20',
-	PENDING: 'bg-warning/10 text-warning border-warning/20',
 	'in-transit': 'bg-primary/10 text-primary border-primary/20',
-	'IN-TRANSIT': 'bg-primary/10 text-primary border-primary/20',
 	delivered: 'bg-success/10 text-success border-success/20',
-	DELIVERED: 'bg-success/10 text-success border-success/20',
 	cancelled: 'bg-destructive/10 text-destructive border-destructive/20',
-	CANCELLED: 'bg-destructive/10 text-destructive border-destructive/20',
 	approved: 'bg-success/10 text-success border-success/20',
-	APPROVED: 'bg-success/10 text-success border-success/20',
 	ordered: 'bg-primary/10 text-primary border-primary/20',
-	ORDERED: 'bg-primary/10 text-primary border-primary/20',
 	partially_received: 'bg-warning/10 text-warning border-warning/20',
-	PARTIALLY_RECEIVED: 'bg-warning/10 text-warning border-warning/20',
 	completed: 'bg-success/10 text-success border-success/20',
-	COMPLETED: 'bg-success/10 text-success border-success/20',
 };
 
 // Status icons mapping
@@ -68,21 +60,13 @@ const statusIcons: Record<
 	React.ComponentType<{ className?: string }>
 > = {
 	pending: FileText,
-	PENDING: FileText,
 	'in-transit': Truck,
-	'IN-TRANSIT': Truck,
 	delivered: Package,
-	DELIVERED: Package,
 	cancelled: FileText,
-	CANCELLED: FileText,
 	approved: FileText,
-	APPROVED: FileText,
 	ordered: FileText,
-	ORDERED: FileText,
 	partially_received: Package,
-	PARTIALLY_RECEIVED: Package,
 	completed: Package,
-	COMPLETED: Package,
 };
 
 // API error handler
@@ -135,6 +119,35 @@ const getStatusDisplayName = (status: string | undefined): string => {
 		.replace(/\b\w/g, (c) => c.toUpperCase());
 };
 
+// Normalize status to lowercase for consistent comparisons
+const normalizeStatus = (status: string | undefined): string => {
+	if (!status) return '';
+	return status.toLowerCase();
+};
+
+// Helper to calculate total from items if purchase.total is not provided
+const calculateTotal = (purchase: PurchaseOrder): number => {
+	// If total is provided and valid, use it
+	if (
+		purchase.total !== undefined &&
+		purchase.total !== null &&
+		purchase.total > 0
+	) {
+		return purchase.total;
+	}
+
+	// Otherwise, calculate from items
+	if (purchase.items && purchase.items.length > 0) {
+		return purchase.items.reduce((sum, item) => {
+			const price = item.unitPrice || item.price || 0;
+			const quantity = item.quantityOrdered || item.quantity || 0;
+			return sum + price * quantity;
+		}, 0);
+	}
+
+	return 0;
+};
+
 export default function Purchases() {
 	const [searchTerm, setSearchTerm] = useState('');
 	const [statusFilter, setStatusFilter] = useState('all');
@@ -166,8 +179,8 @@ export default function Purchases() {
 		const thisMonthPurchases = purchases.filter((purchase) => {
 			// Get order date from either orderedAt or date field
 			const orderDate =
-				((purchase as unknown as Record<string, unknown>).orderedAt as string) ||
-				purchase.date;
+				((purchase as unknown as Record<string, unknown>)
+					.orderedAt as string) || purchase.date;
 			if (!orderDate) return false;
 			const purchaseDate = new Date(orderDate);
 			if (isNaN(purchaseDate.getTime())) return false;
@@ -179,22 +192,16 @@ export default function Purchases() {
 
 		return {
 			totalOrders: purchases.length,
-			pending: purchases.filter(
-				(p) => p.status === 'pending' || p.status === 'PENDING',
-			).length,
-			inTransit: purchases.filter(
-				(p) => p.status === 'in-transit' || p.status === 'IN-TRANSIT',
-			).length,
+			pending: purchases.filter((p) => normalizeStatus(p.status) === 'pending')
+				.length,
+			inTransit: 0, // Backend doesn't support IN_TRANSIT status
 			delivered: purchases.filter(
-				(p) => p.status === 'delivered' || p.status === 'DELIVERED',
+				(p) => normalizeStatus(p.status) === 'delivered',
 			).length,
 			cancelled: purchases.filter(
-				(p) => p.status === 'cancelled' || p.status === 'CANCELLED',
+				(p) => normalizeStatus(p.status) === 'cancelled',
 			).length,
-			totalSpent: thisMonthPurchases.reduce(
-				(sum, p) => sum + (p.total ?? 0),
-				0,
-			),
+			totalSpent: purchases.reduce((total, p) => total + calculateTotal(p), 0),
 		};
 	}, [purchases]);
 
@@ -253,7 +260,8 @@ export default function Purchases() {
 			supplierName.toLowerCase().includes(searchTerm.toLowerCase()) ||
 			orderId.toLowerCase().includes(searchTerm.toLowerCase());
 		const matchesStatus =
-			statusFilter === 'all' || purchase.status === statusFilter;
+			statusFilter === 'all' ||
+			normalizeStatus(purchase.status) === normalizeStatus(statusFilter);
 		return matchesSearch && matchesStatus;
 	});
 
@@ -348,14 +356,14 @@ export default function Purchases() {
 							</SelectTrigger>
 							<SelectContent>
 								<SelectItem value='all'>All Status</SelectItem>
-								<SelectItem value='pending'>Pending</SelectItem>
-								<SelectItem value='PENDING'>PENDING</SelectItem>
-								<SelectItem value='in-transit'>In Transit</SelectItem>
-								<SelectItem value='IN-TRANSIT'>IN TRANSIT</SelectItem>
-								<SelectItem value='delivered'>Delivered</SelectItem>
-								<SelectItem value='DELIVERED'>DELIVERED</SelectItem>
-								<SelectItem value='cancelled'>Cancelled</SelectItem>
-								<SelectItem value='CANCELLED'>CANCELLED</SelectItem>
+								<SelectItem value='PENDING'>Pending</SelectItem>
+								<SelectItem value='CANCELLED'>Cancelled</SelectItem>
+								<SelectItem value='APPROVED'>Approved</SelectItem>
+								<SelectItem value='ORDERED'>Ordered</SelectItem>
+								<SelectItem value='PARTIALLY_RECEIVED'>
+									Partially Received
+								</SelectItem>
+								<SelectItem value='COMPLETED'>Completed</SelectItem>
 							</SelectContent>
 						</Select>
 					</div>
@@ -416,9 +424,10 @@ export default function Purchases() {
 									</tr>
 								) : (
 									filteredPurchases.map((purchase) => {
+										const normalizedStatus = normalizeStatus(purchase.status);
 										const statusKey =
-											purchase.status in statusStyles
-												? purchase.status
+											normalizedStatus in statusStyles
+												? normalizedStatus
 												: 'pending';
 										const StatusIcon = statusIcons[statusKey] || FileText;
 										return (
@@ -449,16 +458,18 @@ export default function Purchases() {
 													</Badge>
 												</td>
 												<td className='px-6 py-4 font-semibold text-foreground'>
-													{formatCurrency(purchase.total)}
+													{formatCurrency(calculateTotal(purchase))}
 												</td>
 												<td className='px-6 py-4'>
 													<div className='flex items-center justify-end gap-2'>
-														<Button
-															variant='ghost'
-															size='icon'
-															className='h-8 w-8'>
-															<Eye className='h-4 w-4' />
-														</Button>
+														<Link to={`/purchases/edit/${purchase.id}`}>
+															<Button
+																variant='ghost'
+																size='icon'
+																className='h-8 w-8'>
+																<Edit className='h-4 w-4' />
+															</Button>
+														</Link>
 														<AlertDialog>
 															<AlertDialogTrigger asChild>
 																<Button

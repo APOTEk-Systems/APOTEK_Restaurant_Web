@@ -27,6 +27,7 @@ import MenuEdit from './pages/MenuEdit';
 import MenuNew from './pages/MenuNew';
 import Reservations from './pages/Reservations';
 import ReservationNew from './pages/ReservationNew';
+import ReservationView from './pages/ReservationView';
 import Inventory from './pages/Inventory';
 import InventoryNew from './pages/InventoryNew';
 import InventoryAdjustments from './pages/InventoryAdjustments';
@@ -36,6 +37,7 @@ import ExpiringProducts from './pages/ExpiringProducts';
 import UseStock from './pages/UseStock';
 import Purchases from './pages/Purchases';
 import PurchaseOrderNew from './pages/PurchaseOrderNew';
+import PurchaseOrderEdit from './pages/PurchaseOrderEdit';
 import GoodsReceiving from './pages/GoodsReceiving';
 import Suppliers from './pages/Suppliers';
 import Staff from './pages/Staff';
@@ -162,6 +164,10 @@ const App = () => (
 						element={<ReservationNew />}
 					/>
 					<Route
+						path='/reservations/:id'
+						element={<ReservationView />}
+					/>
+					<Route
 						path='/inventory'
 						element={<Inventory />}
 					/>
@@ -212,6 +218,10 @@ const App = () => (
 					<Route
 						path='/purchases/new'
 						element={<PurchaseOrderNew />}
+					/>
+					<Route
+						path='/purchases/edit/:id'
+						element={<PurchaseOrderEdit />}
 					/>
 					<Route
 						path='/staff'
