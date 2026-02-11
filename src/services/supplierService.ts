@@ -3,7 +3,6 @@ import type {
 	Supplier,
 	CreateSupplierDto,
 	UpdateSupplierDto,
-	SupplierStats,
 } from '../types/supplier.types';
 
 const getErrorMessage = (error: unknown, defaultMessage: string): string => {
@@ -80,19 +79,13 @@ export const SupplierService = {
 	},
 
 	// Calculate supplier statistics
-	calculateStats: (suppliers: Supplier[]): SupplierStats => {
-		const uniqueInventoryCategories = new Set<string>();
-		suppliers.forEach((s) => {
-			s.inventoryCategories?.forEach((cat) => {
-				if (cat.isActive) uniqueInventoryCategories.add(cat.name);
-			});
-		});
-
+	calculateStats: (
+		suppliers: Supplier[],
+		categories: string[],
+	): { totalSuppliers: number; categories: number } => {
 		return {
 			totalSuppliers: suppliers.length,
-			activeSuppliers: suppliers.filter((s) => s.isActive).length,
-			topRated: suppliers.length, // No rating system in new schema
-			categories: uniqueInventoryCategories.size,
+			categories: categories.length,
 		};
 	},
 };

@@ -8,17 +8,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from '@/components/ui/select';
-import {
-	Plus,
-	Search,
-	Edit,
-	MoreHorizontal,
-	Phone,
-	Mail,
-	Star,
-	Loader2,
-} from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { Plus, Search, Edit, Phone, Mail, Loader2 } from 'lucide-react';
 import { useState, useMemo, useEffect } from 'react';
 import {
 	Dialog,
@@ -54,19 +44,19 @@ import {
 } from '@/types/supplier.types';
 import { useToast } from '@/hooks/use-toast';
 
-// status styles removed (backend doesn't use supplier status)
-
 // Supplier Card Component
 function SupplierCard({
 	supplier,
 	onEdit,
 	onDelete,
 	onToggleStatus,
+	isActive,
 }: {
 	supplier: Supplier;
 	onEdit: (id: number) => void;
 	onDelete: (id: number) => void;
 	onToggleStatus: (id: number) => void;
+	isActive: boolean;
 }) {
 	return (
 		<div className='bg-card rounded-xl p-5 shadow-card border border-border/50 hover:shadow-lg transition-all'>
@@ -78,9 +68,9 @@ function SupplierCard({
 					</p>
 				</div>
 				<Badge
-					variant={supplier.isActive ? 'default' : 'secondary'}
+					variant={isActive ? 'default' : 'secondary'}
 					className='text-xs'>
-					{supplier.isActive ? 'Active' : 'Inactive'}
+					{isActive ? 'Active' : 'Inactive'}
 				</Badge>
 			</div>
 
@@ -108,10 +98,10 @@ function SupplierCard({
 					Edit
 				</Button>
 				<Button
-					variant={supplier.isActive ? 'ghost' : 'secondary'}
+					variant={isActive ? 'ghost' : 'secondary'}
 					size='sm'
 					onClick={() => onToggleStatus(supplier.id)}>
-					{supplier.isActive ? 'Deactivate' : 'Activate'}
+					{isActive ? 'Deactivate' : 'Activate'}
 				</Button>
 				<Button
 					variant='destructive'
@@ -133,6 +123,13 @@ export default function Suppliers() {
 	const [selectedCategory, setSelectedCategory] = useState('all');
 	const [displayCount, setDisplayCount] = useState(9);
 	const [deleteItem, setDeleteItem] = useState<number | null>(null);
+	// Load supplier status from localStorage or default to all active
+	const [supplierStatus, setSupplierStatus] = useState<Record<number, boolean>>(
+		() => {
+			const saved = localStorage.getItem('supplierStatus');
+			return saved ? JSON.parse(saved) : {};
+		},
+	);
 	const { toast } = useToast();
 	const queryClient = useQueryClient();
 
@@ -155,6 +152,23 @@ export default function Suppliers() {
 	});
 
 	const suppliers = useMemo(() => suppliersData || [], [suppliersData]);
+
+	// Initialize supplier status when data loads
+	useEffect(() => {
+		if (suppliersData) {
+			setSupplierStatus((prev) => {
+				// Merge with saved status, default new suppliers to active
+				const updated: Record<number, boolean> = { ...prev };
+				suppliersData.forEach((s) => {
+					if (updated[s.id] === undefined) {
+						updated[s.id] = true; // Default new suppliers to active
+					}
+				});
+				localStorage.setItem('supplierStatus', JSON.stringify(updated));
+				return updated;
+			});
+		}
+	}, [suppliersData]);
 
 	useEffect(() => {
 		if (!isModalOpen) {
@@ -202,10 +216,15 @@ export default function Suppliers() {
 		});
 	}, [suppliers, searchQuery, selectedCategory]);
 
-	// Calculate stats
+	// Calculate stats using local status
 	const stats = useMemo(() => {
-		return SupplierService.calculateStats(suppliers);
-	}, [suppliers]);
+		const activeCount = Object.values(supplierStatus).filter(Boolean).length;
+		return {
+			totalSuppliers: suppliers.length,
+			activeSuppliers: activeCount,
+			categories: categories.length,
+		};
+	}, [suppliers, categories, supplierStatus]);
 
 	// Pagination
 	const displayedSuppliers = filteredSuppliers.slice(0, displayCount);
@@ -264,28 +283,15 @@ export default function Suppliers() {
 		},
 	});
 
-	// status toggle removed — backend/status toggle not used here
-
-	// Toggle status mutation
-	const toggleStatusMutation = useMutation({
-		mutationFn: ({ id, isActive }: { id: number; isActive: boolean }) =>
-			SupplierService.updateSupplierStatus(id, isActive),
-		onSuccess: (data: Supplier) => {
-			toast({
-				title: 'Success',
-				description: `Supplier ${data.name} ${data.isActive ? 'activated' : 'deactivated'} successfully`,
-				variant: 'default',
-			});
-			queryClient.invalidateQueries({ queryKey: ['suppliers'] });
-		},
-		onError: (error: Error) => {
-			toast({
-				title: 'Error',
-				description: error.message || 'Failed to update supplier status',
-				variant: 'destructive',
-			});
-		},
-	});
+	// status toggle - saves to localStorage since backend doesn't support isActive on supplier
+	const handleToggleStatus = (id: number) => {
+		setSupplierStatus((prev) => {
+			const newStatus = !prev[id];
+			const updated = { ...prev, [id]: newStatus };
+			localStorage.setItem('supplierStatus', JSON.stringify(updated));
+			return updated;
+		});
+	};
 
 	// Update supplier mutation (edit)
 	const updateMutation = useMutation({
@@ -362,21 +368,6 @@ export default function Suppliers() {
 		setDeleteItem(id);
 	};
 
-	const handleToggleStatus = (id: number) => {
-		const s = suppliers.find((x) => x.id === id);
-		if (!s) {
-			toast({
-				title: 'Error',
-				description: 'Supplier not found',
-				variant: 'destructive',
-			});
-			return;
-		}
-		toggleStatusMutation.mutate({ id, isActive: !s.isActive });
-	};
-
-	// status toggle handler removed
-
 	const confirmDelete = () => {
 		if (deleteItem) {
 			const name = suppliers.find((s) => s.id === deleteItem)?.name;
@@ -408,7 +399,7 @@ export default function Suppliers() {
 			subtitle='Manage your supplier relationships'>
 			<div className='space-y-6 animate-fade-in'>
 				{/* Stats */}
-				<div className='grid grid-cols-1 md:grid-cols-4 gap-4'>
+				<div className='grid grid-cols-1 md:grid-cols-3 gap-4'>
 					<div className='bg-card rounded-xl p-5 shadow-card border border-border/50'>
 						<p className='text-sm text-muted-foreground'>Total Suppliers</p>
 						<p className='text-2xl font-bold text-foreground mt-1'>
@@ -425,15 +416,6 @@ export default function Suppliers() {
 						</p>
 						<p className='text-xs text-muted-foreground mt-1'>
 							Currently trading
-						</p>
-					</div>
-					<div className='bg-card rounded-xl p-5 shadow-card border border-border/50'>
-						<p className='text-sm text-muted-foreground'>Top Rated</p>
-						<p className='text-2xl font-bold text-warning mt-1'>
-							{stats.topRated}
-						</p>
-						<p className='text-xs text-muted-foreground mt-1'>
-							5-star suppliers
 						</p>
 					</div>
 					<div className='bg-card rounded-xl p-5 shadow-card border border-border/50'>
@@ -650,6 +632,7 @@ export default function Suppliers() {
 									onEdit={handleEdit}
 									onDelete={handleDelete}
 									onToggleStatus={handleToggleStatus}
+									isActive={supplierStatus[supplier.id] ?? true}
 								/>
 							))}
 						</div>

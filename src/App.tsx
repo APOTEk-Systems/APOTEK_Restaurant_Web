@@ -39,6 +39,7 @@ import Purchases from './pages/Purchases';
 import PurchaseOrderNew from './pages/PurchaseOrderNew';
 import PurchaseOrderEdit from './pages/PurchaseOrderEdit';
 import GoodsReceiving from './pages/GoodsReceiving';
+import GoodsReceivingNew from './pages/GoodsReceivingNew';
 import Suppliers from './pages/Suppliers';
 import Staff from './pages/Staff';
 import StaffNew from './pages/StaffNew';
@@ -210,6 +211,18 @@ const App = () => (
 					<Route
 						path='/purchases/receiving'
 						element={<GoodsReceiving />}
+					/>
+					<Route
+						path='/purchases/receiving/new'
+						element={<GoodsReceivingNew />}
+					/>
+					<Route
+						path='/purchases/receiving/:id'
+						element={<GoodsReceiving />}
+					/>
+					<Route
+						path='/purchases/receiving/edit/:id'
+						element={<GoodsReceivingNew />}
 					/>
 					<Route
 						path='/purchases/suppliers'
