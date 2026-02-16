@@ -108,9 +108,7 @@ export default function Menu() {
     );
   });
 
-  // Calculate stats
-  const availableItems = menuItems.filter((item) => item.isAvailable).length;
-  const unavailableItems = menuItems.filter((item) => !item.isAvailable).length;
+
   const totalAddons = addons.length;
   const totalSideDishes = sideDishes.length;
 
@@ -130,12 +128,7 @@ export default function Menu() {
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
-          <Link to="/menu/new">
-            <Button className="gradient-primary text-primary-foreground shadow-glow hover:shadow-lg transition-shadow">
-              <Plus className="h-4 w-4 mr-2" />
-              Add Item
-            </Button>
-          </Link>
+          
         </div>
 
         {/* Error State */}

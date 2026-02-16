@@ -211,7 +211,7 @@ export default function SettingsTables() {
     <MainLayout title="Tables" subtitle="Manage restaurant tables and seating">
       <div className="space-y-6 animate-fade-in">
         {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {/* <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="bg-card rounded-xl p-4 shadow-card border border-border/50">
             <p className="text-sm text-muted-foreground">Total Tables</p>
             <p className="text-2xl font-bold text-foreground mt-1">{totalTables}</p>
@@ -228,7 +228,7 @@ export default function SettingsTables() {
             <p className="text-sm text-muted-foreground">Total Capacity</p>
             <p className="text-2xl font-bold text-foreground mt-1">{totalCapacity}</p>
           </div>
-        </div>
+        </div> */}
 
         {/* Actions */}
         <div className="flex flex-col sm:flex-row gap-4 justify-between">
@@ -375,9 +375,9 @@ export default function SettingsTables() {
                   <span>{table.capacity} seats</span>
                 </div>
               </div>
-              <div className="mt-3 pt-3 border-t border-border">
+              {/* <div className="mt-3 pt-3 border-t border-border">
                 {getStatusBadge(table.status)}
-              </div>
+              </div> */}
             </div>
           ))}
         </div>

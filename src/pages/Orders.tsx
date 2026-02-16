@@ -223,7 +223,7 @@ export default function Orders() {
                   <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground">Table</th>
                   <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground">Waiter</th>
                   <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground">Status</th>
-                  <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground">Total</th>
+                  <th className="text-right px-6 py-4 text-sm font-medium text-muted-foreground">Total</th>
                   <th className="text-right px-6 py-4 text-sm font-medium text-muted-foreground">Actions</th>
                 </tr>
               </thead>
@@ -245,7 +245,7 @@ export default function Orders() {
                           {order.status}
                         </Badge>
                       </td>
-                      <td className="px-6 py-4 font-semibold text-foreground">${order.total.toFixed(2)}</td>
+                      <td className="px-6 py-4 font-semibold text-foreground text-right">{order.total.toLocaleString()}</td>
                       <td className="px-6 py-4">
                         <div className="flex items-center justify-end gap-2">
                           <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>

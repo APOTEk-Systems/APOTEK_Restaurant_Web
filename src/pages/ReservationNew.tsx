@@ -3,9 +3,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
-import { useState } from "react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Link, useNavigate, useLocation } from "react-router-dom";
+import { useState, useEffect } from "react";
+import React from "react";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -20,16 +20,42 @@ interface Table {
   status: string;
 }
 
+interface Reservation {
+  id: number;
+  customerName: string;
+  customerEmail: string | null;
+  customerPhone: string;
+  date: string;
+  numberOfGuests: number;
+  status: string;
+  notes: string | null;
+  tables: {
+    id: number;
+    tableId: number;
+    table: {
+      id: number;
+      number: number;
+      capacity: number;
+      status: string;
+    };
+  }[];
+}
+
 export default function ReservationNew() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const searchParams = new URLSearchParams(location.search);
+  const editId = searchParams.get("editId");
+  const passedReservation = location.state?.reservation as Reservation | undefined;
+  const isEditing = !!editId || !!passedReservation;
+
   const [formData, setFormData] = useState({
     customerName: "",
     customerEmail: "",
     customerPhone: "",
-    numberOfGuests: 1,
+    numberOfGuests: "",
     date: "",
     time: "",
-    status: "PENDING",
     notes: ""
   });
   const [selectedTableIds, setSelectedTableIds] = useState<number[]>([]);
@@ -39,6 +65,74 @@ export default function ReservationNew() {
     queryKey: ['tables'],
     queryFn: TableService.getAllTables,
   });
+
+  // Fetch all reservations to determine available tables based on selected date/time
+  const { data: dateReservations = [] } = useQuery({
+    queryKey: ['reservations', formData.date],
+    queryFn: () => ReservationService.getReservations({
+      startDate: formData.date ? new Date(`${formData.date}T00:00:00`).toISOString() : undefined,
+      endDate: formData.date ? new Date(`${formData.date}T23:59:59`).toISOString() : undefined,
+    }),
+  });
+
+  // Fetch reservation if editing
+  const { data: existingReservation, isLoading: isLoadingReservation } = useQuery({
+    queryKey: ['reservation', editId],
+    queryFn: () => ReservationService.getReservationById(parseInt(editId!)),
+    enabled: !!editId && !passedReservation,
+  });
+
+  // Get table IDs that are booked for the selected date (excluding current reservation when editing)
+  const bookedTableIds = React.useMemo(() => {
+    const bookedIds = new Set<number>();
+    const reservations = dateReservations as unknown as Reservation[];
+    
+    reservations.forEach((reservation) => {
+      // Skip the reservation being edited
+      if (isEditing && (reservation.id === passedReservation?.id || reservation.id === existingReservation?.id)) {
+        return;
+      }
+      
+      // Check if the reservation is on the selected date and not cancelled
+      if (formData.date && reservation.status !== 'CANCELLED') {
+        const reservationDate = new Date(reservation.date);
+        
+        // Check if same day
+        if (reservationDate.toISOString().split('T')[0] === formData.date) {
+          reservation.tables.forEach((rt) => {
+            bookedIds.add(rt.tableId);
+          });
+        }
+      }
+    });
+    
+    return bookedIds;
+  }, [dateReservations, formData.date, isEditing, passedReservation, existingReservation]);
+
+  // Pre-fill form with existing reservation data
+  useEffect(() => {
+    const reservation = passedReservation || existingReservation;
+    if (reservation) {
+      const reservationDate = new Date(reservation.date);
+      const dateStr = reservationDate.toISOString().split('T')[0];
+      // Use local time directly instead of toISOString to preserve the time
+      const hours = reservationDate.getHours().toString().padStart(2, '0');
+      const minutes = reservationDate.getMinutes().toString().padStart(2, '0');
+      const timeStr = `${hours}:${minutes}`;
+      
+      setFormData({
+        customerName: reservation.customerName,
+        customerEmail: reservation.customerEmail || "",
+        customerPhone: reservation.customerPhone,
+        numberOfGuests: reservation.numberOfGuests.toString(),
+        date: dateStr,
+        time: timeStr,
+        notes: reservation.notes || ""
+      });
+      setSelectedTableIds(reservation.tables.map(t => t.tableId));
+    }
+  }, [passedReservation, existingReservation]);
+
 
   // Create reservation mutation
   const createReservationMutation = useMutation({
@@ -54,6 +148,25 @@ export default function ReservationNew() {
       toast({
         title: "Error",
         description: error.message || "Failed to create reservation. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Update reservation mutation
+  const updateReservationMutation = useMutation({
+    mutationFn: ({ id, data }: { id: number; data: any }) => ReservationService.updateReservation(id, data),
+    onSuccess: () => {
+      toast({
+        title: "Reservation Updated",
+        description: "The reservation has been successfully updated.",
+      });
+      navigate("/reservations");
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update reservation. Please try again.",
         variant: "destructive",
       });
     },
@@ -101,11 +214,21 @@ export default function ReservationNew() {
       return;
     }
 
+    const numberOfGuests = parseInt(formData.numberOfGuests) || 0;
+    if (numberOfGuests <= 0) {
+      toast({
+        title: "Validation Error",
+        description: "Please enter a valid number of guests.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const totalCapacity = getTotalCapacity();
-    if (formData.numberOfGuests > totalCapacity) {
+    if (numberOfGuests > totalCapacity) {
       toast({
         title: "Capacity Error",
-        description: `Number of guests (${formData.numberOfGuests}) exceeds total table capacity (${totalCapacity}).`,
+        description: `Number of guests (${numberOfGuests}) exceeds total table capacity (${totalCapacity}).`,
         variant: "destructive",
       });
       return;
@@ -119,20 +242,38 @@ export default function ReservationNew() {
       customerPhone: formData.customerPhone,
       customerEmail: formData.customerEmail || undefined,
       date: dateTime.toISOString(),
-      numberOfGuests: formData.numberOfGuests,
-      status: formData.status,
+      numberOfGuests: parseInt(formData.numberOfGuests) || 1,
+      // When creating, default to CONFIRMED. When editing, keep existing status.
+      status: isEditing ? (passedReservation?.status || existingReservation?.status) : "CONFIRMED",
       notes: formData.notes || undefined,
       tableIds: selectedTableIds,
     };
 
-    createReservationMutation.mutate(reservationData);
+    if (isEditing) {
+      const id = passedReservation?.id || existingReservation?.id;
+      if (id) {
+        updateReservationMutation.mutate({ id, data: reservationData });
+      }
+    } else {
+      createReservationMutation.mutate(reservationData);
+    }
   };
 
-  // Filter available tables
-  const availableTables = (tables as Table[]).filter(t => t.status !== 'OCCUPIED');
+  // Get available tables (not booked for the selected date)
+  const availableTables = (tables as Table[]).filter(t => !bookedTableIds.has(t.id));
+
+  if (isLoadingReservation) {
+    return (
+      <MainLayout title="Loading..." subtitle="Please wait">
+        <div className="space-y-6 animate-fade-in">
+          <div className="text-center py-8">Loading reservation...</div>
+        </div>
+      </MainLayout>
+    );
+  }
 
   return (
-    <MainLayout title="New Reservation" subtitle="Create a new table reservation">
+    <MainLayout title={isEditing ? "Edit Reservation" : "New Reservation"} subtitle={isEditing ? "Update an existing reservation" : "Create a new table reservation"}>
       <div className="space-y-6 animate-fade-in">
         {/* Back Button */}
         <Link to="/reservations">
@@ -145,9 +286,9 @@ export default function ReservationNew() {
         {/* Reservation Form */}
         <Card className="shadow-card border-border/50">
           <CardHeader>
-            <CardTitle className="text-lg">Create New Reservation</CardTitle>
+            <CardTitle className="text-lg">{isEditing ? "Edit Reservation" : "Create New Reservation"}</CardTitle>
             <p className="text-sm text-muted-foreground">
-              Select tables and enter reservation details
+              {isEditing ? "Update reservation details" : "Select tables and enter reservation details"}
             </p>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -202,10 +343,12 @@ export default function ReservationNew() {
                   </Label>
                   <Input
                     id="numberOfGuests"
-                    type="number"
-                    min="1"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
                     value={formData.numberOfGuests}
-                    onChange={(e) => handleInputChange("numberOfGuests", parseInt(e.target.value) || 1)}
+                    onChange={(e) => handleInputChange("numberOfGuests", e.target.value)}
+                    placeholder="Enter number of guests"
                     required
                     className="h-9"
                   />
@@ -241,25 +384,6 @@ export default function ReservationNew() {
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="status" className="text-sm font-medium">
-                  Status
-                </Label>
-                <Select
-                  value={formData.status}
-                  onValueChange={(value) => handleInputChange("status", value)}
-                >
-                  <SelectTrigger id="status" className="h-9">
-                    <SelectValue placeholder="Select status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="PENDING">Pending</SelectItem>
-                    <SelectItem value="CONFIRMED">Confirmed</SelectItem>
-                    <SelectItem value="CANCELLED">Cancelled</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
               {/* Table Selection */}
               <div className="space-y-2">
                 <Label className="text-sm font-medium">
@@ -276,11 +400,12 @@ export default function ReservationNew() {
                           key={table.id}
                           type="button"
                           onClick={() => handleTableSelect(table.id)}
+                          disabled={isEditing && bookedTableIds.has(table.id)}
                           className={`p-2 rounded-lg text-sm font-medium transition-colors ${
                             isSelected
                               ? 'bg-primary text-primary-foreground'
                               : 'bg-muted hover:bg-muted/80'
-                          }`}
+                          } ${isEditing && bookedTableIds.has(table.id) ? 'opacity-50 cursor-not-allowed' : ''}`}
                         >
                           T{table.number}
                           <span className="block text-xs opacity-70">{table.capacity} seats</span>
@@ -314,9 +439,11 @@ export default function ReservationNew() {
                 <Button
                   type="submit"
                   className="gradient-primary text-primary-foreground shadow-glow hover:shadow-lg transition-shadow"
-                  disabled={createReservationMutation.isPending}
+                  disabled={createReservationMutation.isPending || updateReservationMutation.isPending}
                 >
-                  {createReservationMutation.isPending ? "Creating..." : "Create Reservation"}
+                  {createReservationMutation.isPending ? "Creating..." :
+                   updateReservationMutation.isPending ? "Updating..." :
+                   isEditing ? "Update Reservation" : "Create Reservation"}
                 </Button>
               </div>
             </form>

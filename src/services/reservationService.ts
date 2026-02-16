@@ -87,7 +87,7 @@ export const ReservationService = {
   },
 
   cancelReservation: async (id: number): Promise<Reservation> => {
-    const response = await api.patch(`/reservations/${id}`, { status: 'CANCELLED' });
+    const response = await api.patch(`/reservations/${id}/cancel`);
     return response.data;
   },
 };

@@ -3,10 +3,12 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Search, Users, Clock, Phone, Mail, MoreHorizontal, Check, X } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Plus, Search, Users, Clock, Phone, Mail, MoreHorizontal, Check, X, Edit, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ReservationService } from "@/services/reservationService";
 import { toast } from "@/components/ui/use-toast";
@@ -56,6 +58,8 @@ const statusStyles = {
 };
 
 export default function Reservations() {
+  const navigate = useNavigate();
+  
   // Default to today's date
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -68,6 +72,7 @@ export default function Reservations() {
   });
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [cancelDialogOpen, setCancelDialogOpen] = useState<number | null>(null);
   const queryClient = useQueryClient();
 
   // Fetch reservations based on date range
@@ -255,9 +260,50 @@ export default function Reservations() {
                           </Button>
                         </>
                       )}
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-40 p-2" align="end">
+                          <div className="flex flex-col gap-1">
+                            <Button
+                              variant="ghost"
+                              className="justify-start gap-2 h-9"
+                              onClick={() => navigate(`/reservations/new?editId=${reservation.id}`, { state: { reservation } })}
+                            >
+                              <Edit className="h-4 w-4" />
+                              Edit
+                            </Button>
+                            {reservation.status !== ReservationStatus.CANCELLED && reservation.status !== ReservationStatus.COMPLETED && (
+                              <AlertDialog open={cancelDialogOpen === reservation.id} onOpenChange={(open) => setCancelDialogOpen(open ? reservation.id : null)}>
+                                <AlertDialogTrigger asChild>
+                                  <Button variant="ghost" className="justify-start gap-2 h-9 text-red-500 hover:text-red-500 hover:bg-red-500/10">
+                                    <Trash2 className="h-4 w-4" />
+                                    Cancel
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Cancel Reservation</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      Are you sure you want to cancel the reservation for {reservation.customerName}?
+                                      This will free up the table(s) and cannot be undone.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Keep Reservation</AlertDialogCancel>
+                                    <AlertDialogAction onClick={() => cancelMutation.mutate(reservation.id)}>
+                                      Cancel Reservation
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            )}
+                          </div>
+                        </PopoverContent>
+                      </Popover>
                     </div>
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
