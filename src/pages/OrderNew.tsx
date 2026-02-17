@@ -10,82 +10,11 @@ import { Link } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { MenuService } from "@/services/menuService";
+import { MenuService, MenuItem, Addon, SideDish, OrderItem } from "@/services/menuService";
 import { OrderService } from "@/services/orderService";
 import { TableService } from "@/services/tableService";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-
-interface OrderItem {
-  instanceId: number;
-  name: string;
-  price: number;
-  quantity: number;
-  notes: string;
-  editingNotes: boolean;
-  sideDishes?: { id: number; name: string; price: number }[];
-  addons?: { id: number; name: string; price: number }[];
-  requiresSideDish?: boolean;
-  hasAddons?: boolean;
-  menuItemId: number;
-  category?: string;
-}
-
-interface MenuItem {
-  id: number;
-  name: string;
-  price: number;
-  category?: string;
-  requiresSideDish?: boolean;
-  hasAddons?: boolean;
-  menuItemId: number;
-  categoryId?: number;
-  prepArea?: string;
-  isAvailable?: boolean;
-  description?: string;
-  rating?: number;
-  cost?: number | null;
-  prepTime?: number | null;
-  calories?: number | null;
-  servingSize?: string | null;
-  ingredients?: string[];
-  allergens?: string[];
-  dietaryOptions?: string[];
-  featured?: boolean;
-  seasonal?: boolean;
-  createdAt?: string;
-  updatedAt?: string;
-  addons?: Addon[];
-  sideDishes?: SideDish[];
-  menuCategory?: {
-    id: number;
-    name: string;
-    description?: string;
-    isActive?: boolean;
-    createdAt?: string;
-    updatedAt?: string;
-  };
-}
-
-interface SideDish {
-  id: number;
-  name: string;
-  price: number;
-  description?: string | null;
-  isAvailable?: boolean;
-  createdAt?: string;
-  updatedAt?: string;
-}
-
-interface Addon {
-  id: number;
-  name: string;
-  price: number;
-  description?: string | null;
-  isAvailable?: boolean;
-  createdAt?: string;
-  updatedAt?: string;
-}
 
 const waiters = ["Sarah M.", "Mike R.", "James T.", "Emily W."];
 
@@ -313,13 +242,7 @@ export default function OrderNew() {
   return (
     <MainLayout title="New Order" subtitle="Create a new customer order">
       <div className="space-y-6 animate-fade-in">
-        {/* Back Button */}
-        <Link to="/orders">
-          <Button variant="ghost" className="gap-2">
-            <ArrowLeft className="h-4 w-4" />
-            Back to Orders
-          </Button>
-        </Link>
+  
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Menu Items - Main Focus */}
@@ -342,7 +265,7 @@ export default function OrderNew() {
                   {filteredMenuItems.map(item => (
                     <button
                       key={item.id}
-                      onClick={() => addItem({ ...item, menuItemId: item.id })}
+                      onClick={() => addItem(item)}
                       className="flex flex-col items-start p-3 rounded-lg border border-border bg-card hover:bg-muted/50 hover:border-primary/50 transition-all text-left"
                     >
                       <span className="font-medium text-sm text-foreground">{item.name}</span>
@@ -482,7 +405,7 @@ export default function OrderNew() {
                 {/* Order Details */}
                 <div className="pt-4 border-t border-border space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="customerName" className="text-xs text-muted-foreground">Customer Name (Optional)</Label>
+                    <Label htmlFor="customerName" className="text-xs text-muted-foreground">Customer Name </Label>
                     <Input
                       id="customerName"
                       placeholder="Customer name"
@@ -577,17 +500,6 @@ export default function OrderNew() {
                   <p className="text-xs text-muted-foreground mt-1">Base item</p>
                 </div>
 
-                {/* Done Button */}
-                <div className="flex justify-end mb-4">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowExtrasDialog(false)}
-                  >
-                    Done
-                  </Button>
-                </div>
-
                 {/* Side Dishes Section (if applicable) */}
                 {currentItem.requiresSideDish && (
                   <>
@@ -660,6 +572,17 @@ export default function OrderNew() {
                     </div>
                   </>
                 )}
+
+                {/* Done Button */}
+                <div className="flex justify-end mt-4 pt-4 border-t border-border">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowExtrasDialog(false)}
+                  >
+                    Done
+                  </Button>
+                </div>
               </>
             );
           })()}

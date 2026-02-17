@@ -1,6 +1,40 @@
 import { api } from './api';
 
-interface MenuItem {
+// Side Dish interface
+export interface SideDish {
+  id: number;
+  name: string;
+  price: number;
+  description?: string | null;
+  isAvailable?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+// Addon interface
+export interface Addon {
+  id: number;
+  name: string;
+  price: number;
+  description?: string | null;
+  isAvailable?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+// Menu Category interface
+export interface MenuCategory {
+  id: number;
+  name: string;
+  description: string;
+  prepArea: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Menu Item interface
+export interface MenuItem {
   id: number;
   name: string;
   description: string;
@@ -22,52 +56,31 @@ interface MenuItem {
   requiresSideDish: boolean;
   createdAt: string;
   updatedAt: string;
-  addons: any[];
-  sideDishes: any[];
-  menuCategory: {
-    id: number;
-    name: string;
-    description: string;
-    isActive: boolean;
-    createdAt: string;
-    updatedAt: string;
-  };
+  addons?: Addon[];
+  sideDishes?: SideDish[];
+  menuCategory?: MenuCategory;
 }
 
-interface MenuAddon {
-  id: number;
+// Order Item interface (for use in orders)
+export interface OrderItem {
+  instanceId: number;
   name: string;
-  description: string | null;
   price: number;
-  isAvailable: boolean;
-  seasonal: boolean;
-  createdAt: string;
-  updatedAt: string;
+  quantity: number;
+  notes: string;
+  editingNotes?: boolean;
+  sideDishes?: SideDish[];
+  addons?: Addon[];
+  requiresSideDish?: boolean;
+  hasAddons?: boolean;
+  menuItemId: number;
+  category?: string;
 }
 
-interface MenuSideDish {
-  id: number;
-  name: string;
-  description: string | null;
-  price: number;
-  isAvailable: boolean;
-  seasonal: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
-
-interface MenuCategory {
-  id: number;
-  name: string;
-  description: string;
-  prepArea: string;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
-
-// Export types for use in components
-export type { MenuItem, MenuAddon, MenuSideDish, MenuCategory };
+// Legacy type aliases for backwards compatibility
+export type MenuAddon = Addon;
+export type MenuSideDish = SideDish;
+export type { MenuCategory as MenuCategoryType };
 
 export const MenuService = {
   // Menu Items
