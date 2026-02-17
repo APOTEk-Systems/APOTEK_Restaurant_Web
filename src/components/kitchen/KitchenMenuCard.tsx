@@ -80,11 +80,7 @@ export function KitchenMenuCard({
         <div className="flex-1">
           <div className="flex items-center gap-2">
             <h3 className="font-semibold text-foreground">{item.name}</h3>
-            {!item.isAvailable && (
-              <Badge variant="secondary" className="text-xs">
-                Unavailable
-              </Badge>
-            )}
+           
           </div>
           <p className="text-sm text-muted-foreground mt-1">
             {item.description}
@@ -99,16 +95,8 @@ export function KitchenMenuCard({
           {item.price.toLocaleString("en-US")}
         </span>
       </div>
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4 text-sm text-muted-foreground">
-          {item.rating && (
-            <span className="flex items-center gap-1">
-              <Star className="h-4 w-4 text-warning fill-warning" />
-              {item.rating}
-            </span>
-          )}
-          {item.orders && <span>{item.orders} orders</span>}
-        </div>
+      <div className="flex items-center justify-end">
+        
         <div className="flex items-center gap-1">
           <Button
             variant="ghost"

@@ -204,4 +204,35 @@
     background-color: hsl(var(--muted));
     border-radius: 3px;
   }
+
+  .animate-spin-slow {
+    animation: spin 3s linear infinite;
+  }
+
+  @keyframes spin {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  @keyframes borderRotate {
+    0% {
+      background-position: 0% 50%;
+    }
+    100% {
+      background-position: 300% 50%;
+    }
+  }
+
+  @keyframes pulse-ring {
+    0%, 100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.5;
+    }
+  }
 }

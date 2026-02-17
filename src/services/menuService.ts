@@ -40,6 +40,7 @@ interface MenuAddon {
   description: string | null;
   price: number;
   isAvailable: boolean;
+  seasonal: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -50,6 +51,7 @@ interface MenuSideDish {
   description: string | null;
   price: number;
   isAvailable: boolean;
+  seasonal: boolean;
   createdAt: string;
   updatedAt: string;
 }

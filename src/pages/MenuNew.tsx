@@ -45,10 +45,10 @@ export default function MenuNew() {
   const [formData, setFormData] = useState({
     name: "",
     description: "",
-    price: 0,
-    cost: 0,
-    prepTime: 0,
-    calories: 0,
+    price: "" as any,
+    cost: "" as any,
+    prepTime: "" as any,
+    calories: "" as any,
     servingSize: "",
     available: true,
     featured: false,
@@ -229,7 +229,7 @@ export default function MenuNew() {
     const { id, value, type: inputType } = e.target;
     setFormData(prev => ({
       ...prev,
-      [id]: inputType === 'number' ? parseFloat(value) || 0 : value
+      [id]: inputType === 'number' ? (value === "" ? "" : parseFloat(value)) : value
     }));
   };
 
@@ -266,7 +266,7 @@ export default function MenuNew() {
       return;
     }
 
-    if (formData.price <= 0) {
+    if (!formData.price || formData.price <= 0) {
       toast({
         title: "Validation Error",
         description: "Please enter a valid price",
@@ -425,7 +425,7 @@ export default function MenuNew() {
                   onChange={handleInputChange} 
                 />
               </div>
-              <div className="space-y-2">
+              {/* <div className="space-y-2">
                 <Label>{isBar ? "Ingredients" : "Ingredients"}</Label>
                 <div className="flex gap-2">
                   <Input
@@ -450,7 +450,7 @@ export default function MenuNew() {
                     ))}
                   </div>
                 )}
-              </div>
+              </div> */}
             </CardContent>
           </Card>
 
@@ -598,50 +598,54 @@ export default function MenuNew() {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="price">Price ($) *</Label>
-                  <Input 
-                    id="price" 
-                    type="number" 
-                    min="0" 
-                    step="0.01" 
-                    placeholder="0.00" 
-                    value={formData.price} 
-                    onChange={handleInputChange} 
+                  <Input
+                    id="price"
+                    type="number"
+                    min="0"
+                    
+                    placeholder="0.00"
+                    value={formData.price}
+                    onChange={handleInputChange}
+                    onFocus={(e) => e.target.select()}
                   />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="cost">Cost ($)</Label>
-                  <Input 
-                    id="cost" 
-                    type="number" 
-                    min="0" 
-                    step="0.01" 
-                    placeholder={isBar ? "Liquor cost" : "Food cost"} 
-                    value={formData.cost} 
-                    onChange={handleInputChange} 
+                  <Input
+                    id="cost"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder={isBar ? "0.00" : "0.00"}
+                    value={formData.cost}
+                    onChange={handleInputChange}
+                    onFocus={(e) => e.target.select()}
                   />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="prepTime">{isBar ? "Prep Time (sec)" : "Prep Time (mins)"}</Label>
-                  <Input 
-                    id="prepTime" 
-                    type="number" 
-                    min="0" 
-                    placeholder={isBar ? "30" : "15"} 
-                    value={formData.prepTime} 
-                    onChange={handleInputChange} 
+                  <Input
+                    id="prepTime"
+                    type="number"
+                    min="0"
+                    placeholder={isBar ? "30" : "15"}
+                    value={formData.prepTime}
+                    onChange={handleInputChange}
+                    onFocus={(e) => e.target.select()}
                   />
                 </div>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="calories">Calories</Label>
-                  <Input 
-                    id="calories" 
-                    type="number" 
-                    min="0" 
-                    placeholder="Optional" 
-                    value={formData.calories} 
-                    onChange={handleInputChange} 
+                  <Input
+                    id="calories"
+                    type="number"
+                    min="0"
+                    placeholder="Optional"
+                    value={formData.calories}
+                    onChange={handleInputChange}
+                    onFocus={(e) => e.target.select()}
                   />
                 </div>
                 <div className="space-y-2">
@@ -653,7 +657,7 @@ export default function MenuNew() {
                     onChange={handleInputChange} 
                   />
                 </div>
-              </div>
+              </div> */}
             </CardContent>
           </Card>
 

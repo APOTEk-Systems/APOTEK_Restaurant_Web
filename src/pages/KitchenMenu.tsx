@@ -288,8 +288,8 @@ export default function KitchenMenu() {
                 <div className="space-y-6">
                   {/* Search and Filter Controls */}
                   <div className="flex flex-col lg:flex-row gap-4 justify-between items-start lg:items-center">
-                    <div className="flex flex-col sm:flex-row gap-4 w-full lg:w-auto">
-                      <div className="relative flex-1 min-w-[250px]">
+                    <div className="flex flex-col sm:flex-row gap-4 w-full ">
+                      <div className="relative flex-1">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <Input
                           placeholder="Search menu items..."

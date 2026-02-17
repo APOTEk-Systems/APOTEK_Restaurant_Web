@@ -101,7 +101,7 @@ export function SideDishDialog({ open, onOpenChange, sideDish = null }: SideDish
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
-              <Label htmlFor="name">Name</Label>
+              <Label htmlFor="name">Name *</Label>
               <Input
                 id="name"
                 value={name}
@@ -110,7 +110,7 @@ export function SideDishDialog({ open, onOpenChange, sideDish = null }: SideDish
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="description">Description (optional)</Label>
+              <Label htmlFor="description">Description</Label>
               <Input
                 id="description"
                 value={description}
