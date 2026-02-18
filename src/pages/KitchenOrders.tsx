@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Clock, ChefHat, CheckCircle2, AlertCircle, Play, Bell, Utensils, PlusCircle } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { OrderService } from "@/services/orderService";
+import { OrderService, MenuAddon, MenuSideDish, MenuItem, EnhancedOrderItem, KitchenOrder as KitchenOrderType } from "@/services/orderService";
 import { toast } from "@/components/ui/use-toast";
 
 enum OrderItemStatus {
@@ -21,71 +21,13 @@ enum KitchenOrderStatus {
   READY = "READY"
 }
 
-// Define interfaces for our enhanced kitchen order data
-interface MenuAddon {
-  id: number;
-  name: string;
-  price: number;
-  isAvailable: boolean;
-}
-
-interface MenuSideDish {
-  id: number;
-  name: string;
-  price: number;
-  isAvailable: boolean;
-}
-
-interface MenuItem {
-  id: number;
-  name: string;
-  hasAddons: boolean;
-  requiresSideDish: boolean;
-  addons: MenuAddon[];
-  sideDishes: MenuSideDish[];
-}
-
-interface OrderItem {
-  id: number;
-  orderId: number;
-  menuItemId: number;
-  quantity: number;
-  price: number;
-  notes: string | null;
-  prepArea: string;
+interface OrderItem extends EnhancedOrderItem {
   status: OrderItemStatus;
-  selectedSideDishes: number[];
-  selectedAddons: number[];
-  menuItem: MenuItem;
-  createdAt: string;
-  updatedAt: string;
-  kitchenOrderId: number | null;
-  barOrderId: number | null;
 }
 
-interface KitchenOrder {
-  id: number;
-  orderId: number;
+interface KitchenOrder extends KitchenOrderType {
   status: KitchenOrderStatus;
-  createdAt: string;
-  updatedAt: string;
   items: OrderItem[];
-  order: {
-    id: number;
-    orderNumber: number;
-    tableNumber: number | null;
-    status: string;
-    customerName: string | null;
-    waiter: string | null;
-    guestCount: number | null;
-    total: number;
-    orderItems: {
-      id: number;
-      menuItem: {
-        name: string;
-      };
-    }[];
-  };
 }
 
 const statusStyles = {
@@ -101,11 +43,6 @@ const statusIcons = {
   [KitchenOrderStatus.READY]: CheckCircle2,
 };
 
-const courseColors = {
-  starter: "bg-purple-500/10 text-purple-500",
-  main: "bg-orange-500/10 text-orange-500",
-  dessert: "bg-pink-500/10 text-pink-500",
-};
 
 export default function KitchenOrders() {
   const queryClient = useQueryClient();
@@ -285,9 +222,16 @@ export default function KitchenOrders() {
 
 
 
-  const getPriorityFromItems = (items: OrderItem[]): "high" | "normal" => {
+  const getPriorityFromItems = (items: OrderItem[], createdAt: string): "high" | "normal" => {
     const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
-    return totalQuantity >= 4 || items.length >= 3 ? "high" : "normal";
+    
+    // Check if order hasn't been resolved within 30 minutes
+    const now = new Date();
+    const createdDate = new Date(createdAt);
+    const minutesAgo = Math.floor((now.getTime() - createdDate.getTime()) / (1000 * 60));
+    const isOver30Minutes = minutesAgo >= 30;
+    
+    return items.length >= 3 || isOver30Minutes ? "high" : "normal";
   };
 
   const getTimeAgo = (createdAt: string): string => {
@@ -411,7 +355,7 @@ export default function KitchenOrders() {
             orders.map((order) => {
               const orderStatus = getOrderStatus(order);
               const StatusIcon = statusIcons[orderStatus];
-              const priority = getPriorityFromItems(order.items);
+              const priority = getPriorityFromItems(order.items, order.createdAt);
               const timeAgo = getTimeAgo(order.createdAt);
 
               return (
@@ -419,7 +363,7 @@ export default function KitchenOrders() {
                   <CardHeader className="pb-3">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <CardTitle className="text-lg">Table {order.order.tableNumber || 'N/A'}</CardTitle>
+                        <CardTitle className="text-lg">Order #{order.order.orderNumber || 'N/A'}</CardTitle>
                         {priority === "high" && (
                           <AlertCircle className="h-4 w-4 text-destructive" />
                         )}
@@ -430,7 +374,7 @@ export default function KitchenOrders() {
                       </Badge>
                     </div>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <span>Order #{order.order.orderNumber}</span>
+                      <span>Table {order.order.tableNumber}</span>
                       <span>•</span>
                       <span>{timeAgo}</span>
                     </div>

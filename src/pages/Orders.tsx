@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import { Plus, Search, Filter, Eye, MoreHorizontal, Check, DollarSign, X, Ban, CreditCard } from "lucide-react";
+import { Plus, Search, Filter, Eye, MoreHorizontal, Check, DollarSign, X, Ban, CreditCard, Receipt } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { OrderService, Order, Payment } from "@/services/orderService";
@@ -13,7 +13,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 const statusStyles = {
   pending: "bg-warning/10 text-warning border-warning/20",
-  preparing: "bg-primary/10 text-primary border-primary/20",
+  "in_progress": "bg-primary/10 text-primary border-primary/20",
   served: "bg-success/10 text-success border-success/20",
   completed: "bg-muted text-muted-foreground border-border",
   paid: "bg-green-100 text-green-800 border-green-200",
@@ -92,23 +92,14 @@ export default function Orders() {
       case "completed":
         return (
           <>
+      
             <Button
-              variant="outline"
-              size="sm"
-              className="gap-2"
-              onClick={() => handleStatusUpdate(orderId, "served")}
-            >
-              <Check className="h-4 w-4" />
-              Update to Served
-            </Button>
-            <Button
-              variant="outline"
+              variant="default"
               size="sm"
               className="gap-2"
               onClick={() => handleStatusUpdate(orderId, "paid")}
             >
-              <DollarSign className="h-4 w-4" />
-              Update to Paid
+              Pay
             </Button>
           </>
         );
@@ -196,11 +187,11 @@ export default function Orders() {
               <SelectContent>
                 <SelectItem value="all">All Status</SelectItem>
                 <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="preparing">Preparing</SelectItem>
-                <SelectItem value="served">Served</SelectItem>
+                <SelectItem value="in_progress">Preparing</SelectItem>
+                {/* <SelectItem value="served">Served</SelectItem> */}
                 <SelectItem value="completed">Completed</SelectItem>
-                <SelectItem value="paid">Paid</SelectItem>
-                <SelectItem value="cancelled">Cancelled</SelectItem>
+                {/* <SelectItem value="paid">Paid</SelectItem>
+                <SelectItem value="cancelled">Cancelled</SelectItem> */}
               </SelectContent>
             </Select>
           </div>
@@ -242,7 +233,7 @@ export default function Orders() {
                       <td className="px-6 py-4 text-foreground">{order.waiter || 'N/A'}</td>
                       <td className="px-6 py-4">
                         <Badge className={cn("capitalize", statusStyles[order.status.toLowerCase() as keyof typeof statusStyles])}>
-                          {order.status}
+                          {order.status && order.status === "IN_PROGRESS" ? "PRERARING" : order.status}
                         </Badge>
                       </td>
                       <td className="px-6 py-4 font-semibold text-foreground text-right">{order.total.toLocaleString()}</td>
@@ -251,12 +242,12 @@ export default function Orders() {
                           <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
                             <DialogTrigger asChild>
                               <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8"
+                                variant="outline"                              
+                              
                                 onClick={() => handleViewOrder(order)}
                               >
                                 <Eye className="h-4 w-4" />
+                                View
                               </Button>
                             </DialogTrigger>
                             <DialogContent className="sm:max-w-md">
@@ -280,7 +271,7 @@ export default function Orders() {
                                   <div>
                                     <p className="text-sm text-muted-foreground">Status</p>
                                     <Badge className={cn("capitalize", statusStyles[selectedOrder?.status.toLowerCase() as keyof typeof statusStyles])}>
-                                      {selectedOrder?.status}
+                                      {selectedOrder?.status && selectedOrder?.status === "IN_PROGRESS" ? "PREPARING": selectedOrder?.status}
                                     </Badge>
                                   </div>
                                 </div>

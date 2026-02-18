@@ -261,7 +261,7 @@ export default function OrderNew() {
                     onChange={(e) => setSearchQuery(e.target.value)}
                   />
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-[60vh] overflow-y-auto scrollbar-thin p-1">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2  overflow-y-auto scrollbar-thin p-1">
                   {filteredMenuItems.map(item => (
                     <button
                       key={item.id}
@@ -462,7 +462,23 @@ export default function OrderNew() {
                 </div>
 
                 <div className="flex gap-3 pt-2">
-                  <Button variant="outline" className="flex-1">Save Draft</Button>
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() => {
+                      setOrderItems([]);
+                      setSelectedTable("");
+                      setSelectedWaiter("");
+                      setCustomerName("");
+                      toast({
+                        title: "Order Cleared",
+                        description: "The current order has been cleared.",
+                        variant: "default",
+                      });
+                    }}
+                  >
+                    Cancel
+                  </Button>
                   <Button
                     className="flex-1 gradient-primary text-primary-foreground shadow-glow hover:shadow-lg transition-shadow"
                     onClick={handleCreateOrder}

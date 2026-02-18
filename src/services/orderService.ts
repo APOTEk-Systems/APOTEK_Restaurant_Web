@@ -14,7 +14,7 @@ export interface Payment {
   updatedAt: string;
 }
 
-interface OrderItem {
+export interface OrderItem {
   id: number;
   orderId: number;
   menuItemId: number;
@@ -32,7 +32,7 @@ interface OrderItem {
   };
 }
 
-interface KitchenOrder {
+export interface KitchenOrder {
   id: number;
   orderId: number;
   status: string;
@@ -58,21 +58,21 @@ interface KitchenOrder {
 }
 
 // Enhanced interfaces for kitchen orders with details
-interface MenuAddon {
+export interface MenuAddon {
   id: number;
   name: string;
   price: number;
   isAvailable: boolean;
 }
 
-interface MenuSideDish {
+export interface MenuSideDish {
   id: number;
   name: string;
   price: number;
   isAvailable: boolean;
 }
 
-interface MenuItem {
+export interface MenuItem {
   id: number;
   name: string;
   hasAddons: boolean;
@@ -81,13 +81,13 @@ interface MenuItem {
   sideDishes: MenuSideDish[];
 }
 
-interface EnhancedOrderItem extends OrderItem {
+export interface EnhancedOrderItem extends OrderItem {
   selectedSideDishes: number[];
   selectedAddons: number[];
   menuItem: MenuItem;
 }
 
-interface EnhancedKitchenOrder extends Omit<KitchenOrder, 'items'> {
+export interface EnhancedKitchenOrder extends Omit<KitchenOrder, 'items'> {
   items: EnhancedOrderItem[];
   order: {
     id: number;
@@ -107,7 +107,7 @@ interface EnhancedKitchenOrder extends Omit<KitchenOrder, 'items'> {
   };
 }
 
-interface BarOrder {
+export interface BarOrder {
   id: number;
   orderId: number;
   status: string;
@@ -115,6 +115,30 @@ interface BarOrder {
   updatedAt: string;
   items: OrderItem[];
   order?: {
+    id: number;
+    orderNumber: number;
+    tableNumber: number | null;
+    status: string;
+    customerName: string | null;
+    waiter: string | null;
+    guestCount: number | null;
+    total: number;
+    orderItems: {
+      id: number;
+      menuItem: {
+        name: string;
+      };
+    }[];
+  };
+}
+
+export interface BarOrderWithDetails extends Omit<BarOrder, 'status'> {
+  orderId: number;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+  items: EnhancedOrderItem[];
+  order: {
     id: number;
     orderNumber: number;
     tableNumber: number | null;
