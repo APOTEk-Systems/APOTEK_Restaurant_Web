@@ -7,7 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Plus, Search, MoreHorizontal, Mail, Phone, Shield, Loader2, Key, Trash2, Settings } from "lucide-react";
+import { Plus, Search, MoreHorizontal, Mail, Shield, Loader2, Key, Trash2, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@/components/ui/table";
 import { Label } from "@/components/ui/label";
