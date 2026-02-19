@@ -56,6 +56,8 @@ const SettingsExpenseCategories = lazy(() => import("./pages/SettingsExpenseCate
 const SettingsUnits = lazy(() => import("./pages/SettingsUnits"));
 const SettingsAlerts = lazy(() => import("./pages/SettingsAlerts"));
 const SettingsTables = lazy(() => import("./pages/SettingsTables"));
+const SettingsDepartments = lazy(() => import("./pages/SettingsDepartments"));
+const SettingsStaffRoles = lazy(() => import("./pages/SettingsStaffRoles"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const PurchaseOrderDetail = lazy(() => import("./pages/PurchaseOrderDetail"));
 const GoodsReceivingNew = lazy(() => import("./pages/GoodsReceivingNew"));
@@ -114,10 +116,12 @@ const App = () => (
             <Route path="/purchases/:id" element={<PurchaseOrderDetail />} />
             <Route path="/staff" element={<Staff />} />
             <Route path="/staff/new" element={<StaffNew />} />
+            <Route path="/staff/edit/:id" element={<StaffNew />} />
             <Route path="/users" element={<Users />} />
             <Route path="/users/new" element={<UserNew />} />
             <Route path="/users/roles" element={<Roles />} />
             <Route path="/users/roles/new" element={<RoleNew />} />
+            <Route path="/users/roles/edit/:id" element={<RoleNew />} />
             <Route path="/accounting" element={<Accounting />} />
             <Route path="/accounting/expenses" element={<AccountingExpenses />} />
             <Route path="/reports" element={<Reports />} />
@@ -130,6 +134,8 @@ const App = () => (
             <Route path="/settings/alerts" element={<SettingsAlerts />} />
             <Route path="/settings/inventory-categories" element={<SettingsInventoryCategories />} />
             <Route path="/settings/menu-categories" element={<SettingsMenuCategories />} />
+            <Route path="/settings/departments" element={<SettingsDepartments />} />
+            <Route path="/settings/staff-roles" element={<SettingsStaffRoles />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>

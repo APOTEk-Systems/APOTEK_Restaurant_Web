@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -15,67 +15,88 @@ import { Search, Plus, Phone, Mail, Calendar, Briefcase, Loader2 } from "lucide-
 import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@/components/ui/table";
-import { staffService, type Staff } from "@/services/staffService";
+import { staffService } from "@/services/staffService";
+import { departmentService } from "@/services/departmentService";
+import type { Staff } from "@/services/staffService";
+import type { Department } from "@/services/staffService";
+import { useQuery } from "@tanstack/react-query";
 
-const departmentColors: Record<string, string> = {
-  "KITCHEN": "bg-orange-500/10 text-orange-500",
-  "BAR": "bg-purple-500/10 text-purple-500",
-  "SERVICE": "bg-blue-500/10 text-blue-500",
-  "OPERATIONS": "bg-green-500/10 text-green-500",
-  "MANAGEMENT": "bg-red-500/10 text-red-500",
+// Generate consistent colors for departments based on their name
+const getDepartmentColor = (deptName: string | undefined): string => {
+  if (!deptName) return "bg-muted/10 text-muted-foreground";
+  
+  const colors: Record<string, string> = {
+    "KITCHEN": "bg-orange-500/10 text-orange-500",
+    "BAR": "bg-purple-500/10 text-purple-500",
+    "FRONT OF HOUSE": "bg-blue-500/10 text-blue-500",
+    "SERVICE": "bg-blue-500/10 text-blue-500",
+    "OPERATIONS": "bg-green-500/10 text-green-500",
+    "MANAGEMENT": "bg-red-500/10 text-red-500",
+  };
+  
+  // Use a hash-based color for unknown departments
+  const upperName = deptName.toUpperCase();
+  if (colors[upperName]) return colors[upperName];
+  
+  // Generate a consistent color based on department name
+  const colorClasses = [
+    "bg-cyan-500/10 text-cyan-500",
+    "bg-pink-500/10 text-pink-500",
+    "bg-indigo-500/10 text-indigo-500",
+    "bg-teal-500/10 text-teal-500",
+    "bg-amber-500/10 text-amber-500",
+  ];
+  
+  const hash = deptName.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  return colorClasses[hash % colorClasses.length];
 };
 
 const Staff = () => {
   const navigate = useNavigate();
-  const [staff, setStaff] = useState<Staff[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState("all");
 
-  useEffect(() => {
-    fetchStaff();
-  }, []);
+  // React Query for data fetching
+  const { data: staff = [], isLoading: loadingStaff } = useQuery({
+    queryKey: ['staff'],
+    queryFn: () => staffService.getAll(),
+  });
 
-  const fetchStaff = async () => {
-    try {
-      setIsLoading(true);
-      const data = await staffService.getAll();
-      setStaff(data);
-    } catch (error) {
-      console.error("Failed to fetch staff:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const { data: departments = [] } = useQuery({
+    queryKey: ['departments'],
+    queryFn: () => departmentService.getAll(),
+  });
+
+  const isLoading = loadingStaff;
 
   const filteredStaff = staff.filter(member => {
-    const matchesSearch =
-      member.firstName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      member.lastName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    const fullName = `${member.firstName} ${member.lastName}`.toLowerCase();
+    const matchesSearch = 
+      fullName.includes(searchTerm.toLowerCase()) ||
       member.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      member.role?.toLowerCase().includes(searchTerm.toLowerCase());
+      member.role?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      member.department?.name?.toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesDepartment = 
       departmentFilter === "all" || 
-      member.department?.toUpperCase() === departmentFilter.toUpperCase();
+      member.departmentId?.toString() === departmentFilter ||
+      member.department?.name?.toUpperCase() === departmentFilter.toUpperCase();
     
     return matchesSearch && matchesDepartment;
   });
 
   const totalStaff = filteredStaff.length;
   const activeStaff = filteredStaff.filter(s => s.status === "ACTIVE" || s.status === "active").length;
-  const departments = [...new Set(staff.map(s => s.department).filter(Boolean))].length;
+  const uniqueDepartments = [...new Set(staff.map(s => s.department?.name).filter(Boolean))].length;
 
-  const formatDepartment = (dept: string | undefined) => {
+  const formatDepartment = (dept: { name: string } | undefined | null) => {
     if (!dept) return "N/A";
-    const deptMap: Record<string, string> = {
-      "KITCHEN": "Kitchen",
-      "BAR": "Bar",
-      "SERVICE": "Front of House",
-      "OPERATIONS": "Operations",
-      "MANAGEMENT": "Management"
-    };
-    return deptMap[dept.toUpperCase()] || dept;
+    return dept.name;
+  };
+
+  const formatRole = (role: { name: string } | undefined | null) => {
+    if (!role) return "N/A";
+    return role.name;
   };
 
   return (
@@ -83,7 +104,7 @@ const Staff = () => {
       title="Staff" 
       subtitle="Manage all staff members"
     >
-  
+    
 
       {/* Actions */}
       <div className="flex flex-col sm:flex-row gap-4 mb-6">
@@ -102,11 +123,11 @@ const Staff = () => {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Departments</SelectItem>
-            <SelectItem value="KITCHEN">Kitchen</SelectItem>
-            <SelectItem value="BAR">Bar</SelectItem>
-            <SelectItem value="SERVICE">Front of House</SelectItem>
-            <SelectItem value="OPERATIONS">Operations</SelectItem>
-            <SelectItem value="MANAGEMENT">Management</SelectItem>
+            {departments.map((dept) => (
+              <SelectItem key={dept.id} value={dept.id.toString()}>
+                {dept.name}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
         <Button 
@@ -142,7 +163,7 @@ const Staff = () => {
           <TableHeader>
             <TableRow>
               <TableHead>Name</TableHead>
-              <TableHead>Position</TableHead>
+              <TableHead>Role</TableHead>
               <TableHead>Department</TableHead>
               <TableHead>Contact</TableHead>
               <TableHead>Hire Date</TableHead>
@@ -151,10 +172,14 @@ const Staff = () => {
           </TableHeader>
           <TableBody>
             {filteredStaff.map((member) => (
-              <TableRow key={member.id} className={cn(
-                "cursor-pointer",
-                (member.status === "INACTIVE" || member.status === "inactive") && "opacity-60"
-              )}>
+              <TableRow
+                key={member.id}
+                className={cn(
+                  "cursor-pointer hover:bg-muted/50",
+                  (member.status === "INACTIVE" || member.status === "inactive") && "opacity-60"
+                )}
+                onClick={() => navigate(`/staff/edit/${member.id}`)}
+              >
                 <TableCell>
                   <div className="flex items-center gap-3">
                     <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center overflow-hidden">
@@ -176,11 +201,11 @@ const Staff = () => {
                 <TableCell>
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Briefcase className="h-3.5 w-3.5" />
-                    <span>{member.role || "N/A"}</span>
+                    <span>{formatRole(member.role)}</span>
                   </div>
                 </TableCell>
                 <TableCell>
-                  <Badge className={cn("text-xs", departmentColors[member.department?.toUpperCase() || ""])}>
+                  <Badge className={cn("text-xs", getDepartmentColor(member.department?.name))}>
                     {formatDepartment(member.department)}
                   </Badge>
                 </TableCell>

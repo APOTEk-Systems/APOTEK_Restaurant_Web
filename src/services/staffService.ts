@@ -1,13 +1,29 @@
 import { api } from './api';
 
+export interface Department {
+  id: number;
+  name: string;
+  description?: string;
+}
+
+export interface StaffRole {
+  id: number;
+  name: string;
+  description?: string;
+  departmentId?: number;
+  department?: Department;
+}
+
 export interface Staff {
   id: number;
   firstName: string;
   lastName: string;
   email?: string;
   phone?: string;
-  role: string;
-  department?: string;
+  roleId?: number;
+  role?: StaffRole;
+  departmentId?: number;
+  department?: Department;
   hireDate: string;
   status: string;
   imageUrl?: string;
@@ -23,8 +39,8 @@ export interface CreateStaffData {
   lastName: string;
   email?: string;
   phone?: string;
-  role: string;
-  department?: string;
+  roleId?: number;
+  departmentId?: number;
   hireDate: string;
   status?: string;
   imageUrl?: string;
@@ -32,8 +48,6 @@ export interface CreateStaffData {
   emergencyContact?: string;
   notes?: string;
 }
-
-export interface UpdateStaffData extends Partial<CreateStaffData> {}
 
 export const staffService = {
   getAll: async (): Promise<Staff[]> => {
@@ -51,7 +65,7 @@ export const staffService = {
     return response.data;
   },
 
-  update: async (id: number, data: UpdateStaffData): Promise<Staff> => {
+  update: async (id: number, data: Partial<CreateStaffData>): Promise<Staff> => {
     const response = await api.put(`/staff/${id}`, data);
     return response.data;
   },
