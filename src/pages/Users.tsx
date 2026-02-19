@@ -208,12 +208,11 @@ export default function Users() {
   return (
     <MainLayout title="Users" subtitle="Manage staff members and their roles">
       <div className="space-y-6 animate-fade-in">
-       
-
+    
         {/* Actions Bar */}
         <div className="flex flex-col sm:flex-row gap-4 justify-between">
-          <div className="flex gap-3">
-            <div className="relative flex-1 sm:w-80">
+          <div className="w-full flex gap-3">
+            <div className="relative flex-1 ">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input 
                 placeholder="Search users..." 
