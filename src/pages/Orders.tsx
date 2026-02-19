@@ -8,8 +8,9 @@ import { cn } from "@/lib/utils";
 import { Plus, Search, Filter, Eye, MoreHorizontal, Check, DollarSign, X, Ban, CreditCard, Receipt } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
-import { OrderService, Order, Payment } from "@/services/orderService";
+import { OrderService, Order, Payment, OrderItem } from "@/services/orderService";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
 
 const statusStyles = {
   pending: "bg-warning/10 text-warning border-warning/20",
@@ -27,6 +28,7 @@ export default function Orders() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const queryClient = useQueryClient();
+  const { toast } = useToast();
 
   // Fetch recent orders using React Query
   const { data: orders, isLoading, error } = useQuery({
@@ -58,6 +60,27 @@ export default function Orders() {
       OrderService.updateBarOrderStatus(params.id, { status: params.status }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['recentOrders'] });
+    },
+  });
+
+  // Mutation for cancelling order item
+  const cancelOrderItemMutation = useMutation({
+    mutationFn: (itemId: number) =>
+      OrderService.updateOrderItemStatus(itemId, { status: "CANCELLED" }),
+    onSuccess: () => {
+      toast({
+        title: "Item Cancelled",
+        description: "The order item has been cancelled.",
+        variant: "default",
+      });
+      queryClient.invalidateQueries({ queryKey: ['recentOrders'] });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: "Failed to cancel the item. Please try again.",
+        variant: "destructive",
+      });
     },
   });
 
@@ -280,10 +303,31 @@ export default function Orders() {
                                   <p className="text-sm text-muted-foreground mb-2">Items</p>
                                   <div className="space-y-2">
                                     {selectedOrder?.orderItems.map((item, index) => (
-                                      <div key={index} className="flex justify-between items-center p-2 rounded-lg bg-muted/30">
+                                      <div
+                                        key={index}
+                                        className={cn(
+                                          "flex justify-between items-center p-2 rounded-lg bg-muted/30",
+                                          item.status === 'CANCELLED' && "opacity-50 line-through"
+                                        )}
+                                      >
                                         <div className="flex items-center gap-2">
                                           <span className="text-sm font-medium">{item.menuItem?.name || 'Item'}</span>
                                           <span className="text-xs text-muted-foreground">x{item.quantity}</span>
+                                          {item.status === 'CANCELLED' && (
+                                            <Badge variant="destructive" className="text-xs">Cancelled</Badge>
+                                          )}
+                                          {item.status === 'PENDING' && (
+                                            <Badge variant="outline" className="text-xs text-muted-foreground">Pending</Badge>
+                                          )}
+                                          {item.status === 'PREPARING' && (
+                                            <Badge variant="secondary" className="text-xs">Preparing</Badge>
+                                          )}
+                                          {item.status === 'READY' && (
+                                            <Badge variant="default" className="text-xs bg-primary/10 text-primary border-primary/20">Ready</Badge>
+                                          )}
+                                          {item.status === 'SERVED' && (
+                                            <Badge className="text-xs bg-success/10 text-success border-success/20">Served</Badge>
+                                          )}
                                         </div>
                                         <div className="flex items-center">
                                           <span className="text-sm font-semibold">${item.price.toFixed(2)}</span>
@@ -294,10 +338,10 @@ export default function Orders() {
                                               className="h-6 w-6 p-0 text-destructive hover:bg-destructive ml-3"
                                               onClick={(e) => {
                                                 e.stopPropagation();
-                                                console.log(`Cancel item ${item.id}`);
+                                                cancelOrderItemMutation.mutate(item.id);
                                               }}
                                             >
-                                              <Ban className="h-3 w-3" />
+                                              <Ban className={cn("h-3 w-3", cancelOrderItemMutation.isPending && "animate-spin")} />
                                             </Button>
                                           )}
                                         </div>

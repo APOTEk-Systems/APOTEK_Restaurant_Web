@@ -69,14 +69,14 @@ const kitchenSubItems = [
   { title: "Orders", url: "/kitchen/orders", icon: ClipboardList },
   { title: "Menu", url: "/kitchen/menu", icon: UtensilsCrossed },
   { title: "Inventory", url: "/kitchen/inventory", icon: Package },
-  { title: "Dissatisfactions", url: "/kitchen/dissatisfactions", icon: ThumbsDown },
+  { title: "Issues", url: "/kitchen/issues", icon: AlertTriangle },
 ];
 
 const barSubItems = [
   { title: "Orders", url: "/bar/orders", icon: ClipboardList },
   { title: "Menu", url: "/bar/menu", icon: UtensilsCrossed },
   { title: "Inventory", url: "/bar/inventory", icon: Package },
-  { title: "Returns", url: "/bar/returns", icon: RotateCcw },
+  { title: "Issues", url: "/bar/issues", icon: AlertTriangle },
 ];
 
 const inventorySubItems = [

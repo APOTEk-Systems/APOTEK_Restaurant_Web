@@ -270,7 +270,7 @@ export default function OrderNew() {
                     >
                       <span className="font-medium text-sm text-foreground">{item.name}</span>
                       <span className="text-xs text-muted-foreground">{item.menuCategory?.name || 'General'}</span>
-                      <span className="text-sm font-semibold text-primary mt-1">${item.price.toFixed(2)}</span>
+                      <span className="text-sm font-semibold text-primary mt-1">{item.price.toLocaleString()}</span>
                       {(item.requiresSideDish || item.hasAddons) && (
                         <span className="text-xs text-muted-foreground mt-1">
                           {item.requiresSideDish ? "Includes sides" : "Customizable"}
@@ -299,7 +299,7 @@ export default function OrderNew() {
                         <div className="flex items-start gap-3">
                           <div className="flex-1 min-w-0">
                             <p className="font-medium text-sm text-foreground truncate">{item.name}</p>
-                            <p className="text-sm text-primary">${item.price.toFixed(2)} x {item.quantity}</p>
+                            <p className="text-sm text-primary">{item.price.toLocaleString()} x {item.quantity}</p>
                             {((item.sideDishes && item.sideDishes.length > 0) || (item.addons && item.addons.length > 0)) && (
                               <p className="text-xs text-muted-foreground mt-1">
                                 <Badge variant="secondary" className="text-xs">
@@ -449,15 +449,15 @@ export default function OrderNew() {
                 <div className="pt-4 border-t border-border space-y-2">
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Subtotal</span>
-                    <span className="text-foreground">${total.toFixed(2)}</span>
+                    <span className="text-foreground">{total.toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Tax (10%)</span>
-                    <span className="text-foreground">${(total * 0.1).toFixed(2)}</span>
+                    <span className="text-foreground">{(total * 0.1).toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between text-lg font-semibold pt-2 border-t border-border">
                     <span className="text-foreground">Total</span>
-                    <span className="text-primary">${(total * 1.1).toFixed(2)}</span>
+                    <span className="text-primary">{(total * 1.1).toLocaleString()}</span>
                   </div>
                 </div>
 
@@ -512,7 +512,7 @@ export default function OrderNew() {
                 <div className="mb-4 p-3 bg-muted/30 rounded-lg">
                   <h3 className="font-medium text-sm mb-2">Item Details</h3>
                   <p className="text-sm text-foreground">{currentItem.name}</p>
-                  <p className="text-sm text-primary">${currentItem.price.toFixed(2)}</p>
+                  <p className="text-sm text-primary">{currentItem.price.toFixed(2)}</p>
                   <p className="text-xs text-muted-foreground mt-1">Base item</p>
                 </div>
 
@@ -542,7 +542,7 @@ export default function OrderNew() {
                             />
                             <div className="flex-1">
                               <p className="text-xs font-medium">{sideDish.name}</p>
-                              <p className="text-xs text-muted-foreground">${sideDish.price.toFixed(2)}</p>
+                              <p className="text-xs text-muted-foreground">{sideDish.price.toFixed(2)}</p>
                             </div>
                           </div>
                         );
@@ -580,7 +580,7 @@ export default function OrderNew() {
                             />
                             <div className="flex-1">
                               <p className="text-xs font-medium">{addon.name}</p>
-                              <p className="text-xs text-muted-foreground">${addon.price.toFixed(2)}</p>
+                              <p className="text-xs text-muted-foreground">{addon.price.toFixed(2)}</p>
                             </div>
                           </div>
                         );

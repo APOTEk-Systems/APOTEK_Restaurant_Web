@@ -207,7 +207,7 @@ export default function AccountingExpenses() {
         {/* Actions */}
         <div className="flex flex-col sm:flex-row gap-4 justify-between">
           <div className="flex flex-1 gap-3">
-            <div className="relative flex-1 max-w-md">
+            <div className="relative flex-1 ">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input 
                 placeholder="Search expenses..." 
@@ -231,10 +231,7 @@ export default function AccountingExpenses() {
             </Select>
           </div>
           <div className="flex gap-3">
-            <Button variant="outline">
-              <Download className="h-4 w-4 mr-2" />
-              Export
-            </Button>
+           
 
             {/* Add Expense Dialog */}
             <Dialog open={isExpenseDialogOpen} onOpenChange={setIsExpenseDialogOpen}>

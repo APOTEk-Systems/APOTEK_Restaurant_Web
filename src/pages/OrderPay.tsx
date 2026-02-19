@@ -455,7 +455,7 @@ export default function OrderPay() {
                             )}
                           </div>
                           <span className="text-sm font-medium">
-                            ${(item.price * item.quantity).toFixed(2)}
+                            {(item.price * item.quantity).toFixed(2)}
                           </span>
                         </div>
                       );
@@ -466,15 +466,15 @@ export default function OrderPay() {
                 <div className="pt-4 border-t border-border space-y-2">
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Total Amount</span>
-                    <span className="text-foreground">${paymentSummary?.totalAmount.toFixed(2)}</span>
+                    <span className="text-foreground">{paymentSummary?.totalAmount.toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Amount Paid</span>
-                    <span className="text-foreground">${paymentSummary?.amountPaid.toFixed(2)}</span>
+                    <span className="text-foreground">{paymentSummary?.amountPaid.toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between text-lg font-semibold pt-2 border-t border-border">
                     <span className="text-foreground">Remaining</span>
-                    <span className="text-primary">${paymentSummary?.remainingAmount.toFixed(2)}</span>
+                    <span className="text-primary">{paymentSummary?.remainingAmount.toFixed(2)}</span>
                   </div>
                 </div>
               </CardContent>
@@ -598,7 +598,7 @@ export default function OrderPay() {
                       <div className="flex justify-between items-center p-3 rounded-lg bg-green-500/10">
                         <span className="text-sm text-green-600">Change to Return</span>
                         <span className="font-medium text-green-600">
-                          ${changeAmount.toFixed(2)}
+                          {changeAmount.toFixed(2)}
                         </span>
                       </div>
                     )}
@@ -622,7 +622,7 @@ export default function OrderPay() {
                         ) : (
                           <>
                             <DollarSign className="h-4 w-4 mr-2" />
-                            Record Payment (${paymentSummary?.remainingAmount.toFixed(2)})
+                            Record Payment ({paymentSummary?.remainingAmount.toFixed(2)})
                           </>
                         )}
                       </Button>
@@ -834,12 +834,12 @@ export default function OrderPay() {
                       <div className="flex justify-between items-center">
                         <span className="text-sm">Total to Pay</span>
                         <span className="text-lg font-semibold">
-                          ${calculateSplitTotal().toFixed(2)}
+                          {calculateSplitTotal().toFixed(2)}
                         </span>
                       </div>
                       <div className="flex justify-between items-center text-sm text-muted-foreground">
                         <span>Order Total</span>
-                        <span>${paymentSummary?.totalAmount.toFixed(2)}</span>
+                        <span>{paymentSummary?.totalAmount.toFixed(2)}</span>
                       </div>
                       <div className="flex justify-between items-center text-sm">
                         <span>Remaining After</span>
@@ -850,7 +850,7 @@ export default function OrderPay() {
                               : "text-red-600"
                           }
                         >
-                          ${(paymentSummary?.totalAmount || 0) - calculateSplitTotal()}
+                          {(paymentSummary?.totalAmount || 0) - calculateSplitTotal()}
                         </span>
                       </div>
                     </div>

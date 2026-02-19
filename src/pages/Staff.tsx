@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -10,153 +11,79 @@ import {
   SelectTrigger,
   SelectValue
 } from "@/components/ui/select";
-import { Search, Plus, Phone, Mail, Calendar, Briefcase } from "lucide-react";
+import { Search, Plus, Phone, Mail, Calendar, Briefcase, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@/components/ui/table";
-
-const staff = [
-  { 
-    id: 1, 
-    name: "John Doe", 
-    position: "Head Chef", 
-    department: "Kitchen",
-    phone: "+1 555-0101", 
-    email: "john.doe@restaurant.com",
-    hireDate: "2022-03-15",
-    status: "active",
-    hasAccount: true
-  },
-  { 
-    id: 2, 
-    name: "Jane Smith", 
-    position: "Sous Chef", 
-    department: "Kitchen",
-    phone: "+1 555-0102", 
-    email: "jane.smith@restaurant.com",
-    hireDate: "2022-06-20",
-    status: "active",
-    hasAccount: true
-  },
-  { 
-    id: 3, 
-    name: "Mike Johnson", 
-    position: "Bartender", 
-    department: "Bar",
-    phone: "+1 555-0103", 
-    email: "mike.johnson@restaurant.com",
-    hireDate: "2023-01-10",
-    status: "active",
-    hasAccount: true
-  },
-  { 
-    id: 4, 
-    name: "Sarah Wilson", 
-    position: "Server", 
-    department: "Front of House",
-    phone: "+1 555-0104", 
-    email: "sarah.wilson@restaurant.com",
-    hireDate: "2023-02-28",
-    status: "active",
-    hasAccount: false
-  },
-  { 
-    id: 5, 
-    name: "David Brown", 
-    position: "Host", 
-    department: "Front of House",
-    phone: "+1 555-0105", 
-    email: "david.brown@restaurant.com",
-    hireDate: "2023-04-15",
-    status: "active",
-    hasAccount: false
-  },
-  { 
-    id: 6, 
-    name: "Emily Davis", 
-    position: "Dishwasher", 
-    department: "Kitchen",
-    phone: "+1 555-0106", 
-    email: "emily.davis@restaurant.com",
-    hireDate: "2023-05-01",
-    status: "inactive",
-    hasAccount: false
-  },
-  { 
-    id: 7, 
-    name: "Chris Martinez", 
-    position: "Line Cook", 
-    department: "Kitchen",
-    phone: "+1 555-0107", 
-    email: "chris.martinez@restaurant.com",
-    hireDate: "2023-06-10",
-    status: "active",
-    hasAccount: false
-  },
-  { 
-    id: 8, 
-    name: "Amanda Taylor", 
-    position: "Inventory Manager", 
-    department: "Operations",
-    phone: "+1 555-0108", 
-    email: "amanda.taylor@restaurant.com",
-    hireDate: "2022-09-01",
-    status: "active",
-    hasAccount: true
-  },
-];
+import { staffService, type Staff } from "@/services/staffService";
 
 const departmentColors: Record<string, string> = {
-  "Kitchen": "bg-orange-500/10 text-orange-500",
-  "Bar": "bg-purple-500/10 text-purple-500",
-  "Front of House": "bg-blue-500/10 text-blue-500",
-  "Operations": "bg-green-500/10 text-green-500",
+  "KITCHEN": "bg-orange-500/10 text-orange-500",
+  "BAR": "bg-purple-500/10 text-purple-500",
+  "SERVICE": "bg-blue-500/10 text-blue-500",
+  "OPERATIONS": "bg-green-500/10 text-green-500",
+  "MANAGEMENT": "bg-red-500/10 text-red-500",
 };
 
 const Staff = () => {
   const navigate = useNavigate();
-  
-  const totalStaff = staff.length;
-  const activeStaff = staff.filter(s => s.status === "active").length;
-  const withAccounts = staff.filter(s => s.hasAccount).length;
-  const departments = [...new Set(staff.map(s => s.department))].length;
+  const [staff, setStaff] = useState<Staff[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [departmentFilter, setDepartmentFilter] = useState("all");
+
+  useEffect(() => {
+    fetchStaff();
+  }, []);
+
+  const fetchStaff = async () => {
+    try {
+      setIsLoading(true);
+      const data = await staffService.getAll();
+      setStaff(data);
+    } catch (error) {
+      console.error("Failed to fetch staff:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const filteredStaff = staff.filter(member => {
+    const matchesSearch =
+      member.firstName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      member.lastName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      member.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      member.role?.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesDepartment = 
+      departmentFilter === "all" || 
+      member.department?.toUpperCase() === departmentFilter.toUpperCase();
+    
+    return matchesSearch && matchesDepartment;
+  });
+
+  const totalStaff = filteredStaff.length;
+  const activeStaff = filteredStaff.filter(s => s.status === "ACTIVE" || s.status === "active").length;
+  const departments = [...new Set(staff.map(s => s.department).filter(Boolean))].length;
+
+  const formatDepartment = (dept: string | undefined) => {
+    if (!dept) return "N/A";
+    const deptMap: Record<string, string> = {
+      "KITCHEN": "Kitchen",
+      "BAR": "Bar",
+      "SERVICE": "Front of House",
+      "OPERATIONS": "Operations",
+      "MANAGEMENT": "Management"
+    };
+    return deptMap[dept.toUpperCase()] || dept;
+  };
 
   return (
     <MainLayout 
       title="Staff" 
       subtitle="Manage all staff members"
     >
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <Card className="bg-card border-border">
-          <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground">Total Staff</p>
-            <p className="text-2xl font-bold text-foreground">{totalStaff}</p>
-            <p className="text-xs text-muted-foreground">All employees</p>
-          </CardContent>
-        </Card>
-        <Card className="bg-card border-border">
-          <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground">Active</p>
-            <p className="text-2xl font-bold text-primary">{activeStaff}</p>
-            <p className="text-xs text-muted-foreground">Currently employed</p>
-          </CardContent>
-        </Card>
-        <Card className="bg-card border-border">
-          <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground">With System Access</p>
-            <p className="text-2xl font-bold text-blue-500">{withAccounts}</p>
-            <p className="text-xs text-muted-foreground">Have user accounts</p>
-          </CardContent>
-        </Card>
-        <Card className="bg-card border-border">
-          <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground">Departments</p>
-            <p className="text-2xl font-bold text-foreground">{departments}</p>
-            <p className="text-xs text-muted-foreground">Active departments</p>
-          </CardContent>
-        </Card>
-      </div>
+  
 
       {/* Actions */}
       <div className="flex flex-col sm:flex-row gap-4 mb-6">
@@ -165,18 +92,21 @@ const Staff = () => {
           <Input 
             placeholder="Search staff..." 
             className="pl-10 bg-card border-border"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        <Select defaultValue="all">
+        <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
           <SelectTrigger className="w-full sm:w-48 bg-card border-border">
             <SelectValue placeholder="Department" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Departments</SelectItem>
-            <SelectItem value="kitchen">Kitchen</SelectItem>
-            <SelectItem value="bar">Bar</SelectItem>
-            <SelectItem value="foh">Front of House</SelectItem>
-            <SelectItem value="operations">Operations</SelectItem>
+            <SelectItem value="KITCHEN">Kitchen</SelectItem>
+            <SelectItem value="BAR">Bar</SelectItem>
+            <SelectItem value="SERVICE">Front of House</SelectItem>
+            <SelectItem value="OPERATIONS">Operations</SelectItem>
+            <SelectItem value="MANAGEMENT">Management</SelectItem>
           </SelectContent>
         </Select>
         <Button 
@@ -189,84 +119,121 @@ const Staff = () => {
       </div>
 
       {/* Staff Table */}
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Name</TableHead>
-            <TableHead>Position</TableHead>
-            <TableHead>Department</TableHead>
-            <TableHead>Contact</TableHead>
-            <TableHead>Hire Date</TableHead>
-            <TableHead>Status</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {staff.map((member) => (
-            <TableRow key={member.id} className={cn(
-              "cursor-pointer",
-              member.status === "inactive" && "opacity-60"
-            )}>
-              <TableCell>
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                    <span className="text-lg font-semibold text-primary">
-                      {member.name.split(' ').map(n => n[0]).join('')}
+      {isLoading ? (
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      ) : filteredStaff.length === 0 ? (
+        <Card className="bg-card border-border">
+          <CardContent className="p-8 text-center">
+            <p className="text-muted-foreground">No staff members found.</p>
+            <Button 
+              variant="outline" 
+              className="mt-4"
+              onClick={() => navigate("/staff/new")}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Add Staff Member
+            </Button>
+          </CardContent>
+        </Card>
+      ) : (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Name</TableHead>
+              <TableHead>Position</TableHead>
+              <TableHead>Department</TableHead>
+              <TableHead>Contact</TableHead>
+              <TableHead>Hire Date</TableHead>
+              <TableHead>Status</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filteredStaff.map((member) => (
+              <TableRow key={member.id} className={cn(
+                "cursor-pointer",
+                (member.status === "INACTIVE" || member.status === "inactive") && "opacity-60"
+              )}>
+                <TableCell>
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center overflow-hidden">
+                      {member.imageUrl ? (
+                        <img src={member.imageUrl} alt={`${member.firstName} ${member.lastName}`} className="h-full w-full object-cover" />
+                      ) : (
+                        <span className="text-lg font-semibold text-primary">
+                          {member.firstName?.[0]}{member.lastName?.[0]}
+                        </span>
+                      )}
+                    </div>
+                    <div>
+                      <div className="font-semibold text-foreground">
+                        {member.firstName} {member.lastName}
+                      </div>
+                    </div>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Briefcase className="h-3.5 w-3.5" />
+                    <span>{member.role || "N/A"}</span>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <Badge className={cn("text-xs", departmentColors[member.department?.toUpperCase() || ""])}>
+                    {formatDepartment(member.department)}
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  <div className="space-y-1 text-sm text-muted-foreground">
+                    {member.phone && (
+                      <div className="flex items-center gap-2">
+                        <Phone className="h-3.5 w-3.5" />
+                        <span>{member.phone}</span>
+                      </div>
+                    )}
+                    {member.email && (
+                      <div className="flex items-center gap-2">
+                        <Mail className="h-3.5 w-3.5" />
+                        <span className="truncate">{member.email}</span>
+                      </div>
+                    )}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Calendar className="h-3.5 w-3.5" />
+                    <span>
+                      {member.hireDate 
+                        ? new Date(member.hireDate).toLocaleDateString() 
+                        : "N/A"}
                     </span>
                   </div>
-                  <div>
-                    <div className="font-semibold text-foreground">{member.name}</div>
+                </TableCell>
+                <TableCell>
+                  <div className="space-y-1">
+                    {(member.status === "ACTIVE" || member.status === "active") && (
+                      <Badge variant="outline" className="text-xs border-success/30 text-success">
+                        Active
+                      </Badge>
+                    )}
+                    {(member.status === "INACTIVE" || member.status === "inactive") && (
+                      <Badge variant="outline" className="text-xs border-muted-foreground text-muted-foreground">
+                        Inactive
+                      </Badge>
+                    )}
+                    {(member.status === "ON_LEAVE" || member.status === "on_leave") && (
+                      <Badge variant="outline" className="text-xs border-yellow-500/30 text-yellow-500">
+                        On Leave
+                      </Badge>
+                    )}
                   </div>
-                </div>
-              </TableCell>
-              <TableCell>
-                <div className="text-sm text-muted-foreground">{member.position}</div>
-              </TableCell>
-              <TableCell>
-                <Badge className={cn("text-xs", departmentColors[member.department])}>
-                  {member.department}
-                </Badge>
-              </TableCell>
-              <TableCell>
-                <div className="space-y-1 text-sm text-muted-foreground">
-                  <div className="flex items-center gap-2">
-                    <Phone className="h-3.5 w-3.5" />
-                    <span>{member.phone}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Mail className="h-3.5 w-3.5" />
-                    <span className="truncate">{member.email}</span>
-                  </div>
-                </div>
-              </TableCell>
-              <TableCell>
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Calendar className="h-3.5 w-3.5" />
-                  <span>{new Date(member.hireDate).toLocaleDateString()}</span>
-                </div>
-              </TableCell>
-              <TableCell>
-                <div className="space-y-1">
-                  {member.hasAccount && (
-                    <Badge variant="outline" className="text-xs border-blue-500/30 text-blue-500">
-                      Has Account
-                    </Badge>
-                  )}
-                  {member.status === "inactive" && (
-                    <Badge variant="outline" className="text-xs border-muted-foreground text-muted-foreground">
-                      Inactive
-                    </Badge>
-                  )}
-                  {member.status === "active" && !member.hasAccount && (
-                    <Badge variant="outline" className="text-xs border-success/30 text-success">
-                      Active
-                    </Badge>
-                  )}
-                </div>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      )}
     </MainLayout>
   );
 };

@@ -13,6 +13,55 @@ import { ReservationService } from "@/services/reservationService";
 import { TableService } from "@/services/tableService";
 import { toast } from "@/components/ui/use-toast";
 
+// Validate Tanzanian phone numbers
+function isValidPhoneNumber(phone: string): boolean {
+  // Remove any spaces
+  const cleaned = phone.replace(/\s/g, "");
+  
+  // Empty string is not allowed for required field
+  if (!cleaned) return false;
+  
+  // Pattern 1: exactly 9 digits (e.g., 678636422)
+  if (/^\d{9}$/.test(cleaned)) {
+    return true;
+  }
+  
+  // Pattern 2: +255 followed by 9 digits (e.g., +255678636422)
+  if (/^\+255\d{9}$/.test(cleaned)) {
+    return true;
+  }
+  
+  // Pattern 3: 0 followed by 9 digits (e.g., 0770339889)
+  if (/^0\d{9}$/.test(cleaned)) {
+    return true;
+  }
+  
+  return false;
+}
+
+// Transform phone number to backend format (+255XXXXXXXXX)
+function transformPhoneForBackend(phone: string): string {
+  const cleaned = phone.replace(/\s/g, "");
+  
+  // Already has +255 prefix
+  if (/^\+255\d{9}$/.test(cleaned)) {
+    return cleaned;
+  }
+  
+  // Just 9 digits, prepend +255
+  if (/^\d{9}$/.test(cleaned)) {
+    return "+255" + cleaned;
+  }
+  
+  // Starts with 0, convert to +255 (legacy support)
+  if (/^0\d{9}$/.test(cleaned)) {
+    return "+255" + cleaned.substring(1);
+  }
+  
+  // Return original if it doesn't match expected patterns
+  return cleaned;
+}
+
 interface Table {
   id: number;
   number: number;
@@ -59,6 +108,7 @@ export default function ReservationNew() {
     notes: ""
   });
   const [selectedTableIds, setSelectedTableIds] = useState<number[]>([]);
+  const [phoneError, setPhoneError] = useState<string>("");
 
   // Fetch tables for selection
   const { data: tables = [], isLoading: isTablesLoading } = useQuery({
@@ -174,6 +224,11 @@ export default function ReservationNew() {
 
   const handleInputChange = (field: string, value: string | number) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+    
+    // Clear phone error when user types
+    if (field === "customerPhone") {
+      setPhoneError("");
+    }
   };
 
   const handleTableSelect = (tableId: number) => {
@@ -202,6 +257,12 @@ export default function ReservationNew() {
         description: "Please fill in all required fields.",
         variant: "destructive",
       });
+      return;
+    }
+
+    // Validate phone number
+    if (!isValidPhoneNumber(formData.customerPhone)) {
+      setPhoneError("Invalid format. Use: 9 digits, 0XX..., or +255XX...");
       return;
     }
 
@@ -239,7 +300,7 @@ export default function ReservationNew() {
 
     const reservationData = {
       customerName: formData.customerName,
-      customerPhone: formData.customerPhone,
+      customerPhone: transformPhoneForBackend(formData.customerPhone),
       customerEmail: formData.customerEmail || undefined,
       date: dateTime.toISOString(),
       numberOfGuests: parseInt(formData.numberOfGuests) || 1,
@@ -328,14 +389,22 @@ export default function ReservationNew() {
                   <Label htmlFor="customerPhone" className="text-sm font-medium">
                     Phone *
                   </Label>
-                  <Input
-                    id="customerPhone"
-                    value={formData.customerPhone}
-                    onChange={(e) => handleInputChange("customerPhone", e.target.value)}
-                    placeholder="Enter phone number"
-                    required
-                    className="h-9"
-                  />
+                  <div className="flex">
+                    <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-input bg-muted text-muted-foreground text-sm">
+                      +255
+                    </span>
+                    <Input
+                      id="customerPhone"
+                      value={formData.customerPhone}
+                      onChange={(e) => handleInputChange("customerPhone", e.target.value)}
+                      placeholder="Enter Phone Number"
+                      required
+                      className={`h-9 rounded-l-none ${phoneError ? "border-destructive" : ""}`}
+                    />
+                  </div>
+                  {phoneError && (
+                    <p className="text-xs text-destructive">{phoneError}</p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="numberOfGuests" className="text-sm font-medium">

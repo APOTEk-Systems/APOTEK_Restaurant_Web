@@ -170,7 +170,7 @@ export interface Order {
   orderItems: OrderItem[];
   kitchenOrder: KitchenOrder | null;
   barOrder: BarOrder | null;
-  payments?: Payment[];
+  payments: Payment[];
 }
 
 interface CreateOrderData {

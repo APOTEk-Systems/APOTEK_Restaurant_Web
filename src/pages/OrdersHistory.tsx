@@ -4,19 +4,21 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
 } from "@/components/ui/table";
-import { Search, Filter, Download, Eye, Calendar, DollarSign, Receipt, Loader2 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Search, Filter, Download, Eye, Calendar, DollarSign, Receipt, Loader2, CreditCard, Banknote, Wallet } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { OrderService, Order } from "@/services/orderService";
+import { OrderService, Order, Payment } from "@/services/orderService";
 import { DateRangePicker, DateRange } from "@/components/ui/date-range-picker";
 import { cn, formatCurrency } from "@/lib/utils";
+import { format } from "date-fns";
 
 const paymentMethodStyles = {
   CASH: "bg-success/10 text-success",
@@ -27,7 +29,9 @@ const paymentMethodStyles = {
 export default function OrdersHistory() {
   const [searchQuery, setSearchQuery] = useState("");
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("PAID");
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [showPaymentDialog, setShowPaymentDialog] = useState(false);
 
   // Fetch orders with date range filter
   const { data: orders = [], isLoading, error } = useQuery({
@@ -101,9 +105,8 @@ export default function OrdersHistory() {
      
 
       {/* Filters */}
-      <Card className="mb-6">
-        <CardContent className="p-4">
-          <div className="flex flex-col sm:flex-row gap-4">
+    
+          <div className="flex flex-col sm:flex-row gap-4 mb-4">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
@@ -118,39 +121,11 @@ export default function OrdersHistory() {
                 dateRange={dateRange}
                 onDateRangeChange={handleDateRangeChange}
               />
-              <Button 
-                variant={statusFilter === "all" ? "default" : "outline"} 
-                size="sm"
-                onClick={() => setStatusFilter("all")}
-              >
-                All Status
-              </Button>
-              <Button 
-                variant={statusFilter === "COMPLETED" ? "default" : "outline"} 
-                size="sm"
-                onClick={() => setStatusFilter("COMPLETED")}
-              >
-                Completed
-              </Button>
-              <Button 
-                variant={statusFilter === "PAID" ? "default" : "outline"} 
-                size="sm"
-                onClick={() => setStatusFilter("PAID")}
-              >
-                Paid
-              </Button>
-              <Button 
-                variant={statusFilter === "CANCELLED" ? "default" : "outline"} 
-                size="sm"
-                onClick={() => setStatusFilter("CANCELLED")}
-              >
-                Cancelled
-              </Button>
+            
               
             </div>
           </div>
-        </CardContent>
-      </Card>
+        
 
       {/* Orders Table */}
       <Card>
@@ -175,7 +150,7 @@ export default function OrdersHistory() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Order ID</TableHead>
-                  <TableHead>Date & Time</TableHead>
+                  <TableHead>Date</TableHead>
                   <TableHead>Table</TableHead>
                   <TableHead>Items</TableHead>
                   <TableHead>Waiter</TableHead>
@@ -191,7 +166,7 @@ export default function OrdersHistory() {
                     <TableCell className="font-medium">#{order.orderNumber}</TableCell>
                     <TableCell>
                       <div>
-                        <span className="text-sm">{formatDate(order.createdAt)}</span>
+                        <span className="text-sm">{format(order.createdAt, "dd/MM/yyyy")}</span>
                         <span className="text-xs text-muted-foreground ml-2 block">{formatTime(order.createdAt)}</span>
                       </div>
                     </TableCell>
@@ -214,9 +189,84 @@ export default function OrdersHistory() {
                     </TableCell>
                     <TableCell className="text-right font-medium">{formatCurrency(order.total || 0)}</TableCell>
                     <TableCell className="text-right">
-                      <Button variant="ghost" size="sm">
-                        <Eye className="h-4 w-4" />
-                      </Button>
+                      <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
+                        <DialogTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setSelectedOrder(order);
+                              setShowPaymentDialog(true);
+                            }}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="sm:max-w-[425px]">
+                          <DialogHeader>
+                            <DialogTitle>Payment Details - Order #{selectedOrder?.orderNumber}</DialogTitle>
+                          </DialogHeader>
+                          {selectedOrder?.payments && selectedOrder.payments.length > 0 ? (
+                            <div className="space-y-4">
+                              {selectedOrder.payments.map((payment: Payment, index: number) => (
+                                <div key={payment.id} className="p-4 border rounded-lg space-y-3">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-sm text-muted-foreground">Payment #{index + 1}</span>
+                                    <Badge className={cn(
+                                      payment.paymentMethod === 'CASH' && "bg-success/10 text-success",
+                                      payment.paymentMethod === 'CARD' && "bg-primary/10 text-primary",
+                                      payment.paymentMethod === 'ONLINE' && "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400"
+                                    )}>
+                                      {payment.paymentMethod === 'CASH' && <Banknote className="h-3 w-3 mr-1" />}
+                                      {payment.paymentMethod === 'CARD' && <CreditCard className="h-3 w-3 mr-1" />}
+                                      {payment.paymentMethod === 'ONLINE' && <Wallet className="h-3 w-3 mr-1" />}
+                                      {payment.paymentMethod}
+                                    </Badge>
+                                  </div>
+                                  <div className="flex justify-between items-center">
+                                    <span className="text-muted-foreground">Amount</span>
+                                    <span className="font-semibold text-lg">{formatCurrency(payment.amount)}</span>
+                                  </div>
+                                  <div className="flex justify-between items-center">
+                                    <span className="text-muted-foreground">Status</span>
+                                    <Badge variant={payment.status === 'COMPLETED' ? 'default' : 'destructive'}>
+                                      {payment.status}
+                                    </Badge>
+                                  </div>
+                                  <div className="flex justify-between items-center">
+                                    <span className="text-muted-foreground">Date</span>
+                                    <span className="text-sm">
+                                      {new Date(payment.createdAt).toLocaleDateString('en-US', {
+                                        year: 'numeric',
+                                        month: 'short',
+                                        day: 'numeric',
+                                        hour: 'numeric',
+                                        minute: '2-digit'
+                                      })}
+                                    </span>
+                                  </div>
+                                  {payment.transactionId && (
+                                    <div className="flex justify-between items-center">
+                                      <span className="text-muted-foreground">Transaction ID</span>
+                                      <span className="text-xs font-mono">{payment.transactionId}</span>
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                              <div className="pt-4 border-t flex justify-between items-center">
+                                <span className="font-semibold">Total Paid</span>
+                                <span className="font-bold text-lg text-success">
+                                  {formatCurrency(selectedOrder.payments.reduce((sum: number, p: Payment) => sum + p.amount, 0))}
+                                </span>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="text-center py-8 text-muted-foreground">
+                              No payment records found for this order.
+                            </div>
+                          )}
+                        </DialogContent>
+                      </Dialog>
                     </TableCell>
                   </TableRow>
                 ))}
