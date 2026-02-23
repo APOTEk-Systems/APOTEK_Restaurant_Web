@@ -11,6 +11,7 @@ export interface AuthUser {
 	email?: string;
 	staffId?: number;
 	userGroupId?: number;
+	userGroupName?: string;
 	staff?: {
 		firstName: string;
 		lastName: string;

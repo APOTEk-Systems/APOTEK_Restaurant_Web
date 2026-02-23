@@ -62,87 +62,104 @@ const Login = () => {
   }
 
   return (
-    <div className='min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-muted/20 p-4'>
-      <div className='w-full max-w-md'>
-        {/* Logo and Brand */}
-        <div className='flex flex-col items-center mb-8'>
-          <div className='h-16 w-16 rounded-2xl bg-primary flex items-center justify-center mb-4 shadow-lg'>
-            <UtensilsCrossed className='h-8 w-8 text-primary-foreground' />
+    <div className='min-h-screen flex bg-gradient-to-br from-background to-muted/20'>
+      {/* Left Side - Logo and Brand */}
+      <div className='hidden lg:flex lg:w-1/2 bg-primary/5 flex-col items-center justify-center p-12'>
+        <div className='max-w-md text-center'>
+          <div className='h-24 w-24 rounded-3xl bg-primary flex items-center justify-center mx-auto mb-8 shadow-lg'>
+            <UtensilsCrossed className='h-12 w-12 text-primary-foreground' />
           </div>
-          <h1 className='text-3xl font-bold text-foreground'>APOTEK</h1>
-          <p className='text-muted-foreground text-sm mt-1'>Restaurant Management System</p>
+          <h1 className='text-5xl font-bold text-foreground mb-4'>APOTEK</h1>
+          <p className='text-xl text-muted-foreground mb-8'>Restaurant Management System</p>
+          <p className='text-sm text-muted-foreground'>
+            Streamline your restaurant operations with our comprehensive management solution
+          </p>
         </div>
+      </div>
 
-        {/* Login Card */}
-        <Card className='border-border/50 shadow-xl'>
-          <CardHeader className='space-y-1 pb-4'>
-            <CardTitle className='text-2xl text-center'>Welcome back</CardTitle>
-            <CardDescription className='text-center'>
-              Enter your credentials to access your account
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className='space-y-4'>
-              <div className='space-y-2'>
-                <Label htmlFor='email'>Email</Label>
-                <Input
-                  id='email'
-                  type='email'
-                  placeholder='Enter your email'
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  disabled={isSubmitting}
-                  className='bg-background'
-                  autoComplete='email'
-                />
-              </div>
-
-              <div className='space-y-2'>
-                <Label htmlFor='password'>Password</Label>
-                <Input
-                  id='password'
-                  type='password'
-                  placeholder='Enter your password'
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  disabled={isSubmitting}
-                  className='bg-background'
-                  autoComplete='current-password'
-                />
-              </div>
-
-              <Button
-                type='submit'
-                className='w-full gradient-primary text-primary-foreground shadow-glow'
-                disabled={isSubmitting}
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className='mr-2 h-4 w-4 animate-spin' />
-                    Signing in...
-                  </>
-                ) : (
-                  'Sign in'
-                )}
-              </Button>
-            </form>
-
-            {/* Footer */}
-            <div className='mt-6 pt-6 border-t border-border/50'>
-              <p className='text-center text-sm text-muted-foreground'>
-                Having trouble signing in?{' '}
-                <span className='text-primary cursor-pointer hover:underline'>
-                  Contact administrator
-                </span>
-              </p>
+      {/* Right Side - Login Form */}
+      <div className='w-full lg:w-1/2 flex items-center justify-center p-4 lg:p-12'>
+        <div className='w-full max-w-md'>
+          {/* Mobile Logo - Visible only on small screens */}
+          <div className='lg:hidden flex flex-col items-center mb-8'>
+            <div className='h-16 w-16 rounded-2xl bg-primary flex items-center justify-center mb-4 shadow-lg'>
+              <UtensilsCrossed className='h-8 w-8 text-primary-foreground' />
             </div>
-          </CardContent>
-        </Card>
+            <h1 className='text-3xl font-bold text-foreground'>APOTEK</h1>
+            <p className='text-muted-foreground text-sm mt-1'>Restaurant Management System</p>
+          </div>
 
-        {/* Copyright */}
-        <p className='text-center text-xs text-muted-foreground mt-8'>
-          © {new Date().getFullYear()} APOTEK Restaurant. All rights reserved.
-        </p>
+          {/* Login Card */}
+          <Card className='border-border/50 shadow-xl'>
+            <CardHeader className='space-y-1 pb-4'>
+              <CardTitle className='text-2xl text-center'>Welcome back</CardTitle>
+              <CardDescription className='text-center'>
+                Enter your credentials to access your account
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleSubmit} className='space-y-4'>
+                <div className='space-y-2'>
+                  <Label htmlFor='email'>Email</Label>
+                  <Input
+                    id='email'
+                    type='email'
+                    placeholder='Enter your email'
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    disabled={isSubmitting}
+                    className='bg-background'
+                    autoComplete='email'
+                  />
+                </div>
+
+                <div className='space-y-2'>
+                  <Label htmlFor='password'>Password</Label>
+                  <Input
+                    id='password'
+                    type='password'
+                    placeholder='Enter your password'
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    disabled={isSubmitting}
+                    className='bg-background'
+                    autoComplete='current-password'
+                  />
+                </div>
+
+                <Button
+                  type='submit'
+                  className='w-full gradient-primary text-primary-foreground shadow-glow'
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className='mr-2 h-4 w-4 animate-spin' />
+                      Signing in...
+                    </>
+                  ) : (
+                    'Sign in'
+                  )}
+                </Button>
+              </form>
+
+              {/* Footer */}
+              <div className='mt-6 pt-6 border-t border-border/50'>
+                <p className='text-center text-sm text-muted-foreground'>
+                  Having trouble signing in?{' '}
+                  <span className='text-primary cursor-pointer hover:underline'>
+                    Contact administrator
+                  </span>
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Copyright - Desktop only */}
+          <p className='text-center text-xs text-muted-foreground mt-8 hidden lg:block'>
+            © {new Date().getFullYear()} APOTEK Restaurant. All rights reserved.
+          </p>
+        </div>
       </div>
     </div>
   );
