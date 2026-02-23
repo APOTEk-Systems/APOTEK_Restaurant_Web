@@ -175,7 +175,30 @@ export default function Users() {
       permissionId: o.permissionId,
       allowed: o.allowed,
     })) || [];
-    setPermissionOverrides(existingOverrides);
+    
+    // Get permissions from user's group
+    const groupPermissions = user.userGroup?.permissions || [];
+    const groupPermissionIds = new Set(
+      groupPermissions.map((p: any) => p.permissionId)
+    );
+    
+    // Calculate initial permission states based on group permissions + overrides
+    // A permission is enabled if it's in the group OR has an explicit override set to true
+    const initialPermissions = allPermissions.map(perm => {
+      const override = existingOverrides.find((o: any) => o.permissionId === perm.id);
+      if (override !== undefined) {
+        // Has explicit override
+        return { permissionId: perm.id, allowed: override.allowed };
+      } else if (groupPermissionIds.has(perm.id)) {
+        // Has permission from user group
+        return { permissionId: perm.id, allowed: true };
+      } else {
+        // No permission
+        return { permissionId: perm.id, allowed: false };
+      }
+    });
+    
+    setPermissionOverrides(initialPermissions);
     setPermissionsDialog({ open: true, user });
     setOpenPopover(null);
   };
@@ -192,9 +215,22 @@ export default function Users() {
 
   const handleSavePermissions = () => {
     if (permissionsDialog.user) {
-      updatePermissionsMutation.mutate({ 
-        userId: permissionsDialog.user.id, 
-        overrides: permissionOverrides 
+      // Get user's group permission IDs
+      const groupPermissions = permissionsDialog.user.userGroup?.permissions || [];
+      const groupPermissionIds = new Set(
+        groupPermissions.map((p: any) => p.permissionId)
+      );
+      
+      // Only save overrides for permissions that differ from group defaults
+      const overridesToSave = permissionOverrides.filter(perm => {
+        const isInGroup = groupPermissionIds.has(perm.permissionId);
+        // Save if: (in group but unchecked) OR (not in group but checked)
+        return (isInGroup && !perm.allowed) || (!isInGroup && perm.allowed);
+      });
+      
+      updatePermissionsMutation.mutate({
+        userId: permissionsDialog.user.id,
+        overrides: overridesToSave
       });
     }
   };
