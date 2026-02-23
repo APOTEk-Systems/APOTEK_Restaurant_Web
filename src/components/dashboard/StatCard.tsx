@@ -42,9 +42,9 @@ export function StatCard({
             </p>
           )}
         </div>
-        <div className={cn("p-3 rounded-xl", iconColorClasses[iconColor])}>
+        {/* <div className={cn("p-3 rounded-xl", iconColorClasses[iconColor])}>
           <Icon className="h-6 w-6" />
-        </div>
+        </div> */}
       </div>
     </div>
   );

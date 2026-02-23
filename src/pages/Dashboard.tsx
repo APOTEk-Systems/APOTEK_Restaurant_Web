@@ -74,7 +74,7 @@ export default function Dashboard() {
     );
   }, [weeklyOrders]);
 
-  const todayRevenue = todayOrders.reduce((sum: number, order: any) => sum + (order.total || 0), 0);
+  const todayRevenue = todayOrders.reduce((sum: number, order: any) => sum + (order.total || 0), 0) as number;
 
   const isLoading = loadingWeeklyOrders || loadingRecentOrders || loadingReservations || loadingTables || loadingInventory || loadingRequests;
   
@@ -101,7 +101,7 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <StatCard
             title="Today's Revenue"
-            value={isLoading ? "..." : `TZS ${todayRevenue.toLocaleString()}`}
+            value={isLoading ? "..." : `${todayRevenue.toLocaleString("en-US",{})}`}
             change={isLoading ? "Loading..." : `${todayOrders.length} orders today`}
             changeType="positive"
             icon={DollarSign}
@@ -109,7 +109,7 @@ export default function Dashboard() {
           />
           <StatCard
             title="Weekly Revenue"
-            value={isLoading ? "..." : `TZS ${weeklyStats.totalRevenue.toLocaleString()}`}
+            value={isLoading ? "..." : `${weeklyStats.totalRevenue.toLocaleString("en-US",{maximumFractionDigits:0})}`}
             change={isLoading ? "Loading..." : `${weeklyStats.totalOrders} orders this week`}
             changeType="neutral"
             icon={TrendingUp}
