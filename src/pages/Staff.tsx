@@ -11,7 +11,9 @@ import {
   SelectTrigger,
   SelectValue
 } from "@/components/ui/select";
-import { Search, Plus, Phone, Mail, Calendar, Briefcase, Loader2 } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { Search, Plus, Phone, Mail, Calendar, Briefcase, Loader2, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@/components/ui/table";
@@ -19,7 +21,8 @@ import { staffService } from "@/services/staffService";
 import { departmentService } from "@/services/departmentService";
 import type { Staff } from "@/services/staffService";
 import type { Department } from "@/services/staffService";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
 
 // Generate consistent colors for departments based on their name
 const getDepartmentColor = (deptName: string | undefined): string => {
@@ -53,8 +56,16 @@ const getDepartmentColor = (deptName: string | undefined): string => {
 
 const Staff = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState("all");
+  
+  // Popover state
+  const [openPopover, setOpenPopover] = useState<number | null>(null);
+  
+  // Delete dialog state
+  const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; staff: Staff | null }>({ open: false, staff: null });
 
   // React Query for data fetching
   const { data: staff = [], isLoading: loadingStaff } = useQuery({
@@ -65,6 +76,23 @@ const Staff = () => {
   const { data: departments = [] } = useQuery({
     queryKey: ['departments'],
     queryFn: () => departmentService.getAll(),
+  });
+
+  // Delete staff mutation
+  const deleteStaffMutation = useMutation({
+    mutationFn: (id: number) => staffService.delete(id),
+    onSuccess: () => {
+      toast({ title: "Success", description: "Staff member deleted successfully" });
+      queryClient.invalidateQueries({ queryKey: ['staff'] });
+      setDeleteDialog({ open: false, staff: null });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.response?.data?.message || "Failed to delete staff member",
+        variant: "destructive"
+      });
+    },
   });
 
   const isLoading = loadingStaff;
@@ -168,6 +196,7 @@ const Staff = () => {
               <TableHead>Contact</TableHead>
               <TableHead>Hire Date</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead>Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -175,13 +204,12 @@ const Staff = () => {
               <TableRow
                 key={member.id}
                 className={cn(
-                  "cursor-pointer hover:bg-muted/50",
+                  "hover:bg-muted/50",
                   (member.status === "INACTIVE" || member.status === "inactive") && "opacity-60"
                 )}
-                onClick={() => navigate(`/staff/edit/${member.id}`)}
               >
                 <TableCell>
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate(`/staff/edit/${member.id}`)}>
                     <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center overflow-hidden">
                       {member.imageUrl ? (
                         <img src={member.imageUrl} alt={`${member.firstName} ${member.lastName}`} className="h-full w-full object-cover" />
@@ -229,8 +257,8 @@ const Staff = () => {
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Calendar className="h-3.5 w-3.5" />
                     <span>
-                      {member.hireDate 
-                        ? new Date(member.hireDate).toLocaleDateString() 
+                      {member.hireDate
+                        ? new Date(member.hireDate).toLocaleDateString()
                         : "N/A"}
                     </span>
                   </div>
@@ -254,11 +282,65 @@ const Staff = () => {
                     )}
                   </div>
                 </TableCell>
+                <TableCell>
+                  <Popover open={openPopover === member.id} onOpenChange={(open) => setOpenPopover(open ? member.id : null)}>
+                    <PopoverTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => e.stopPropagation()}>
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-40 p-2" align="end">
+                      <div className="flex flex-col gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="justify-start h-9"
+                          onClick={() => {
+                            navigate(`/staff/edit/${member.id}`);
+                            setOpenPopover(null);
+                          }}
+                        >
+                          <Pencil className="h-4 w-4 mr-2" />
+                          Edit
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="justify-start h-9 text-destructive hover:text-destructive"
+                          onClick={() => {
+                            setDeleteDialog({ open: true, staff: member });
+                            setOpenPopover(null);
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Delete
+                        </Button>
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        open={deleteDialog.open}
+        onOpenChange={(open) => setDeleteDialog({ open, staff: null })}
+        title="Delete Staff Member"
+        description={`Are you sure you want to delete ${deleteDialog.staff?.firstName} ${deleteDialog.staff?.lastName}? This action cannot be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="destructive"
+        onConfirm={() => {
+          if (deleteDialog.staff) {
+            deleteStaffMutation.mutate(deleteDialog.staff.id);
+          }
+        }}
+        isLoading={deleteStaffMutation.isPending}
+      />
     </MainLayout>
   );
 };

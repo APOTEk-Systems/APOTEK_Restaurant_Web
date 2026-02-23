@@ -1,21 +1,16 @@
 import { useState, lazy, Suspense, useEffect } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, ArrowRight, Save, Loader2, Check } from "lucide-react";
+import { ArrowLeft, Save, Loader2 } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { staffService, CreateStaffData } from "@/services/staffService";
 import { departmentService } from "@/services/departmentService";
 import { staffRoleService } from "@/services/staffRoleService";
-import { userService } from "@/services/userService";
-import { userGroupService } from "@/services/userGroupService";
-import { permissionService } from "@/services/permissionService";
 
 // Lazy load step components
 const StaffInfoStep = lazy(() => import("./steps/StaffInfoStep"));
-const UserAccountStep = lazy(() => import("./steps/UserAccountStep"));
-const PermissionStep = lazy(() => import("./steps/PermissionStep"));
 
 // Validate Tanzanian phone numbers
 function isValidPhoneNumber(phone: string): boolean {
@@ -44,11 +39,7 @@ const StaffNew = () => {
   const queryClient = useQueryClient();
   const [isLoading, setIsLoading] = useState(false);
   
-  // Multi-step form state
-  const [currentStep, setCurrentStep] = useState(1);
-  const [canAccessSystem, setCanAccessSystem] = useState(false);
-  
-  // Form data shared across steps
+  // Form data
   const [formData, setFormData] = useState<CreateStaffData>({
     firstName: "",
     lastName: "",
@@ -64,14 +55,6 @@ const StaffNew = () => {
     notes: "",
   });
 
-  const [userFormData, setUserFormData] = useState({
-    username: "",
-    password: "",
-    userGroupId: undefined as number | undefined,
-  });
-
-  const [permissionOverrides, setPermissionOverrides] = useState<{ permissionId: number; allowed: boolean }[]>([]);
-
   // React Query for data fetching
   const { data: departments = [], isLoading: loadingDepartments } = useQuery({
     queryKey: ['departments'],
@@ -81,16 +64,6 @@ const StaffNew = () => {
   const { data: staffRoles = [], isLoading: loadingRoles } = useQuery({
     queryKey: ['staff-roles'],
     queryFn: () => staffRoleService.getAll(),
-  });
-
-  const { data: userGroups = [], isLoading: loadingGroups } = useQuery({
-    queryKey: ['user-groups'],
-    queryFn: () => userGroupService.getAll(),
-  });
-
-  const { data: allPermissions = [], isLoading: loadingPermissions } = useQuery({
-    queryKey: ['permissions'],
-    queryFn: () => permissionService.getAll(),
   });
 
   // Fetch existing staff if in edit mode
@@ -120,14 +93,10 @@ const StaffNew = () => {
     }
   }, [existingStaff]);
 
-  const isLoadingData = loadingDepartments || loadingRoles || loadingGroups || loadingPermissions || (isEditMode && loadingStaff);
+  const isLoadingData = loadingDepartments || loadingRoles || (isEditMode && loadingStaff);
 
   const handleChange = (field: keyof CreateStaffData, value: string | number | undefined) => {
     setFormData(prev => ({ ...prev, [field]: value }));
-  };
-
-  const handleUserFormChange = (field: string, value: string | number | undefined) => {
-    setUserFormData(prev => ({ ...prev, [field]: value }));
   };
 
   const handleImageUpload = async (file: File): Promise<string> => {
@@ -165,26 +134,7 @@ const StaffNew = () => {
         navigate("/staff");
       } else {
         // Create new staff
-        const createdStaff = await staffService.create(staffData);
-        
-        // If user can access system, create user account
-        if (canAccessSystem && userFormData.username && userFormData.password && userFormData.userGroupId) {
-          const createdUser = await userService.create({
-            username: userFormData.username,
-            password: userFormData.password,
-            email: formData.email || undefined,
-            staffId: createdStaff.id,
-            userGroupId: userFormData.userGroupId,
-          });
-
-          // Handle permission overrides if any
-          if (permissionOverrides.length > 0) {
-            for (const override of permissionOverrides) {
-              await userService.updatePermission(createdUser.id, override.permissionId, override.allowed);
-            }
-          }
-        }
-        
+        await staffService.create(staffData);
         toast({
           title: "Success",
           description: "Staff member created successfully",
@@ -202,29 +152,6 @@ const StaffNew = () => {
     }
   };
 
-  const nextStep = () => {
-    if (currentStep === 1) {
-      if (canAccessSystem) {
-        setCurrentStep(2);
-      } else {
-        handleSubmit();
-      }
-    } else if (currentStep === 2) {
-      setCurrentStep(3);
-    }
-  };
-
-  const prevStep = () => {
-    if (currentStep === 3) {
-      setCurrentStep(2);
-    } else if (currentStep === 2) {
-      setCurrentStep(1);
-    }
-  };
-
-  // Determine total steps
-  const totalSteps = canAccessSystem ? 3 : 1;
-
   if (isLoadingData) {
     return (
       <MainLayout title={isEditMode ? "Edit Staff Member" : "Add Staff Member"} subtitle={isEditMode ? "Update staff information" : "Add a new employee to your team"}>
@@ -236,12 +163,12 @@ const StaffNew = () => {
   }
 
   return (
-    <MainLayout 
-      title={isEditMode ? "Edit Staff Member" : "Add Staff Member"} 
+    <MainLayout
+      title={isEditMode ? "Edit Staff Member" : "Add Staff Member"}
       subtitle={isEditMode ? "Update staff information" : "Add a new employee to your team"}
     >
-      <Button 
-        variant="ghost" 
+      <Button
+        variant="ghost"
         className="mb-6"
         onClick={() => navigate("/staff")}
       >
@@ -249,119 +176,32 @@ const StaffNew = () => {
         Back to Staff
       </Button>
 
-      {/* Step Indicators */}
-      <div className="flex items-center justify-center mb-8">
-        <div className="flex items-center gap-2">
-          <div className={`flex items-center justify-center w-8 h-8 rounded-full ${currentStep >= 1 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
-            {currentStep > 1 ? <Check className="h-4 w-4" /> : "1"}
-          </div>
-          <span className="text-sm">Staff Info</span>
-        </div>
-        {canAccessSystem && (
-          <>
-            <div className="w-8 h-px bg-border mx-2" />
-            <div className="flex items-center gap-2">
-              <div className={`flex items-center justify-center w-8 h-8 rounded-full ${currentStep >= 2 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
-                {currentStep > 2 ? <Check className="h-4 w-4" /> : "2"}
-              </div>
-              <span className="text-sm">User Account</span>
-            </div>
-            <div className="w-8 h-px bg-border mx-2" />
-            <div className="flex items-center gap-2">
-              <div className={`flex items-center justify-center w-8 h-8 rounded-full ${currentStep >= 3 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
-                3
-              </div>
-              <span className="text-sm">Permissions</span>
-            </div>
-          </>
-        )}
-      </div>
-
       <div className="max-w-2xl">
         <Suspense fallback={
           <div className="flex items-center justify-center h-64">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
         }>
-          {currentStep === 1 && (
-            <StaffInfoStep
-              formData={formData}
-              onChange={handleChange}
-              onImageUpload={handleImageUpload}
-              canAccessSystem={canAccessSystem}
-              setCanAccessSystem={setCanAccessSystem}
-              departments={departments}
-              staffRoles={staffRoles}
-            />
-          )}
-
-          {currentStep === 2 && canAccessSystem && (
-            <UserAccountStep
-              userFormData={userFormData}
-              onChange={handleUserFormChange}
-              userGroups={userGroups}
-              onSkipPermissions={() => handleSubmit()}
-            />
-          )}
-
-          {currentStep === 3 && (
-            <PermissionStep
-              permissions={allPermissions}
-              userGroups={userGroups}
-              userGroupId={userFormData.userGroupId}
-              permissionOverrides={permissionOverrides}
-              setPermissionOverrides={setPermissionOverrides}
-            />
-          )}
+          <StaffInfoStep
+            formData={formData}
+            onChange={handleChange}
+            onImageUpload={handleImageUpload}
+            departments={departments}
+            staffRoles={staffRoles}
+          />
         </Suspense>
 
         {/* Actions */}
         <div className="flex gap-3 pt-4">
-          {currentStep > 1 && (
-            <Button 
-              type="button"
-              variant="outline"
-              onClick={prevStep}
-            >
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Previous
-            </Button>
-          )}
-          
-          {currentStep < totalSteps && (
-            <Button 
-              type="button"
-              onClick={nextStep}
-              disabled={currentStep === 2 && (!userFormData.username || !userFormData.password || !userFormData.userGroupId)}
-            >
-              Next
-              <ArrowRight className="h-4 w-4 ml-2" />
-            </Button>
-          )}
-          
-          {currentStep === totalSteps && (
-            <Button 
-              type="button"
-              className="gradient-primary text-primary-foreground shadow-glow"
-              disabled={isLoading}
-              onClick={handleSubmit}
-            >
-              <Save className="h-4 w-4 mr-2" />
-              {isLoading ? "Saving..." : isEditMode ? "Update Staff Member" : "Create Staff Member"}
-            </Button>
-          )}
-          
-          {currentStep === 1 && !canAccessSystem && (
-            <Button 
-              type="button"
-              className="gradient-primary text-primary-foreground shadow-glow"
-              disabled={isLoading}
-              onClick={handleSubmit}
-            >
-              <Save className="h-4 w-4 mr-2" />
-              {isLoading ? "Saving..." : isEditMode ? "Update Staff Member" : "Add Staff Member"}
-            </Button>
-          )}
+          <Button
+            type="button"
+            className="gradient-primary text-primary-foreground shadow-glow"
+            disabled={isLoading}
+            onClick={handleSubmit}
+          >
+            <Save className="h-4 w-4 mr-2" />
+            {isLoading ? "Saving..." : isEditMode ? "Update Staff Member" : "Add Staff Member"}
+          </Button>
         </div>
       </div>
     </MainLayout>

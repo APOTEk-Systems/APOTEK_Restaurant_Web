@@ -11,7 +11,6 @@ import {
   SelectValue
 } from "@/components/ui/select";
 import { Upload } from "lucide-react";
-import { Checkbox } from "@/components/ui/checkbox";
 import { useState, useMemo } from "react";
 import type { CreateStaffData, Department, StaffRole } from "@/services/staffService";
 
@@ -19,8 +18,6 @@ interface StaffInfoStepProps {
   formData: CreateStaffData;
   onChange: (field: keyof CreateStaffData, value: string | number | undefined) => void;
   onImageUpload: (file: File) => Promise<string>;
-  canAccessSystem: boolean;
-  setCanAccessSystem: (value: boolean) => void;
   departments: Department[];
   staffRoles: StaffRole[];
 }
@@ -29,8 +26,6 @@ export default function StaffInfoStep({
   formData,
   onChange,
   onImageUpload,
-  canAccessSystem,
-  setCanAccessSystem,
   departments,
   staffRoles,
 }: StaffInfoStepProps) {
@@ -68,21 +63,6 @@ export default function StaffInfoStep({
         <CardTitle>Staff Information</CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
-        {/* Can Access System Toggle */}
-        <div className="mb-6 p-4 bg-muted/50 rounded-lg">
-          <div className="flex items-center gap-3">
-            <Checkbox 
-              id="canAccessSystem"
-              checked={canAccessSystem}
-              onCheckedChange={(checked) => setCanAccessSystem(checked as boolean)}
-            />
-            <div>
-              <Label htmlFor="canAccessSystem" className="font-medium">Can Access System</Label>
-              <p className="text-sm text-muted-foreground">Create a user account for this staff member to log in</p>
-            </div>
-          </div>
-        </div>
-
         {/* Personal Information */}
         <div className="space-y-4">
           <h3 className="text-sm font-medium text-muted-foreground">Personal Details</h3>

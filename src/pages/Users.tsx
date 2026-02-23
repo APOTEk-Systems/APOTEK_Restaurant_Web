@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { userService } from "@/services/userService";
 import { userGroupService } from "@/services/userGroupService";
 import { permissionService } from "@/services/permissionService";
@@ -38,6 +39,7 @@ function formatPermissionName(name: string): string {
 export default function Users() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
   
@@ -214,9 +216,9 @@ export default function Users() {
           <div className="w-full flex gap-3">
             <div className="relative flex-1 ">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input 
-                placeholder="Search users..." 
-                className="pl-9" 
+              <Input
+                placeholder="Search users..."
+                className="pl-9"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
@@ -235,6 +237,13 @@ export default function Users() {
               </SelectContent>
             </Select>
           </div>
+          <Button
+            className="gradient-primary text-primary-foreground shadow-glow"
+            onClick={() => navigate("/users/new")}
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Create User
+          </Button>
         </div>
 
         {/* Users Table */}
