@@ -28,8 +28,6 @@ import {
 	Building2,
 	UserCircle,
 	UserCog,
-	RotateCcw,
-	ThumbsDown,
 	Store,
 	Wrench,
 	ListChecks,
@@ -50,6 +48,7 @@ import {
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
+import { LogoutConfirmDialog } from '@/components/LogoutConfirmDialog';
 
 import { Receipt } from 'lucide-react';
 
@@ -164,7 +163,9 @@ export function AppSidebar({
 	const [purchasesOpen, setPurchasesOpen] = useState(isPurchasesActive);
 	const [accountingOpen, setAccountingOpen] = useState(isAccountingActive);
 	const [settingsOpen, setSettingsOpen] = useState(isSettingsActive);
+	const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 	return (
+		<>
 		<aside
 			className={cn(
 				'fixed left-0 top-0 z-40 h-screen bg-sidebar border-r border-sidebar-border flex flex-col transition-all duration-300',
@@ -678,19 +679,10 @@ export function AppSidebar({
 			{/* User Section */}
 			<div className='border-t border-sidebar-border p-2'>
 				<div className='flex items-center gap-3 px-2'>
-					<div className='h-9 w-9 rounded-full bg-sidebar-accent flex items-center justify-center overflow-hidden'>
-						{user?.staff?.imageUrl ? (
-							<img
-								src={user.staff.imageUrl}
-								alt='Profile'
-								className='h-full w-full object-cover'
-							/>
-						) : (
-							<span className='text-sm font-medium text-sidebar-foreground'>
-								{(user?.staff?.firstName?.[0] || user?.username?.[0] || 'U').toUpperCase()}
-								{(user?.staff?.lastName?.[0] || '').toUpperCase()}
-							</span>
-						)}
+					<div className='h-9 w-9 rounded-full bg-primary flex items-center justify-center overflow-hidden'>
+						<span className='text-sm font-medium text-primary-foreground'>
+							{(user?.staff?.firstName?.[0] || user?.username?.[0] || 'U').toUpperCase()}
+						</span>
 					</div>
 					{!collapsed && (
 						<button
@@ -706,13 +698,20 @@ export function AppSidebar({
 					)}
 					<button
 						className='p-2 rounded-lg hover:bg-sidebar-accent transition-colors'
-						onClick={() => logout()}
+						onClick={() => setShowLogoutConfirm(true)}
 						title='Logout'>
 						<LogOut className='h-4 w-4 text-sidebar-muted' />
 					</button>
 				</div>
 			</div>
 		</aside>
+
+		<LogoutConfirmDialog
+			open={showLogoutConfirm}
+			onOpenChange={setShowLogoutConfirm}
+			onConfirm={() => logout().catch(console.error)}
+		/>
+		</>
 	);
 }
 

@@ -3,7 +3,7 @@ import { authService, authUtils } from './authService';
 
 // Live server URL or fallback to localhost
 const API_BASE_URL =
-	import.meta.env.VITE_API_BASE_URL || 'http://212.115.110.115:8080/api';
+	import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api';
 
 // Extend the config interface to include our custom properties
 declare module 'axios' {
@@ -44,7 +44,8 @@ api.interceptors.response.use(
 		if (error.response?.status === 401 && originalRequest) {
 			// If already retrying, reject immediately
 			if (originalRequest._retry) {
-				authService.logout();
+				// Fire and forget logout without redirect - don't await to prevent infinite waiting
+				authService.logoutWithoutRedirect().catch(() => {});
 				return Promise.reject(error);
 			}
 
@@ -68,14 +69,16 @@ api.interceptors.response.use(
 						originalRequest.headers.Authorization = `Bearer ${newToken}`;
 						return api(originalRequest);
 					} else {
-						// Refresh failed - logout user
+						// Refresh failed - logout user without redirect
 						authUtils.processQueue(new Error('Session expired'));
-						authService.logout();
+						// Fire and forget logout without redirect
+						authService.logoutWithoutRedirect().catch(() => {});
 					}
 				} catch (refreshError) {
-					// Refresh error - process queue and logout
+					// Refresh error - process queue and logout without redirect
 					authUtils.processQueue(refreshError);
-					authService.logout();
+					// Fire and forget logout without redirect
+					authService.logoutWithoutRedirect().catch(() => {});
 				} finally {
 					authUtils.setRefreshing(false);
 				}

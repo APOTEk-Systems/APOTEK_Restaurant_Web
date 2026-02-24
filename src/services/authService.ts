@@ -16,7 +16,7 @@ export interface AuthUser {
 		firstName: string;
 		lastName: string;
 		imageUrl?: string;
-	};
+	} | null;
 }
 
 export interface AuthResponse {
@@ -27,33 +27,25 @@ export interface AuthResponse {
 
 // Token storage keys
 const TOKEN_KEY = 'token';
-const REFRESH_TOKEN_KEY = 'refreshToken';
 const USER_KEY = 'user';
 
 // Auth service for handling authentication logic
 export const authService = {
 	/**
 	 * Get the current access token
+	 * Note: Refresh token is now stored in HTTP-only cookies
 	 */
 	getToken: (): string | null => {
 		return localStorage.getItem(TOKEN_KEY);
 	},
 
 	/**
-	 * Get the current refresh token
-	 */
-	getRefreshToken: (): string | null => {
-		return localStorage.getItem(REFRESH_TOKEN_KEY);
-	},
-
-	/**
 	 * Store authentication data
+	 * Note: Refresh token is stored in HTTP-only cookies, not localStorage
 	 */
 	setAuthData: (data: AuthResponse): void => {
 		localStorage.setItem(TOKEN_KEY, data.accessToken);
-		if (data.refreshToken) {
-			localStorage.setItem(REFRESH_TOKEN_KEY, data.refreshToken);
-		}
+		// Store user data (refresh token is handled by HTTP-only cookie)
 		localStorage.setItem(USER_KEY, JSON.stringify(data.user));
 	},
 
@@ -84,28 +76,28 @@ export const authService = {
 	 */
 	clearAuthData: (): void => {
 		localStorage.removeItem(TOKEN_KEY);
-		localStorage.removeItem(REFRESH_TOKEN_KEY);
 		localStorage.removeItem(USER_KEY);
 	},
 
 	/**
 	 * Attempt to refresh the access token
+	 * Note: Refresh token is sent automatically via HTTP-only cookie
 	 * Returns true if refresh successful, false otherwise
 	 */
 	refreshToken: async (): Promise<boolean> => {
-		const refreshToken = authService.getRefreshToken();
-
-		if (!refreshToken) {
-			return false;
-		}
-
 		try {
-			const response = await api.post('/auth/refresh', { refreshToken });
+			// Refresh token is automatically sent via HTTP-only cookie
+			// No need to pass it explicitly
+			const response = await api.post('/auth/refresh', {}, {
+				// Ensure credentials (cookies) are sent with the request
+				withCredentials: true,
+			});
 
 			if (response.data && response.data.accessToken) {
 				localStorage.setItem(TOKEN_KEY, response.data.accessToken);
-				if (response.data.refreshToken) {
-					localStorage.setItem(REFRESH_TOKEN_KEY, response.data.refreshToken);
+				// Update user data if provided
+				if (response.data.user) {
+					localStorage.setItem(USER_KEY, JSON.stringify(response.data.user));
 				}
 				return true;
 			}
@@ -127,13 +119,42 @@ export const authService = {
 	},
 
 	/**
-	 * Logout - clears auth data
+	 * Logout - clears auth data and tells backend to clear the cookie
 	 */
-	logout: (): void => {
+	logout: async (): Promise<void> => {
 		authService.clearAuthData();
+		
+		// Call logout endpoint to clear the refresh token cookie on the backend
+		try {
+			await api.post('/auth/logout', {}, {
+				withCredentials: true,
+			});
+		} catch (error) {
+			// Continue with logout even if the backend call fails
+			console.error('Logout API call failed:', error);
+		}
+		
 		// Redirect to login page
 		if (window.location.pathname !== '/login') {
 			window.location.href = '/login';
+		}
+	},
+
+	/**
+	 * Logout without redirect - used by the API interceptor when token refresh fails
+	 * This clears the auth data but doesn't redirect, allowing the app to handle the redirect
+	 */
+	logoutWithoutRedirect: async (): Promise<void> => {
+		authService.clearAuthData();
+		
+		// Call logout endpoint to clear the refresh token cookie on the backend
+		try {
+			await api.post('/auth/logout', {}, {
+				withCredentials: true,
+			});
+		} catch (error) {
+			// Continue with logout even if the backend call fails
+			console.error('Logout API call failed:', error);
 		}
 	},
 };

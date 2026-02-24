@@ -106,7 +106,7 @@ export default function Orders() {
 
   const handleCancelOrder = (orderId: number) => {
     console.log(`Cancelling order ${orderId}`);
-    updateOrderMutation.mutate({ id: orderId, status: "cancelled" });
+    updateOrderMutation.mutate({ id: orderId, status: "CANCELLED" });
     setIsModalOpen(false);
   };
 
