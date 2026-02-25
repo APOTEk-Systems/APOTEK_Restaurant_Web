@@ -330,7 +330,7 @@ export default function Orders() {
                                           )}
                                         </div>
                                         <div className="flex items-center">
-                                          <span className="text-sm font-semibold">${item.price.toFixed(2)}</span>
+                                          <span className="text-sm font-semibold">{item.price.toLocaleString()}</span>
                                           {item.status === 'PENDING' && (
                                             <Button
                                               variant="ghost"
@@ -363,7 +363,7 @@ export default function Orders() {
                                           </div>
                                           <div className="flex items-center gap-2">
                                             <span className="text-sm font-semibold text-green-600">
-                                              ${payment.amount.toFixed(2)}
+                                              {payment.amount.toLocaleString()}
                                             </span>
                                             <span className="text-xs text-muted-foreground">
                                               {new Date(payment.createdAt).toLocaleTimeString()}
@@ -377,7 +377,7 @@ export default function Orders() {
 
                                 <div className="flex justify-between items-center pt-4 border-t border-border">
                                   <p className="text-sm text-muted-foreground">Total</p>
-                                  <p className="font-semibold text-lg">${selectedOrder?.total.toFixed(2)}</p>
+                                  <p className="font-semibold text-lg">{selectedOrder?.total.toLocaleString()}</p>
                                 </div>
                               </div>
                               <DialogFooter className="gap-2">

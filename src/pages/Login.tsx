@@ -41,11 +41,6 @@ const Login = () => {
       // Use login from AuthContext to properly update the auth state
       await login(email, password);
 
-      toast({
-        title: "Success",
-        description: "Login successful! Redirecting...",
-      });
-
       // Navigate to dashboard after successful login
       navigate("/");
     } catch (error) {
