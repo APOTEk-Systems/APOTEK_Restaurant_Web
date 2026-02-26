@@ -4,6 +4,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ReportsService } from "@/services/reportsService";
+import { exportPurchaseReport } from "@/utils/pdfPurchaseReports";
+import { DateRange } from "@/utils/pdfUtils";
 
 interface PurchasesReportsProps {
   dateRange: { from: Date | undefined; to: Date | undefined };
@@ -14,11 +17,48 @@ export default function PurchasesReports({ dateRange, onDateRangeChange }: Purch
   const [reportType, setReportType] = useState<string>("purchase-summary");
   const [isLoading, setIsLoading] = useState(false);
 
+  const getReportTitle = () => {
+    switch (reportType) {
+      case "goods-received": return "Goods Received Report";
+      case "purchase-detailed": return "Purchase Order Detailed Report";
+      case "purchase-summary": return "Purchase Order Summary Report";
+      case "suppliers": return "Suppliers List Report";
+      default: return "Purchase Report";
+    }
+  };
+
   const handleGeneratePDF = async () => {
     setIsLoading(true);
     try {
-      // TODO: Implement PDF generation for purchases reports
-      console.log("Generating purchases report:", reportType);
+      const params = {
+        startDate: dateRange.from ? dateRange.from.toISOString() : undefined,
+        endDate: dateRange.to ? dateRange.to.toISOString() : undefined,
+      };
+
+      let data: any[] = [];
+      
+      switch (reportType) {
+        case "goods-received":
+          data = await ReportsService.getGoodsReceived(params);
+          break;
+        case "purchase-detailed":
+          data = await ReportsService.getPurchaseOrderDetailed(params);
+          break;
+        case "purchase-summary":
+          data = await ReportsService.getPurchaseOrderSummary(params);
+          break;
+        case "suppliers":
+          data = await ReportsService.getSuppliersList();
+          break;
+      }
+
+      if (data.length > 0) {
+        const dateRangeObj: DateRange = {
+          from: dateRange.from,
+          to: dateRange.to
+        };
+        await exportPurchaseReport(reportType, data, dateRangeObj, getReportTitle());
+      }
     } catch (error) {
       console.error("Error generating report:", error);
     } finally {
@@ -41,9 +81,10 @@ export default function PurchasesReports({ dateRange, onDateRangeChange }: Purch
                 <SelectValue placeholder="Select Report Type" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="purchase-summary">Purchase Summary</SelectItem>
-                <SelectItem value="goods-receiving">Goods Receiving</SelectItem>
-                <SelectItem value="suppliers">Supplier Report</SelectItem>
+                <SelectItem value="purchase-summary">Purchase Order Summary</SelectItem>
+                <SelectItem value="purchase-detailed">Purchase Order Detailed</SelectItem>
+                <SelectItem value="goods-received">Goods Received</SelectItem>
+                <SelectItem value="suppliers">List of Suppliers</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -60,6 +101,14 @@ export default function PurchasesReports({ dateRange, onDateRangeChange }: Purch
             <FileText className="mr-2 h-4 w-4" />
             {isLoading ? "Generating..." : "Generate PDF"}
           </Button>
+        </div>
+
+        {/* Report Info */}
+        <div className="text-sm text-muted-foreground">
+          {reportType === "purchase-summary" && "Purchase Order Summary: Order #, Date, Supplier, Status, Total, Created By"}
+          {reportType === "purchase-detailed" && "Purchase Order Detailed: Order #, Date, Status, Supplier, Item, Qty, Price, Total, Created By (Landscape)"}
+          {reportType === "goods-received" && "Goods Received: Supplier, Item Name, Qty, Unit Price, Total, Received Date, Received By (Landscape)"}
+          {reportType === "suppliers" && "List of Suppliers: Name, Contact Person, Email, Phone, Address"}
         </div>
       </CardContent>
     </Card>

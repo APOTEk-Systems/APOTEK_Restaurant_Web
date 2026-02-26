@@ -7,6 +7,7 @@ export interface GoodsReceivingItem {
     id: number;
     name: string;
     unit: string;
+    price?: number;
   };
   batch?: {
     id: number;
@@ -34,6 +35,10 @@ export interface GoodsReceiving {
   createdAt: string;
   updatedAt: string;
   receivedItems: GoodsReceivingItem[];
+  createdBy?: {
+    id: number;
+    username: string;
+  };
 }
 
 export interface CreateGoodsReceivingData {

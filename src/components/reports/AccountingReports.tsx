@@ -4,21 +4,57 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ReportsService } from "@/services/reportsService";
+import { exportAccountingReport } from "@/utils/pdfAccountingReports";
+import { DateRange } from "@/utils/pdfUtils";
 
 interface AccountingReportsProps {
   dateRange: { from: Date | undefined; to: Date | undefined };
   onDateRangeChange: (range: { from: Date | undefined; to: Date | undefined }) => void;
 }
 
+const reportTypes = [
+  { value: "expense-summary", label: "Expense Summary" },
+  { value: "expense-detailed", label: "Expense Detailed" },
+];
+
 export default function AccountingReports({ dateRange, onDateRangeChange }: AccountingReportsProps) {
-  const [reportType, setReportType] = useState<string>("expenses");
+  const [reportType, setReportType] = useState<string>("expense-summary");
   const [isLoading, setIsLoading] = useState(false);
+
+  const getReportTitle = () => {
+    const report = reportTypes.find(r => r.value === reportType);
+    return report?.label || "Expense Report";
+  };
 
   const handleGeneratePDF = async () => {
     setIsLoading(true);
     try {
-      // TODO: Implement PDF generation for accounting reports
-      console.log("Generating accounting report:", reportType);
+      const params = {
+        startDate: dateRange.from?.toISOString(),
+        endDate: dateRange.to?.toISOString(),
+      };
+
+      let data: any[] = [];
+      
+      switch (reportType) {
+        case "expense-summary":
+          data = await ReportsService.getExpenseSummary(params);
+          break;
+        case "expense-detailed":
+          data = await ReportsService.getExpenseDetailed(params);
+          break;
+        default:
+          console.error("Unknown report type:", reportType);
+      }
+
+      if (data.length > 0) {
+        const dateRangeObj: DateRange = {
+          from: dateRange.from,
+          to: dateRange.to
+        };
+        await exportAccountingReport(reportType, data, dateRangeObj, getReportTitle());
+      }
     } catch (error) {
       console.error("Error generating report:", error);
     } finally {
@@ -41,9 +77,11 @@ export default function AccountingReports({ dateRange, onDateRangeChange }: Acco
                 <SelectValue placeholder="Select Report Type" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="expenses">Expenses</SelectItem>
-                <SelectItem value="revenue">Revenue</SelectItem>
-                <SelectItem value="profit-loss">Profit & Loss</SelectItem>
+                {reportTypes.map((report) => (
+                  <SelectItem key={report.value} value={report.value}>
+                    {report.label}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>

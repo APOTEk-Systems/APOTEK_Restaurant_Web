@@ -4,21 +4,69 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ReportsService } from "@/services/reportsService";
+import { exportInventoryReport } from "@/utils/pdfInventoryReports";
+import { DateRange } from "@/utils/pdfUtils";
 
 interface InventoryReportsProps {
   dateRange: { from: Date | undefined; to: Date | undefined };
   onDateRangeChange: (range: { from: Date | undefined; to: Date | undefined }) => void;
 }
 
+const reportTypes = [
+  { value: "inventory-summary", label: "Inventory Summary" },
+  { value: "low-stock", label: "Low Stock Items" },
+  { value: "adjustments", label: "Inventory Adjustments" },
+  { value: "requests", label: "Inventory Requests" },
+  { value: "expiring-batches", label: "Expiring Batches" },
+];
+
 export default function InventoryReports({ dateRange, onDateRangeChange }: InventoryReportsProps) {
   const [reportType, setReportType] = useState<string>("inventory-summary");
   const [isLoading, setIsLoading] = useState(false);
 
+  const getReportTitle = () => {
+    const report = reportTypes.find(r => r.value === reportType);
+    return report?.label || "Inventory Report";
+  };
+
   const handleGeneratePDF = async () => {
     setIsLoading(true);
     try {
-      // TODO: Implement PDF generation for inventory reports
-      console.log("Generating inventory report:", reportType);
+      const params = {
+        startDate: dateRange.from?.toISOString(),
+        endDate: dateRange.to?.toISOString(),
+      };
+
+      let data: any[] = [];
+      
+      switch (reportType) {
+        case "inventory-summary":
+          data = await ReportsService.getInventorySummary();
+          break;
+        case "low-stock":
+          data = await ReportsService.getLowStock();
+          break;
+        case "adjustments":
+          data = await ReportsService.getInventoryAdjustments(params);
+          break;
+        case "requests":
+          data = await ReportsService.getInventoryRequests(params);
+          break;
+        case "expiring-batches":
+          data = await ReportsService.getExpiringBatches(params);
+          break;
+        default:
+          console.error("Unknown report type:", reportType);
+      }
+
+      if (data.length > 0) {
+        const dateRangeObj: DateRange = {
+          from: dateRange.from,
+          to: dateRange.to
+        };
+        await exportInventoryReport(reportType, data, dateRangeObj, getReportTitle());
+      }
     } catch (error) {
       console.error("Error generating report:", error);
     } finally {
@@ -41,10 +89,11 @@ export default function InventoryReports({ dateRange, onDateRangeChange }: Inven
                 <SelectValue placeholder="Select Report Type" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="inventory-summary">Inventory Summary</SelectItem>
-                <SelectItem value="stock-movements">Stock Movements</SelectItem>
-                <SelectItem value="low-stock">Low Stock Items</SelectItem>
-                <SelectItem value="expiring">Expiring Products</SelectItem>
+                {reportTypes.map((report) => (
+                  <SelectItem key={report.value} value={report.value}>
+                    {report.label}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>

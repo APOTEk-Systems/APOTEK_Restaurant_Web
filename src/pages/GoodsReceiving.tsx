@@ -38,7 +38,22 @@ const statusIcons: Record<string, React.ComponentType<{ className?: string }>> =
 export default function GoodsReceiving() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
-  const [dateRange, setDateRange] = useState<DateRange | undefined>();
+  
+  // Default to this week's date range
+  const getThisWeekRange = (): DateRange => {
+    const now = new Date();
+    const startOfWeek = new Date(now);
+    startOfWeek.setDate(now.getDate() - now.getDay()); // Start from Sunday
+    startOfWeek.setHours(0, 0, 0, 0);
+    
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(startOfWeek.getDate() + 6); // End on Saturday
+    endOfWeek.setHours(23, 59, 59, 999);
+    
+    return { from: startOfWeek, to: endOfWeek };
+  };
+  
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(getThisWeekRange);
   const queryClient = useQueryClient();
 
   // Fetch goods receiving records using React Query with date range
@@ -51,15 +66,6 @@ export default function GoodsReceiving() {
     },
   });
 
-  // Fetch purchase orders for partial receiving functionality
-  const { data: purchaseOrders = [] } = useQuery({
-    queryKey: ["purchaseOrders", dateRange?.from, dateRange?.to],
-    queryFn: () => {
-      const startDate = dateRange?.from ? format(dateRange.from, "yyyy-MM-dd") : undefined;
-      const endDate = dateRange?.to ? format(dateRange.to, "yyyy-MM-dd") : undefined;
-      return purchaseOrderService.getAllPurchaseOrders(startDate, endDate);
-    },
-  });
 
   // Filter records based on search and status
   const filteredReceivings = useMemo(() => {
@@ -170,20 +176,19 @@ export default function GoodsReceiving() {
             <span className="ml-3 text-muted-foreground">Loading goods receiving records...</span>
           </div>
         ) : (
-          /* Receiving Table */
+          /* Receiving Table - Item Level */
           <div className="bg-card rounded-xl shadow-card border border-border/50 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-muted/50">
                   <tr>
-                   
-                    <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground">Order #</th>
-                  
+                    <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground">PO #</th>
+                    <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground">Item Name</th>
+                    <th className="text-right px-6 py-4 text-sm font-medium text-muted-foreground">Qty</th>
+                    <th className="text-right px-6 py-4 text-sm font-medium text-muted-foreground">Unit Price</th>
+                    <th className="text-right px-6 py-4 text-sm font-medium text-muted-foreground">Total</th>
                     <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground">Received Date</th>
-                      <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground">Supplier</th>
-                       <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground">Received By</th>
-                    {/* <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground">Status</th> */}
-                    <th className="text-right px-6 py-4 text-sm font-medium text-muted-foreground">Actions</th>
+                    <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground">Received By</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
@@ -194,42 +199,37 @@ export default function GoodsReceiving() {
                       </td>
                     </tr>
                   ) : (
-                    filteredReceivings.map((receiving: GoodsReceiving) => {
-                      const status = determineStatus(receiving);
-                      const StatusIcon = statusIcons[status] || Clock;
-                      
-                      return (
-                        <tr key={receiving.id} className="hover:bg-muted/30 transition-colors">
-                          {/* <td className="px-6 py-4 font-medium text-foreground">{receiving.grnNumber}</td> */}
-                          <td className="px-6 py-4 text-primary font-medium">
-                            {receiving.purchaseOrder?.poNumber || "-"}
-                          </td>
-                           <td className="px-6 py-4 text-muted-foreground">
-                            {receiving.receivedAt ? new Date(receiving.receivedAt).toLocaleDateString() : "-"}
-                          </td>
-                          <td className="px-6 py-4 text-foreground">{receiving.supplier?.name || "-"}</td>
-                                                   <td className="px-6 py-4 text-foreground">{"-"}</td>
-
-                          {/* <td className="px-6 py-4">
-                            <Badge className={cn("capitalize", statusStyles[status])}>
-                              <StatusIcon className="h-3 w-3 mr-1" />
-                              {statusLabels[status]}
-                            </Badge>
-                          </td> */}
-                          <td className="px-6 py-4">
-                            <div className="flex items-center justify-end gap-2">
-                              <Link to={`/purchases/receiving/view/${receiving.id}`}>
-                                <Button variant="outline" size="icon" className="w-full p-2">
-                                  <Eye className="h-4 w-4" />
-                                  <span>View</span>
-                                </Button>
-                              </Link>
-                             
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })
+                    filteredReceivings.flatMap((receiving: GoodsReceiving) =>
+                      receiving.receivedItems?.map((item, idx) => {
+                        const unitPrice = item.inventoryItem?.price || 0;
+                        const total = item.quantityReceived * unitPrice;
+                        return (
+                          <tr key={`${receiving.id}-${idx}`} className="hover:bg-muted/30 transition-colors">
+                            <td className="px-6 py-4 text-primary font-medium">
+                              {receiving.purchaseOrder?.poNumber || "-"}
+                            </td>
+                            <td className="px-6 py-4 text-foreground">
+                              {item.inventoryItem?.name || "-"}
+                            </td>
+                            <td className="px-6 py-4 text-right text-foreground">
+                              {item.quantityReceived} {item.inventoryItem?.unit || ""}
+                            </td>
+                            <td className="px-6 py-4 text-right text-foreground">
+                              {unitPrice.toLocaleString('en-TZ', {  })}
+                            </td>
+                            <td className="px-6 py-4 text-right text-foreground font-medium">
+                              {total.toLocaleString('en-TZ', {  })}
+                            </td>
+                            <td className="px-6 py-4 text-muted-foreground">
+                              {receiving.receivedAt ? new Date(receiving.receivedAt).toLocaleDateString() : "-"}
+                            </td>
+                            <td className="px-6 py-4 text-foreground">
+                              {receiving.createdBy?.username || "-"}
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )
                   )}
                 </tbody>
               </table>
