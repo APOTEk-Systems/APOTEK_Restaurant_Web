@@ -179,7 +179,6 @@ export default function MenuNew() {
         price: menuData.price,
         cost: menuData.cost,
         prepTime: menuData.prepTime,
-        calories: menuData.calories,
         servingSize: menuData.servingSize,
         isAvailable: menuData.available,
         prepArea: isBar ? 'BAR' : 'KITCHEN',
@@ -290,16 +289,16 @@ export default function MenuNew() {
     );
   };
 
-  const addIngredient = () => {
-    if (newIngredient.trim() && !ingredients.includes(newIngredient.trim())) {
-      setIngredients([...ingredients, newIngredient.trim()]);
-      setNewIngredient("");
-    }
-  };
+  // const addIngredient = () => {
+  //   if (newIngredient.trim() && !ingredients.includes(newIngredient.trim())) {
+  //     setIngredients([...ingredients, newIngredient.trim()]);
+  //     setNewIngredient("");
+  //   }
+  // };
 
-  const removeIngredient = (ingredient: string) => {
-    setIngredients(ingredients.filter(i => i !== ingredient));
-  };
+  // const removeIngredient = (ingredient: string) => {
+  //   setIngredients(ingredients.filter(i => i !== ingredient));
+  // };
 
   const toggleSideDish = (sideDishId: number) => {
     setSelectedSideDishes(prev =>

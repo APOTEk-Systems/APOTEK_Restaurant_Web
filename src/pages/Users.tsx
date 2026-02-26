@@ -291,9 +291,10 @@ export default function Users() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Username</TableHead>
-                <TableHead>Role</TableHead>
+                <TableHead>Name</TableHead>
                 <TableHead>Email</TableHead>
+                <TableHead>Role</TableHead>
+                
                 <TableHead>Status</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
@@ -319,18 +320,19 @@ export default function Users() {
                       </div>
                     </div>
                   </TableCell>
+                     <TableCell>
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Mail className="h-4 w-4" />
+                      <span className="truncate">{user.email || "N/A"}</span>
+                    </div>
+                  </TableCell>
                   <TableCell>
                     <Badge className={cn("capitalize", roleColors[getRoleName(user.userGroupId)] || "bg-muted/10 text-muted-foreground")}>
                       <Shield className="h-3 w-3 mr-1" />
                       {getRoleName(user.userGroupId)}
                     </Badge>
                   </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Mail className="h-4 w-4" />
-                      <span className="truncate">{user.email || "N/A"}</span>
-                    </div>
-                  </TableCell>
+               
                   <TableCell>
                     {!user.isActive && (
                       <Badge variant="secondary" className="text-xs">Inactive</Badge>

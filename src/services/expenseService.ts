@@ -1,15 +1,19 @@
 import { api } from './api';
+import { User } from './userService';
 
 export interface Expense {
   id: number;
   amount: number;
   date: string;
   description: string | null;
+  paymentMethod: string | null;
   categoryId: number;
   category: {
     id: number;
     name: string;
   };
+  createdBy:User,
+  updatedBy:User,
   createdAt: string;
   updatedAt: string;
 }
@@ -27,6 +31,7 @@ export interface CreateExpenseData {
   date: string;
   description?: string;
   categoryId: number;
+  paymentMethod?: string;
 }
 
 export interface UpdateExpenseData {
@@ -34,6 +39,7 @@ export interface UpdateExpenseData {
   date?: string;
   description?: string;
   categoryId?: number;
+  paymentMethod?: string;
 }
 
 interface GetExpensesParams {

@@ -3,7 +3,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { ArrowLeft, Save, User, Shield, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
@@ -17,7 +23,7 @@ export default function UserNew() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
-  
+
   // Form state
   const [formData, setFormData] = useState({
     username: "",
@@ -30,25 +36,29 @@ export default function UserNew() {
 
   // Fetch user groups
   const { data: userGroups = [] } = useQuery({
-    queryKey: ['user-groups'],
+    queryKey: ["user-groups"],
     queryFn: () => userGroupService.getAll(),
   });
 
   // Fetch users to check which staff already have user accounts
   const { data: users = [] } = useQuery({
-    queryKey: ['users'],
+    queryKey: ["users"],
     queryFn: () => userService.getAll(),
   });
 
   // Fetch staff members
   const { data: staffMembers = [], isLoading: loadingStaff } = useQuery({
-    queryKey: ['staff'],
+    queryKey: ["staff"],
     queryFn: () => staffService.getAll(),
   });
 
   // Filter available staff (those who don't have a user account yet)
-  const assignedStaffIds = new Set(users.map((user) => user.staffId).filter(Boolean));
-  const availableStaff = staffMembers.filter((staff: Staff) => !assignedStaffIds.has(staff.id));
+  const assignedStaffIds = new Set(
+    users.map((user) => user.staffId).filter(Boolean)
+  );
+  const availableStaff = staffMembers.filter(
+    (staff: Staff) => !assignedStaffIds.has(staff.id)
+  );
 
   // Create user mutation
   const createUserMutation = useMutation({
@@ -58,52 +68,51 @@ export default function UserNew() {
       navigate("/users");
     },
     onError: (error: any) => {
-      toast({ 
-        title: "Error", 
+      toast({
+        title: "Error",
         description: error.response?.data?.message || "Failed to create user",
-        variant: "destructive"
+        variant: "destructive",
       });
     },
   });
 
   const handleSubmit = async () => {
     // Validation
-    if(!formData.staffId) {
-       toast({ 
-        title: "Error", 
-        description: "Please select a staff member to associate with this user account",
-        variant: "destructive"
+    if (!formData.staffId) {
+      toast({
+        title: "Error",
+        description:
+          "Please select a staff member to associate with this user account",
+        variant: "destructive",
       });
       return;
     }
     if (!formData.username || !formData.userGroupId) {
-      toast({ 
-        title: "Error", 
+      toast({
+        title: "Error",
         description: "Username and role are required",
-        variant: "destructive"
+        variant: "destructive",
       });
       return;
     }
 
     if (!formData.password || formData.password.length < 6) {
-      toast({ 
-        title: "Error", 
+      toast({
+        title: "Error",
         description: "Password must be at least 6 characters",
-        variant: "destructive"
+        variant: "destructive",
       });
       return;
     }
 
     if (formData.password !== formData.confirmPassword) {
-      toast({ 
-        title: "Error", 
+      toast({
+        title: "Error",
         description: "Passwords do not match",
-        variant: "destructive"
+        variant: "destructive",
       });
       return;
     }
-
-    
 
     setIsLoading(true);
     try {
@@ -120,15 +129,30 @@ export default function UserNew() {
   };
 
   const handleChange = (field: string, value: string | number | undefined) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    if (field === "staffId" && value) {
+      // Find the selected staff member
+      const selectedStaff = staffMembers.find((s: Staff) => s.id === value);
+      if (selectedStaff) {
+        // Auto-fill username (firstName + lastName) and email from staff
+        const username = `${selectedStaff.firstName.trim()} ${selectedStaff.lastName.trim()}`;
+        setFormData((prev) => ({
+          ...prev,
+          staffId: value as number,
+          username: username,
+          email: selectedStaff.email || "",
+        }));
+        return;
+      }
+    }
+    setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
   return (
     <MainLayout title="Add User" subtitle="Create a new user account">
       <div className="max-w-3xl animate-fade-in">
         {/* Back Button */}
-        <Button 
-          variant="ghost" 
+        <Button
+          variant="ghost"
           onClick={() => navigate("/users")}
           className="mb-6 -ml-2"
         >
@@ -151,8 +175,15 @@ export default function UserNew() {
                 <div className="space-y-2">
                   <Label htmlFor="staff">Staff Member</Label>
                   <Select
-                    value={formData.staffId ? formData.staffId.toString() : "none"}
-                    onValueChange={(value) => handleChange("staffId", value === "none" ? undefined : parseInt(value))}
+                    value={
+                      formData.staffId ? formData.staffId.toString() : "none"
+                    }
+                    onValueChange={(value) =>
+                      handleChange(
+                        "staffId",
+                        value === "none" ? undefined : parseInt(value)
+                      )
+                    }
                   >
                     <SelectTrigger id="staff">
                       <SelectValue placeholder="Select staff member (optional)" />
@@ -170,8 +201,17 @@ export default function UserNew() {
                 <div className="space-y-2">
                   <Label htmlFor="userGroup">Role *</Label>
                   <Select
-                    value={formData.userGroupId ? formData.userGroupId.toString() : ""}
-                    onValueChange={(value) => handleChange("userGroupId", value ? parseInt(value) : undefined)}
+                    value={
+                      formData.userGroupId
+                        ? formData.userGroupId.toString()
+                        : ""
+                    }
+                    onValueChange={(value) =>
+                      handleChange(
+                        "userGroupId",
+                        value ? parseInt(value) : undefined
+                      )
+                    }
                   >
                     <SelectTrigger id="userGroup">
                       <SelectValue placeholder="Select a role" />
@@ -189,7 +229,9 @@ export default function UserNew() {
 
               {/* Account Credentials */}
               <div className="space-y-4 pt-4 border-t border-border">
-                <h3 className="text-sm font-medium text-muted-foreground">Account Credentials</h3>
+                <h3 className="text-sm font-medium text-muted-foreground">
+                  Account Credentials
+                </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="username">Username *</Label>
@@ -231,7 +273,9 @@ export default function UserNew() {
                       type="password"
                       placeholder="Confirm password"
                       value={formData.confirmPassword}
-                      onChange={(e) => handleChange("confirmPassword", e.target.value)}
+                      onChange={(e) =>
+                        handleChange("confirmPassword", e.target.value)
+                      }
                       required
                     />
                   </div>

@@ -194,7 +194,7 @@ export default function StaffInfoStep({
                 onValueChange={(value) => onChange("roleId", value ? parseInt(value) : undefined)}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select role" />
+                  <SelectValue placeholder="Select position" />
                 </SelectTrigger>
                 <SelectContent>
                   {filteredRoles.length > 0 ? (

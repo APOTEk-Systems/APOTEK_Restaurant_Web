@@ -191,10 +191,9 @@ const Staff = () => {
           <TableHeader>
             <TableRow>
               <TableHead>Name</TableHead>
-              <TableHead>Role</TableHead>
+              <TableHead>Contacts</TableHead>
               <TableHead>Department</TableHead>
-              <TableHead>Contact</TableHead>
-              <TableHead>Hire Date</TableHead>
+              <TableHead>Position</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Actions</TableHead>
             </TableRow>
@@ -226,18 +225,7 @@ const Staff = () => {
                     </div>
                   </div>
                 </TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Briefcase className="h-3.5 w-3.5" />
-                    <span>{formatRole(member.role)}</span>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <Badge className={cn("text-xs", getDepartmentColor(member.department?.name))}>
-                    {formatDepartment(member.department)}
-                  </Badge>
-                </TableCell>
-                <TableCell>
+                 <TableCell>
                   <div className="space-y-1 text-sm text-muted-foreground">
                     {member.phone && (
                       <div className="flex items-center gap-2">
@@ -255,14 +243,17 @@ const Staff = () => {
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Calendar className="h-3.5 w-3.5" />
-                    <span>
-                      {member.hireDate
-                        ? new Date(member.hireDate).toLocaleDateString()
-                        : "N/A"}
-                    </span>
+                    <Briefcase className="h-3.5 w-3.5" />
+                    <span>{formatRole(member.role)}</span>
                   </div>
                 </TableCell>
+                <TableCell>
+                  <Badge className={cn("text-xs", getDepartmentColor(member.department?.name))}>
+                    {formatDepartment(member.department)}
+                  </Badge>
+                </TableCell>
+               
+               
                 <TableCell>
                   <div className="space-y-1">
                     {(member.status === "ACTIVE" || member.status === "active") && (
