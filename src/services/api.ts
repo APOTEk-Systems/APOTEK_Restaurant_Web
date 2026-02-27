@@ -40,10 +40,13 @@ api.interceptors.response.use(
 			_retry?: boolean;
 		};
 
-		// Handle 401 Unauthorized - Token expired
+		// Handle 401 Unauthorized - Token expired or invalid
 		if (error.response?.status === 401 && originalRequest) {
-			// If already retrying, reject immediately
+			console.log('[AUTH] 401 received, attempting token refresh...');
+			
+			// If already retrying, reject immediately and logout
 			if (originalRequest._retry) {
+				console.log('[AUTH] Already retried, logging out...');
 				// Fire and forget logout without redirect - don't await to prevent infinite waiting
 				authService.logoutWithoutRedirect().catch(() => {});
 				return Promise.reject(error);
@@ -58,9 +61,11 @@ api.interceptors.response.use(
 				authUtils.setRefreshing(true);
 
 				try {
+					console.log('[AUTH] Calling refresh token endpoint...');
 					const refreshSuccessful = await authService.refreshToken();
 
 					if (refreshSuccessful) {
+						console.log('[AUTH] Token refresh successful');
 						// Refresh successful - process queued requests and retry original request
 						authUtils.processQueue(null);
 
@@ -70,12 +75,14 @@ api.interceptors.response.use(
 						return api(originalRequest);
 					} else {
 						// Refresh failed - logout user without redirect
+						console.log('[AUTH] Token refresh returned false, logging out...');
 						authUtils.processQueue(new Error('Session expired'));
 						// Fire and forget logout without redirect
 						authService.logoutWithoutRedirect().catch(() => {});
 					}
 				} catch (refreshError) {
 					// Refresh error - process queue and logout without redirect
+					console.log('[AUTH] Token refresh threw error, logging out:', refreshError);
 					authUtils.processQueue(refreshError);
 					// Fire and forget logout without redirect
 					authService.logoutWithoutRedirect().catch(() => {});
@@ -84,6 +91,7 @@ api.interceptors.response.use(
 				}
 			} else {
 				// Refresh in progress - add request to queue
+				console.log('[AUTH] Refresh in progress, queuing request...');
 				return new Promise((resolve, reject) => {
 					authUtils.addPendingRequest(
 						() => {

@@ -1,4 +1,8 @@
+import axios from 'axios';
 import { api } from './api';
+
+// Custom event for logout notifications
+export const LOGOUT_EVENT = 'apotek-logout';
 
 export interface LoginCredentials {
 	email: string;
@@ -88,10 +92,14 @@ export const authService = {
 		try {
 			// Refresh token is automatically sent via HTTP-only cookie
 			// No need to pass it explicitly
+			console.log('[AUTH] Attempting token refresh...');
 			const response = await api.post('/auth/refresh', {}, {
 				// Ensure credentials (cookies) are sent with the request
 				withCredentials: true,
 			});
+
+			console.log('[AUTH] Refresh response status:', response.status);
+			console.log('[AUTH] Refresh response data:', response.data);
 
 			if (response.data && response.data.accessToken) {
 				localStorage.setItem(TOKEN_KEY, response.data.accessToken);
@@ -102,9 +110,14 @@ export const authService = {
 				return true;
 			}
 
+			console.warn('[AUTH] Refresh response missing accessToken');
 			return false;
-		} catch (error) {
-			console.error('Token refresh failed:', error);
+		} catch (error: unknown) {
+			console.error('[AUTH] Token refresh failed:', error);
+			if (axios.isAxiosError(error)) {
+				console.error('[AUTH] Refresh error status:', error.response?.status);
+				console.error('[AUTH] Refresh error data:', error.response?.data);
+			}
 			return false;
 		}
 	},
@@ -146,6 +159,9 @@ export const authService = {
 	 */
 	logoutWithoutRedirect: async (): Promise<void> => {
 		authService.clearAuthData();
+		
+		// Dispatch custom event to notify AuthContext and other components
+		window.dispatchEvent(new CustomEvent(LOGOUT_EVENT));
 		
 		// Call logout endpoint to clear the refresh token cookie on the backend
 		try {

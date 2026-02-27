@@ -6,7 +6,7 @@ import {
 	ReactNode,
 	useCallback,
 } from 'react';
-import { authService, AuthUser } from '@/services/authService';
+import { authService, AuthUser, LOGOUT_EVENT } from '@/services/authService';
 
 interface AuthContextType {
 	user: AuthUser | null;
@@ -45,6 +45,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 		window.addEventListener('storage', handleStorageChange);
 		return () => window.removeEventListener('storage', handleStorageChange);
+	}, []);
+
+	// Listen for programmatic logout events (from API interceptor)
+	useEffect(() => {
+		const handleLogoutEvent = () => {
+			// User was logged out programmatically (e.g., token refresh failed)
+			setUser(null);
+			// Redirect to login if not already there
+			if (window.location.pathname !== '/login') {
+				window.location.href = '/login';
+			}
+		};
+
+		window.addEventListener(LOGOUT_EVENT, handleLogoutEvent);
+		return () => window.removeEventListener(LOGOUT_EVENT, handleLogoutEvent);
 	}, []);
 
 	const login = useCallback(async (email: string, password: string) => {
