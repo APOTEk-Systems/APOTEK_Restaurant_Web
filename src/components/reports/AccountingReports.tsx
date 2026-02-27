@@ -14,8 +14,13 @@ interface AccountingReportsProps {
 }
 
 const reportTypes = [
+  // Expenses
   { value: "expense-summary", label: "Expense Summary" },
   { value: "expense-detailed", label: "Expense Detailed" },
+  // Profit & Revenue
+  { value: "revenue", label: "Revenue Report" },
+  { value: "gross-profit", label: "Gross Profit Report" },
+  { value: "net-profit", label: "Net Profit Report" },
 ];
 
 export default function AccountingReports({ dateRange, onDateRangeChange }: AccountingReportsProps) {
@@ -38,11 +43,22 @@ export default function AccountingReports({ dateRange, onDateRangeChange }: Acco
       let data: any[] = [];
       
       switch (reportType) {
+        // Expenses
         case "expense-summary":
           data = await ReportsService.getExpenseSummary(params);
           break;
         case "expense-detailed":
           data = await ReportsService.getExpenseDetailed(params);
+          break;
+        // Profit & Revenue
+        case "revenue":
+          data = await ReportsService.getRevenue(params);
+          break;
+        case "gross-profit":
+          data = await ReportsService.getGrossProfit(params);
+          break;
+        case "net-profit":
+          data = await ReportsService.getNetProfit(params);
           break;
         default:
           console.error("Unknown report type:", reportType);

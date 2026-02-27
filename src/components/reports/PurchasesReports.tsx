@@ -103,13 +103,7 @@ export default function PurchasesReports({ dateRange, onDateRangeChange }: Purch
           </Button>
         </div>
 
-        {/* Report Info */}
-        <div className="text-sm text-muted-foreground">
-          {reportType === "purchase-summary" && "Purchase Order Summary: Order #, Date, Supplier, Status, Total, Created By"}
-          {reportType === "purchase-detailed" && "Purchase Order Detailed: Order #, Date, Status, Supplier, Item, Qty, Price, Total, Created By (Landscape)"}
-          {reportType === "goods-received" && "Goods Received: Supplier, Item Name, Qty, Unit Price, Total, Received Date, Received By (Landscape)"}
-          {reportType === "suppliers" && "List of Suppliers: Name, Contact Person, Email, Phone, Address"}
-        </div>
+   
       </CardContent>
     </Card>
   );

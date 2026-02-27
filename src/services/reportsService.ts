@@ -142,6 +142,29 @@ export interface ExpenseDetailedReport {
   createdBy: string;
 }
 
+// Profit & Revenue Report Types
+export interface RevenueReport {
+  date: string;
+  revenue: number;
+  orderCount: number;
+}
+
+export interface GrossProfitReport {
+  date: string;
+  revenue: number;
+  purchases: number;
+  grossProfit: number;
+}
+
+export interface NetProfitReport {
+  date: string;
+  revenue: number;
+  purchases: number;
+  expenses: number;
+  grossProfit: number;
+  netProfit: number;
+}
+
 interface DateRangeParams {
   startDate?: string;
   endDate?: string;
@@ -228,5 +251,21 @@ export const ReportsService = {
   getExpenseDetailed: async (params: DateRangeParams): Promise<ExpenseDetailedReport[]> => {
     const response = await api.get('/reports/accounting/expenses/detailed', { params });
     return response.data.expenses;
+  },
+
+  // Profit & Revenue Reports
+  getRevenue: async (params: DateRangeParams): Promise<RevenueReport[]> => {
+    const response = await api.get('/reports/accounting/revenue', { params });
+    return response.data.revenue;
+  },
+
+  getGrossProfit: async (params: DateRangeParams): Promise<GrossProfitReport[]> => {
+    const response = await api.get('/reports/accounting/gross-profit', { params });
+    return response.data.grossProfit;
+  },
+
+  getNetProfit: async (params: DateRangeParams): Promise<NetProfitReport[]> => {
+    const response = await api.get('/reports/accounting/net-profit', { params });
+    return response.data.netProfit;
   },
 };
