@@ -42,6 +42,15 @@ api.interceptors.response.use(
 
 		// Handle 401 Unauthorized - Token expired or invalid
 		if (error.response?.status === 401 && originalRequest) {
+			// Skip refresh attempt if the request is to the refresh endpoint itself
+			// This prevents infinite loops when refresh token is invalid
+			if (originalRequest.url === '/auth/refresh') {
+				console.log('[AUTH] Refresh endpoint returned 401 - refresh token invalid, logging out...');
+				authUtils.processQueue(new Error('Session expired'));
+				authService.logoutWithoutRedirect().catch(() => {});
+				return Promise.reject(error);
+			}
+			
 			console.log('[AUTH] 401 received, attempting token refresh...');
 			
 			// If already retrying, reject immediately and logout
