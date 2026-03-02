@@ -176,7 +176,7 @@ const StaffNew = () => {
         Back to Staff
       </Button>
 
-      <div className="max-w-2xl">
+      <div className="max-w-4xl">
         <Suspense fallback={
           <div className="flex items-center justify-center h-64">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />

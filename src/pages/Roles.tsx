@@ -113,9 +113,7 @@ export default function Roles() {
                 <TableRow key={role.id}>
                   <TableCell>
                     <div className="flex items-center gap-3">
-                      <div className={cn("h-10 w-10 rounded-xl flex items-center justify-center", getRoleColor(role.name))}>
-                        <Shield className="h-5 w-5" />
-                      </div>
+                      
                       <div>
                         <div className="font-semibold text-foreground text-lg">{role.name}</div>
                         {role.isDefault && (

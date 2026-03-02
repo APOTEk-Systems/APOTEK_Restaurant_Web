@@ -294,7 +294,6 @@ export default function Users() {
                 <TableHead>Name</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead>Role</TableHead>
-                
                 <TableHead>Status</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
@@ -311,9 +310,8 @@ export default function Users() {
                         </AvatarFallback>
                       </Avatar>
                       <div>
-                        <div className="font-medium text-foreground">{user.username}</div>
                         {user.staff && (
-                          <div className="text-sm text-muted-foreground">
+                          <div className="font-medium text-foreground">
                             {user.staff.firstName} {user.staff.lastName}
                           </div>
                         )}

@@ -58,7 +58,7 @@ export default function StaffInfoStep({
   };
 
   return (
-    <Card className="bg-card border-border">
+    <Card className="w-full bg-card border-border">
       <CardHeader>
         <CardTitle>Staff Information</CardTitle>
       </CardHeader>

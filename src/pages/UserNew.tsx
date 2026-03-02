@@ -149,7 +149,7 @@ export default function UserNew() {
 
   return (
     <MainLayout title="Add User" subtitle="Create a new user account">
-      <div className="max-w-3xl animate-fade-in">
+      <div className="max-w-4xl animate-fade-in">
         {/* Back Button */}
         <Button
           variant="ghost"

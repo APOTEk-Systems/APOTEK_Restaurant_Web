@@ -233,12 +233,7 @@ const Staff = () => {
                         <span>{member.phone}</span>
                       </div>
                     )}
-                    {member.email && (
-                      <div className="flex items-center gap-2">
-                        <Mail className="h-3.5 w-3.5" />
-                        <span className="truncate">{member.email}</span>
-                      </div>
-                    )}
+                   
                   </div>
                 </TableCell>
                 <TableCell>
