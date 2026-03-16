@@ -79,7 +79,7 @@ export default function OrderNew() {
   });
 
   const filteredMenuItems = menuItems?.filter(item =>
-    item.name.toLowerCase().includes(searchQuery.toLowerCase())
+    item.isAvailable && item.name.toLowerCase().includes(searchQuery.toLowerCase())
   ) || [];
 
   const addItem = (item: MenuItem) => {

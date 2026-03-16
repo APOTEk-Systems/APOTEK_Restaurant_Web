@@ -69,7 +69,7 @@ export const exportExpenseSummaryPDF = async (
   reportTitle: string = "Expense Summary Report"
 ) => {
   const settings = await getCompanySettings();
-  const doc = new jsPDF({ orientation: "portrait" });
+  const doc = new jsPDF({ });
 
   const head = [
     ["Category", "Total Amount", "Count"],
@@ -116,25 +116,23 @@ export const exportExpenseDetailedPDF = async (
   reportTitle: string = "Expense Detailed Report"
 ) => {
   const settings = await getCompanySettings();
-  const doc = new jsPDF({ orientation: "landscape" });
+  const doc = new jsPDF();
 
   const head = [
     [
       "Date",
-      "Description",
-      "Category",
-      "Amount",
       "Payment Method",
-      "Created By",
+      "Category",
+      "Updated By",
+      "Amount",
     ],
   ];
   const body = data.map((item) => [
     formatDate(item.date),
-    item.description,
-    item.category,
-    formatCurrency(item.amount),
     item.paymentMethod,
+    item.category,
     item.createdBy,
+    formatCurrency(item.amount),
   ]);
 
   // Calculate grand total
@@ -147,9 +145,9 @@ export const exportExpenseDetailedPDF = async (
     startY: reportInfoEndY,
     head,
     body,
-    didParseCell: getDidParseCellHook([3]),
+    didParseCell: getDidParseCellHook([4]),
     columnStyles: {
-      3: { halign: "right" },
+      4: { halign: "right" },
     },
     ...defaultTableStyles,
   });

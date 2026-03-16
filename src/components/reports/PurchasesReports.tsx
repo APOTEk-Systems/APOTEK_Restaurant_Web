@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { ReportsService } from "@/services/reportsService";
 import { exportPurchaseReport } from "@/utils/pdfPurchaseReports";
 import { DateRange } from "@/utils/pdfUtils";
+import { useToast } from "@/hooks/use-toast";
 
 interface PurchasesReportsProps {
   dateRange: { from: Date | undefined; to: Date | undefined };
@@ -16,6 +17,7 @@ interface PurchasesReportsProps {
 export default function PurchasesReports({ dateRange, onDateRangeChange }: PurchasesReportsProps) {
   const [reportType, setReportType] = useState<string>("purchase-summary");
   const [isLoading, setIsLoading] = useState(false);
+  const { toast } = useToast();
 
   const getReportTitle = () => {
     switch (reportType) {
@@ -58,9 +60,19 @@ export default function PurchasesReports({ dateRange, onDateRangeChange }: Purch
           to: dateRange.to
         };
         await exportPurchaseReport(reportType, data, dateRangeObj, getReportTitle());
+      } else {
+        toast({
+          title: "No Data Available",
+          description: `No ${getReportTitle().toLowerCase()} data available to generate the report.`,
+        });
       }
     } catch (error) {
       console.error("Error generating report:", error);
+      toast({
+        title: "Error",
+        description: "Failed to generate report. Please try again.",
+        variant: "destructive",
+      });
     } finally {
       setIsLoading(false);
     }

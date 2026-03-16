@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { ReportsService } from "@/services/reportsService";
 import { exportAccountingReport } from "@/utils/pdfAccountingReports";
 import { DateRange } from "@/utils/pdfUtils";
+import { useToast } from "@/hooks/use-toast";
 
 interface AccountingReportsProps {
   dateRange: { from: Date | undefined; to: Date | undefined };
@@ -15,8 +16,8 @@ interface AccountingReportsProps {
 
 const reportTypes = [
   // Expenses
-  { value: "expense-summary", label: "Expense Summary" },
-  { value: "expense-detailed", label: "Expense Detailed" },
+  // { value: "expense-summary", label: "Expense Summary" },
+  { value: "expense-detailed", label: "Expenses Reports" },
   // Profit & Revenue
   { value: "revenue", label: "Revenue Report" },
   { value: "gross-profit", label: "Gross Profit Report" },
@@ -26,6 +27,7 @@ const reportTypes = [
 export default function AccountingReports({ dateRange, onDateRangeChange }: AccountingReportsProps) {
   const [reportType, setReportType] = useState<string>("expense-summary");
   const [isLoading, setIsLoading] = useState(false);
+  const { toast } = useToast();
 
   const getReportTitle = () => {
     const report = reportTypes.find(r => r.value === reportType);
@@ -70,9 +72,19 @@ export default function AccountingReports({ dateRange, onDateRangeChange }: Acco
           to: dateRange.to
         };
         await exportAccountingReport(reportType, data, dateRangeObj, getReportTitle());
+      } else {
+        toast({
+          title: "No Data Available",
+          description: `No ${getReportTitle().toLowerCase()} data available to generate the report.`,
+        });
       }
     } catch (error) {
       console.error("Error generating report:", error);
+      toast({
+        title: "Error",
+        description: "Failed to generate report. Please try again.",
+        variant: "destructive",
+      });
     } finally {
       setIsLoading(false);
     }

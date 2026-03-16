@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { ReportsService } from "@/services/reportsService";
 import { exportInventoryReport } from "@/utils/pdfInventoryReports";
 import { DateRange } from "@/utils/pdfUtils";
+import { useToast } from "@/hooks/use-toast";
 
 interface InventoryReportsProps {
   dateRange: { from: Date | undefined; to: Date | undefined };
@@ -24,6 +25,7 @@ const reportTypes = [
 export default function InventoryReports({ dateRange, onDateRangeChange }: InventoryReportsProps) {
   const [reportType, setReportType] = useState<string>("inventory-summary");
   const [isLoading, setIsLoading] = useState(false);
+  const { toast } = useToast();
 
   const getReportTitle = () => {
     const report = reportTypes.find(r => r.value === reportType);
@@ -66,9 +68,20 @@ export default function InventoryReports({ dateRange, onDateRangeChange }: Inven
           to: dateRange.to
         };
         await exportInventoryReport(reportType, data, dateRangeObj, getReportTitle());
+      } else {
+        toast({
+          title: "No Data Available",
+          description: `No ${getReportTitle().toLowerCase()} data available to generate the report.`,
+          variant: "default",
+        });
       }
     } catch (error) {
       console.error("Error generating report:", error);
+      toast({
+        title: "Error",
+        description: "Failed to generate report. Please try again.",
+        variant: "destructive",
+      });
     } finally {
       setIsLoading(false);
     }

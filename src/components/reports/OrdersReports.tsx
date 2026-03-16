@@ -7,6 +7,7 @@ import { exportOrderReport } from "@/utils/pdfOrderReports";
 import { DateRange } from "@/utils/pdfUtils";
 import { FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
 
 interface OrdersReportsProps {
   dateRange: { from: Date | undefined; to: Date | undefined };
@@ -16,6 +17,7 @@ interface OrdersReportsProps {
 export default function OrdersReports({ dateRange, onDateRangeChange }: OrdersReportsProps) {
   const [reportType, setReportType] = useState<string>("summary");
   const [isLoading, setIsLoading] = useState(false);
+  const { toast } = useToast();
 
   const getReportTitle = () => {
     switch (reportType) {
@@ -58,9 +60,19 @@ export default function OrdersReports({ dateRange, onDateRangeChange }: OrdersRe
           to: dateRange.to
         };
         await exportOrderReport(reportType, data, dateRangeObj, getReportTitle());
+      } else {
+        toast({
+          title: "No Data Available",
+          description: `No ${getReportTitle().toLowerCase()} data available to generate the report.`,
+        });
       }
     } catch (error) {
       console.error("Error generating report:", error);
+      toast({
+        title: "Error",
+        description: "Failed to generate report. Please try again.",
+        variant: "destructive",
+      });
     } finally {
       setIsLoading(false);
     }
