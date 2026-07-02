@@ -1,6 +1,12 @@
-import { getPrinters, printHtml } from 'tauri-plugin-printer-v2';
 import { invoke } from '@tauri-apps/api/core';
 
+interface OrderItem {
+  menuItem: {
+    name: string;
+  };
+  quantity: number;
+  price: number;
+}
 
 interface Order {
   orderNumber: string;
@@ -12,131 +18,58 @@ interface Order {
   total: number;
 }
 
-interface OrderItem {
-  menuItem: {
-    name: string;
-  };
-  quantity: number;
-  price: number;
-}
-
-export const generateBillHtml = (order: Order): string => {
-  const receiptWidth = "58mm"; 
-  const now = new Date();
-  const formattedDate = `${now.toLocaleDateString()} ${now.toLocaleTimeString()}`;
-
-  const itemsHtml = order.orderItems
-    .map(
-      (item) => `
-    <tr>
-      <td style="text-align: left;">${item.menuItem.name}</td>
-      <td style="text-align: center;">${item.quantity}</td>
-      <td style="text-align: right;">${item.price.toFixed(2)}</td>
-      <td style="text-align: right;">${(item.quantity * item.price).toFixed(2)}</td>
-    </tr>
-  `
-    )
-    .join("");
-
-  return `
-    <div style="width: ${receiptWidth}; font-family: 'monospace', sans-serif; font-size: 14px; color: #000;">
-      <div style="text-align: center; margin-bottom: 10px;">
-        <h2 style="margin: 0; font-size: 16px;">APOTEK Restaurant</h2>
-        <p style="margin: 0;">123 Main Street, Anytown</p>
-        <p style="margin: 0;">Tel: 123-456-7890</p>
-      </div>
-      <div style="margin-bottom: 10px;">
-        <p style="margin: 0;"><strong>Order:</strong> #${order.orderNumber}</p>
-        <p style="margin: 0;"><strong>Table:</strong> ${order.tableNumber}</p>
-        <p style="margin: 0;"><strong>Waiter:</strong> ${order.waiter || 'N/A'}</p>
-        <p style="margin: 0;"><strong>Date:</strong> ${formattedDate}</p>
-      </div>
-      <table style="width: 100%; border-collapse: collapse;">
-        <thead>
-          <tr>
-            <th style="text-align: left; border-bottom: 1px solid #000; padding-bottom: 5px;">Item</th>
-            <th style="text-align: center; border-bottom: 1px solid #000; padding-bottom: 5px;">Qty</th>
-            <th style="text-align: right; border-bottom: 1px solid #000; padding-bottom: 5px;">Price</th>
-            <th style="text-align: right; border-bottom: 1px solid #000; padding-bottom: 5px;">Total</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${itemsHtml}
-        </tbody>
-      </table>
-      <div style="margin-top: 10px; border-top: 1px solid #000; padding-top: 5px;">
-        <div style="display: flex; justify-content: space-between;">
-          <span>Subtotal:</span>
-          <span>$${order.total.toFixed(2)}</span>
-        </div>
-        <div style="display: flex; justify-content: space-between;">
-          <span>Tax (0%):</span>
-          <span>$0.00</span>
-        </div>
-        <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 14px;">
-          <span>Total:</span>
-          <span>$${order.total.toFixed(2)}</span>
-        </div>
-      </div>
-      <div style="text-align: center; margin-top: 20px;">
-        <p>Thank you for dining with us!</p>
-      </div>
-    </div>
-  `;
-};
-
-const generateId = () => {
-  return Math.random().toString(36).substr(2, 9);
-};
-
-const printBill = async (order: Order) => {
-  const htmlContent = generateBillHtml(order);
-
+/**
+ * Print bill silently to default or specified printer
+ * Passes order data to Rust backend which formats and prints it
+ * @param order - Order object containing all order details
+ * @param printerName - Optional printer name (uses default if not specified)
+ */
+async function printBillSilent(order: Order, printerName?: string): Promise<void> {
   try {
-    const printersListJson = await getPrinters();
-    const printersList = JSON.parse(printersListJson);
-
-    console.log("Printers:", printersList);
-
-    if (!printersList?.length) {
-      throw new Error("No printers found");
-    }
-
-const result = await printHtml({
-  html: htmlContent,
-  printer: printersList[0].Name,
-  id: generateId(),
-  print_settings: JSON.stringify({
-    page_width: 80,
-    page_height: 297,
-    margin_top: 0,
-    margin_bottom: 0,
-    margin_left: 0,
-    margin_right: 0
-  })
-});
-
-    console.log("Printed successfully", result);
-  } catch (err) {
-    console.error("Print failed:", err);
-    alert("Printing failed. Check printer setup.");
-  }
-};
-
-async function print80mm(order:Order) {
-  try {
-    const result = await invoke('print_html_80mm', {
-      printerName: "POS-58",
-      htmlContent: generateBillHtml(order)
+    const result = await invoke<string>('print_receipt_silent', {
+      order,
+      printerName: printerName || null,
     });
-    console.log(result);
+    
+    console.log('Print result:', result);
   } catch (error) {
-    console.error('Print error:', error);
+    console.error('Silent print error:', error);
+    throw new Error(`Failed to print bill: ${error}`);
   }
 }
 
+/**
+ * Alternative print method using direct PowerShell approach
+ */
+async function printBillDirect(order: Order, printerName?: string): Promise<void> {
+  try {
+    const result = await invoke<string>('print_receipt_direct', {
+      order,
+      printerName: printerName || null,
+    });
+    
+    console.log('Print result:', result);
+  } catch (error) {
+    console.error('Direct print error:', error);
+    throw new Error(`Failed to print bill directly: ${error}`);
+  }
+}
+
+/**
+ * Get the default printer name
+ */
+async function getDefaultPrinter(): Promise<string> {
+  try {
+    const printerName = await invoke<string>('get_default_printer');
+    return printerName;
+  } catch (error) {
+    console.error('Failed to get default printer:', error);
+    throw new Error('Unable to detect default printer');
+  }
+}
 
 export const PrintService = {
-  printBill,
-  print80mm
+  printBillSilent,
+  printBillDirect,
+  getDefaultPrinter,
 };

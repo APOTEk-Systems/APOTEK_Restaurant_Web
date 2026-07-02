@@ -6,8 +6,6 @@
     "main"
   ],
   "permissions": [
-    "core:default",
-    "printer:default",
-    "printer:allow-print-html"
+    "core:default"
   ]
 }

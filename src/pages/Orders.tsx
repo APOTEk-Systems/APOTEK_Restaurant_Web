@@ -34,8 +34,6 @@ import { Link } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { OrderService } from "@/services/orderService";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { invoke } from "@tauri-apps/api/core";
-import { printHtml } from "tauri-plugin-printer-v2";
 import { PrintService } from "@/services/printService";
 
 const statusStyles = {
@@ -119,18 +117,17 @@ export default function Orders() {
     setIsModalOpen(false);
   };
 
-  const S = {
-    reset: "\x1B\x40",
-    boldOn: "\x1B\x45\x01",
-    boldOff: "\x1B\x45\x00",
-    center: "\x1B\x61\x01",
-    cut: "\x1D\x56\x41\x03",
-  };
 
   const handleGenerateBill = async (order: any) => {
-   if(order){
-    PrintService.print80mm(order)
-   }
+    if (!order) return;
+    try {
+      console.log("Generating bill for order:", order);
+      await PrintService.printBillSilent(order);
+      alert("Bill printed successfully to default printer");
+    } catch (error) {
+      console.error("Print error:", error);
+      alert(`Failed to print bill: ${error}`);
+    }
   };
   const getStatusActions = (status: string, orderId: string) => {
     switch (status) {

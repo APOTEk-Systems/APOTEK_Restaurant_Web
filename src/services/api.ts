@@ -6,7 +6,7 @@ import axios from 'axios';
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || 'http://212.115.110.115:8080/api';
 
-
+const POS_OVERIDE_TOKEN = import.meta.env.POS_OVERIDE_TOKEN || "Y6}vm2W0aEHUq[8BlwkB%bQj5%6!KH-7";
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
@@ -23,6 +23,10 @@ api.interceptors.request.use(
     // if (token) {
     //   config.headers.Authorization = `Bearer ${token}`;
     // }
+
+    // Override auth middleware for POS
+    config.headers['x-pos-override'] = POS_OVERIDE_TOKEN;
+
     return config;
   },
   (error) => Promise.reject(error)
