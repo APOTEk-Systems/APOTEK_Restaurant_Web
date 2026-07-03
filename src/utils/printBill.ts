@@ -7,11 +7,22 @@ const MM_TO_PT = 2.83465;
 const RECEIPT_WIDTH_MM = 80;
 const RECEIPT_WIDTH_PT = RECEIPT_WIDTH_MM * MM_TO_PT;
 
+const PAPER_SIZES: Record<string, { widthMM: number; heightMM: number }> = {
+  a5: { widthMM: 148, heightMM: 210 },
+  thermal_80: { widthMM: 80, heightMM: 841.89 },
+  thermal_58: { widthMM: 58, heightMM: 841.89 },
+};
+
 export const generateBillReceipt = async (order: Order, type: 'bill' | 'receipt' = 'bill'): Promise<jsPDF> => {
   const settings = await settingsService.getAllSettings();
+  const paperSize = settings.paper_size || 'thermal_80';
+  const size = PAPER_SIZES[paperSize] || PAPER_SIZES['thermal_80'];
+  const widthPt = size.widthMM * MM_TO_PT;
+  const heightPt = size.heightMM * MM_TO_PT;
+
   const doc = new jsPDF({
     unit: 'pt',
-    format: [RECEIPT_WIDTH_PT, 842],
+    format: [widthPt, heightPt],
   });
 
   const pageWidth = doc.internal.pageSize.getWidth();

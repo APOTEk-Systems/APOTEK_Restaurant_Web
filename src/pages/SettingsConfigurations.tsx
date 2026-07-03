@@ -256,12 +256,22 @@ const SettingsConfigurations = () => {
                 {renderEditInput('Receipt Header Text', 'receipt_header')}
                 {renderEditInput('Receipt Footer Text', 'receipt_footer')}
                 {renderEditSwitch('Show Logo on Receipt', 'Print restaurant logo on receipts', 'show_logo_on_receipt')}
+                {renderEditSelect('Paper Size', [
+                  { value: 'a5', label: 'A5' },
+                  { value: 'thermal_80', label: 'Thermal 80mm' },
+                  { value: 'thermal_58', label: 'Thermal 58mm' },
+                ], 'paper_size')}
               </>
             ) : (
               <>
                 {renderViewInput('Receipt Header Text', settings?.receipt_header)}
                 {renderViewInput('Receipt Footer Text', settings?.receipt_footer)}
                 {renderViewSwitch('Show Logo on Receipt', 'Print restaurant logo on receipts', settings?.show_logo_on_receipt)}
+                {renderViewSelect('Paper Size', [
+                  { value: 'a5', label: 'A5' },
+                  { value: 'thermal_80', label: 'Thermal 80mm' },
+                  { value: 'thermal_58', label: 'Thermal 58mm' },
+                ], settings?.paper_size)}
               </>
             )}
           </CardContent>
