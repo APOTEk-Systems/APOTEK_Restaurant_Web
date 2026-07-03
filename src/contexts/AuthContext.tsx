@@ -6,7 +6,7 @@ import {
 	ReactNode,
 	useCallback,
 } from 'react';
-import { authService, AuthUser, LOGOUT_EVENT } from '@/services/authService';
+import { authService, AuthUser, LOGOUT_EVENT, USER_DATA_UPDATED_EVENT } from '@/services/authService';
 
 interface AuthContextType {
 	user: AuthUser | null;
@@ -29,6 +29,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 		if (storedUser && token) {
 			setUser(storedUser);
+
+			if (!storedUser.permissions) {
+				authService.refreshToken().then((success) => {
+					if (success) {
+						const refreshedUser = authService.getUser();
+						if (refreshedUser) {
+							setUser(refreshedUser);
+						}
+					}
+				}).catch(() => {
+					// silently fail
+				});
+			}
 		}
 		setIsLoading(false);
 	}, []);
@@ -37,9 +50,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 	useEffect(() => {
 		const handleStorageChange = (e: StorageEvent) => {
 			if (e.key === 'token' && !e.newValue) {
-				// Token was removed - logout user
 				setUser(null);
 				authService.clearAuthData();
+			}
+			if (e.key === 'user' && e.newValue) {
+				try {
+					setUser(JSON.parse(e.newValue));
+				} catch {
+					// ignore parse errors
+				}
 			}
 		};
 
@@ -62,11 +81,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 		return () => window.removeEventListener(LOGOUT_EVENT, handleLogoutEvent);
 	}, []);
 
+	// Listen for same-tab user data updates (e.g., after refresh token or login)
+	useEffect(() => {
+		const handleUserDataUpdate = () => {
+			const updatedUser = authService.getUser();
+			if (updatedUser) {
+				setUser(updatedUser);
+			}
+		};
+
+		window.addEventListener(USER_DATA_UPDATED_EVENT, handleUserDataUpdate);
+		return () => window.removeEventListener(USER_DATA_UPDATED_EVENT, handleUserDataUpdate);
+	}, []);
+
 	const login = useCallback(async (email: string, password: string) => {
 		setIsLoading(true);
 		try {
 			const response = await authService.login({ email, password });
-			setUser(response.user);
+			const userWithPermissions = { ...response.user, permissions: response.permissions };
+			setUser(userWithPermissions);
 		} finally {
 			setIsLoading(false);
 		}

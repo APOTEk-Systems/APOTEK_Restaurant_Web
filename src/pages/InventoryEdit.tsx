@@ -324,7 +324,7 @@ export default function InventoryEdit() {
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="quantity">Current Quantity *</Label>
+                  <Label htmlFor="quantity">Current Quantity</Label>
                   <Input
                     id="quantity"
                     type="number"

@@ -8,10 +8,18 @@ import { useState, useEffect } from "react";
 import React from "react";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { ReservationService } from "@/services/reservationService";
 import { TableService } from "@/services/tableService";
 import { toast } from "@/components/ui/use-toast";
+
+enum ReservationStatus {
+  PENDING = "PENDING",
+  CONFIRMED = "CONFIRMED",
+  CANCELLED = "CANCELLED",
+  COMPLETED = "COMPLETED"
+}
 
 // Validate Tanzanian phone numbers
 function isValidPhoneNumber(phone: string): boolean {
@@ -105,6 +113,7 @@ export default function ReservationNew() {
     numberOfGuests: "",
     date: "",
     time: "",
+    status: "PENDING",
     notes: ""
   });
   const [selectedTableIds, setSelectedTableIds] = useState<number[]>([]);
@@ -159,13 +168,12 @@ export default function ReservationNew() {
     return bookedIds;
   }, [dateReservations, formData.date, isEditing, passedReservation, existingReservation]);
 
-  // Pre-fill form with existing reservation data
-  useEffect(() => {
+// Pre-fill form with existing reservation data
+   useEffect(() => {
     const reservation = passedReservation || existingReservation;
     if (reservation) {
       const reservationDate = new Date(reservation.date);
       const dateStr = reservationDate.toISOString().split('T')[0];
-      // Use local time directly instead of toISOString to preserve the time
       const hours = reservationDate.getHours().toString().padStart(2, '0');
       const minutes = reservationDate.getMinutes().toString().padStart(2, '0');
       const timeStr = `${hours}:${minutes}`;
@@ -177,6 +185,7 @@ export default function ReservationNew() {
         numberOfGuests: reservation.numberOfGuests.toString(),
         date: dateStr,
         time: timeStr,
+        status: reservation.status,
         notes: reservation.notes || ""
       });
       setSelectedTableIds(reservation.tables.map(t => t.tableId));
@@ -304,8 +313,7 @@ export default function ReservationNew() {
       customerEmail: formData.customerEmail || undefined,
       date: dateTime.toISOString(),
       numberOfGuests: parseInt(formData.numberOfGuests) || 1,
-      // When creating, default to CONFIRMED. When editing, keep existing status.
-      status: isEditing ? (passedReservation?.status || existingReservation?.status) : "CONFIRMED",
+      status: formData.status,
       notes: formData.notes || undefined,
       tableIds: selectedTableIds,
     };
@@ -437,23 +445,44 @@ export default function ReservationNew() {
                     required
                     className="h-9"
                   />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="time" className="text-sm font-medium">
-                    Reservation Time *
-                  </Label>
-                  <Input
-                    id="time"
-                    type="time"
-                    value={formData.time}
-                    onChange={(e) => handleInputChange("time", e.target.value)}
-                    required
-                    className="h-9"
-                  />
-                </div>
-              </div>
+</div>
+                 <div className="space-y-2">
+                   <Label htmlFor="time" className="text-sm font-medium">
+                     Reservation Time *
+                   </Label>
+                   <Input
+                     id="time"
+                     type="time"
+                     value={formData.time}
+                     onChange={(e) => handleInputChange("time", e.target.value)}
+                     required
+                     className="h-9"
+                   />
+                 </div>
+               </div>
 
-              {/* Table Selection */}
+<div className="space-y-2">
+                  <Label htmlFor="status" className="text-sm font-medium">
+                    Status
+                  </Label>
+                  <Select
+                    value={formData.status}
+                    onValueChange={(value) => handleInputChange("status", value)}
+                    disabled={isEditing && (passedReservation?.status === ReservationStatus.CANCELLED || existingReservation?.status === ReservationStatus.CANCELLED || passedReservation?.status === ReservationStatus.COMPLETED || existingReservation?.status === ReservationStatus.COMPLETED)}
+                  >
+                    <SelectTrigger id="status" className="h-9">
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={ReservationStatus.PENDING}>Pending</SelectItem>
+                      <SelectItem value={ReservationStatus.CONFIRMED}>Confirmed</SelectItem>
+                      <SelectItem value={ReservationStatus.CANCELLED}>Cancelled</SelectItem>
+                      <SelectItem value={ReservationStatus.COMPLETED}>Completed</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+               {/* Table Selection */}
               <div className="space-y-2">
                 <Label className="text-sm font-medium">
                   Select Tables * (Total Capacity: {getTotalCapacity()})

@@ -146,18 +146,6 @@ export default function GoodsReceiving() {
               onDateRangeChange={setDateRange}
               className="w-auto"
             />
-            <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-              <SelectTrigger className="w-40">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="partial">Partial</SelectItem>
-                <SelectItem value="complete">Complete</SelectItem>
-                <SelectItem value="issue">Has Issues</SelectItem>
-              </SelectContent>
-            </Select>
           </div>
         </div>
 

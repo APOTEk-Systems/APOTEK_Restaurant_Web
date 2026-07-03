@@ -5,10 +5,11 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import { Plus, Search, Filter, Eye, MoreHorizontal, Check, DollarSign, X, Ban, CreditCard, Receipt } from "lucide-react";
+import { Plus, Search, Filter, Eye, MoreHorizontal, Check, DollarSign, X, Ban, CreditCard, Receipt, Printer } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { OrderService, Order, Payment, OrderItem } from "@/services/orderService";
+import { printBill } from "@/utils/printBill";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 
@@ -111,23 +112,36 @@ export default function Orders() {
   };
 
   const getStatusActions = (status: string, orderId: number) => {
-    switch (status.toLowerCase()) {
-      case "completed":
-        return (
-          <>
-      
-            <Button
-              variant="default"
-              size="sm"
-              className="gap-2"
-              onClick={() => handleStatusUpdate(orderId, "paid")}
-            >
-              Pay
-            </Button>
-          </>
-        );
-      case "served":
-        return (
+  const printButton = (
+    <Button
+      variant="outline"
+      size="sm"
+      className="gap-2"
+      onClick={() => selectedOrder && printBill(selectedOrder)}
+    >
+      <Printer className="h-4 w-4" />
+      Print Bill
+    </Button>
+  );
+
+  switch (status.toLowerCase()) {
+    case "completed":
+      return (
+        <>
+          <Button
+            variant="default"
+            size="sm"
+            className="gap-2"
+            onClick={() => handleStatusUpdate(orderId, "paid")}
+          >
+            Pay
+          </Button>
+          {printButton}
+        </>
+      );
+    case "served":
+      return (
+        <>
           <Button
             variant="outline"
             size="sm"
@@ -137,10 +151,13 @@ export default function Orders() {
             <DollarSign className="h-4 w-4" />
             Record Payment
           </Button>
-        );
-      case "pending":
-      case "preparing":
-        return (
+          {printButton}
+        </>
+      );
+    case "pending":
+    case "preparing":
+      return (
+        <>
           <Button
             variant="outline"
             size="sm"
@@ -150,11 +167,13 @@ export default function Orders() {
             <X className="h-4 w-4" />
             Cancel Order
           </Button>
-        );
-      default:
-        return null;
-    }
-  };
+          {printButton}
+        </>
+      );
+    default:
+      return printButton;
+  }
+};
 
   // Filter and search orders
   const filteredOrders = orders?.filter(order => {
@@ -256,7 +275,7 @@ export default function Orders() {
                       <td className="px-6 py-4 text-foreground">{order.waiter || 'N/A'}</td>
                       <td className="px-6 py-4">
                         <Badge className={cn("capitalize", statusStyles[order.status.toLowerCase() as keyof typeof statusStyles])}>
-                          {order.status && order.status === "IN_PROGRESS" ? "PRERARING" : order.status}
+                          {order.status && order.status === "IN_PROGRESS" ? "PREPARING" : order.status}
                         </Badge>
                       </td>
                       <td className="px-6 py-4 font-semibold text-foreground text-right">{order.total.toLocaleString()}</td>

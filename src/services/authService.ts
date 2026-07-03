@@ -3,6 +3,7 @@ import { api } from './api';
 
 // Custom event for logout notifications
 export const LOGOUT_EVENT = 'apotek-logout';
+export const USER_DATA_UPDATED_EVENT = 'apotek-user-data-updated';
 
 export interface LoginCredentials {
 	email: string;
@@ -16,6 +17,7 @@ export interface AuthUser {
 	staffId?: number;
 	userGroupId?: number;
 	userGroupName?: string;
+	permissions?: string[];
 	staff?: {
 		firstName: string;
 		lastName: string;
@@ -27,6 +29,7 @@ export interface AuthResponse {
 	user: AuthUser;
 	accessToken: string;
 	refreshToken?: string;
+	permissions: string[];
 }
 
 // Token storage keys
@@ -49,8 +52,9 @@ export const authService = {
 	 */
 	setAuthData: (data: AuthResponse): void => {
 		localStorage.setItem(TOKEN_KEY, data.accessToken);
-		// Store user data (refresh token is handled by HTTP-only cookie)
-		localStorage.setItem(USER_KEY, JSON.stringify(data.user));
+		const userData = { ...data.user, permissions: data.permissions };
+		localStorage.setItem(USER_KEY, JSON.stringify(userData));
+		window.dispatchEvent(new CustomEvent(USER_DATA_UPDATED_EVENT));
 	},
 
 	/**
@@ -101,14 +105,15 @@ export const authService = {
 			console.log('[AUTH] Refresh response status:', response.status);
 			console.log('[AUTH] Refresh response data:', response.data);
 
-			if (response.data && response.data.accessToken) {
-				localStorage.setItem(TOKEN_KEY, response.data.accessToken);
-				// Update user data if provided
-				if (response.data.user) {
-					localStorage.setItem(USER_KEY, JSON.stringify(response.data.user));
-				}
-				return true;
+		if (response.data && response.data.accessToken) {
+			localStorage.setItem(TOKEN_KEY, response.data.accessToken);
+			if (response.data.user) {
+				const userData = { ...response.data.user, permissions: response.data.permissions };
+				localStorage.setItem(USER_KEY, JSON.stringify(userData));
 			}
+			window.dispatchEvent(new CustomEvent(USER_DATA_UPDATED_EVENT));
+			return true;
+		}
 
 			console.warn('[AUTH] Refresh response missing accessToken');
 			return false;
