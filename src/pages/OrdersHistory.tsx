@@ -13,12 +13,13 @@ import {
   TableRow
 } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Search, Filter, Download, Eye, Calendar, DollarSign, Receipt, Loader2, CreditCard, Banknote, Wallet } from "lucide-react";
+import { Search, Filter, Download, Eye, Calendar, DollarSign, Receipt, Loader2, CreditCard, Banknote, Wallet, ReceiptText } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { OrderService, Order, Payment } from "@/services/orderService";
 import { DateRangePicker, DateRange } from "@/components/ui/date-range-picker";
 import { cn, formatCurrency } from "@/lib/utils";
 import { format } from "date-fns";
+import { printReceipt } from "@/utils/printBill";
 
 const paymentMethodStyles = {
   CASH: "bg-success/10 text-success",
@@ -189,19 +190,27 @@ export default function OrdersHistory() {
                     </TableCell>
                     <TableCell className="text-right font-medium">{formatCurrency(order.total || 0)}</TableCell>
                     <TableCell className="text-right">
-                      <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
-                        <DialogTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              setSelectedOrder(order);
-                              setShowPaymentDialog(true);
-                            }}
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                        </DialogTrigger>
+                      <div className="flex items-center justify-end gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => printReceipt(order)}
+                        >
+                          <ReceiptText className="h-4 w-4" />
+                        </Button>
+                        <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
+                          <DialogTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setSelectedOrder(order);
+                                setShowPaymentDialog(true);
+                              }}
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                          </DialogTrigger>
                         <DialogContent className="sm:max-w-[425px]">
                           <DialogHeader>
                             <DialogTitle>Payment Details - Order #{selectedOrder?.orderNumber}</DialogTitle>
@@ -267,6 +276,7 @@ export default function OrdersHistory() {
                           )}
                         </DialogContent>
                       </Dialog>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
