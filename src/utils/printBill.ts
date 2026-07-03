@@ -97,9 +97,8 @@ export const generateBillReceipt = async (order: Order, type: 'bill' | 'receipt'
   yPos += 26;
 
   const taxRate = parseFloat(settings.tax_rate || '0') || 0;
-  const includeTaxInPrices = settings.include_tax_in_prices === 'true';
 
-  if (taxRate > 0 && includeTaxInPrices) {
+  if (taxRate > 0) {
     const vatAmount = itemSubtotal * (taxRate / 100);
 
     doc.setFontSize(11);
@@ -143,29 +142,8 @@ export const generateBillReceipt = async (order: Order, type: 'bill' | 'receipt'
 const printDocument = async (order: Order, type: 'bill' | 'receipt', filename: string) => {
   const doc = await generateBillReceipt(order, type);
   const blob = doc.output('blob');
-
   const url = URL.createObjectURL(blob);
-
-  const iframe = document.createElement('iframe');
-  iframe.style.display = 'none';
-  iframe.src = url;
-  document.body.appendChild(iframe);
-
-  const cleanup = () => {
-    document.body.removeChild(iframe);
-    URL.revokeObjectURL(url);
-  };
-
-  iframe.onload = () => {
-    iframe.contentWindow?.print();
-    cleanup();
-  };
-
-  setTimeout(() => {
-    if (document.body.contains(iframe)) {
-      cleanup();
-    }
-  }, 1000);
+  window.open(url, '_blank');
 };
 
 export const printReceipt = async (order: Order) => {
