@@ -75,12 +75,12 @@ export const generateBillReceipt = async (order: Order, type: 'bill' | 'receipt'
   doc.setFontSize(12);
 
   const activeItems = order.orderItems.filter(item => item.status !== 'CANCELLED');
+  const itemSubtotal = activeItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+
   activeItems.forEach(item => {
     const itemName = item.menuItem?.name || 'Item';
-    const nameLines = doc.splitTextToSize(itemName, pageWidth - 80);
-
+    const nameLines = doc.splitTextToSize(itemName, pageWidth - 100);
     const textHeight = Math.max(nameLines.length * 14, 18);
-
     const baselineY = yPos + textHeight - 6;
 
     doc.text(nameLines, 20, yPos);
@@ -99,19 +99,18 @@ export const generateBillReceipt = async (order: Order, type: 'bill' | 'receipt'
   const taxRate = parseFloat(settings.tax_rate || '0') || 0;
   const includeTaxInPrices = settings.include_tax_in_prices === 'true';
 
-  if (taxRate > 0) {
-    if (includeTaxInPrices) {
-      const subtotal = order.total / (1 + taxRate / 100);
-      const vatAmount = order.total - subtotal;
+  if (taxRate > 0 && includeTaxInPrices) {
+    const vatAmount = itemSubtotal * (taxRate / 100);
 
-      doc.text("Subtotal", 20, yPos);
-      doc.text(`${subtotal.toLocaleString()}`, pageWidth - 20, yPos, { align: "right" });
-      yPos += 22;
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "normal");
+    doc.text("Subtotal", 20, yPos);
+    doc.text(`${itemSubtotal.toLocaleString()}`, pageWidth - 20, yPos, { align: "right" });
+    yPos += 22;
 
-      doc.text(`VAT (${taxRate}%)`, 20, yPos);
-      doc.text(`${vatAmount.toLocaleString()}`, pageWidth - 20, yPos, { align: "right" });
-      yPos += 22;
-    }
+    doc.text(`VAT (${taxRate}%)`, 20, yPos);
+    doc.text(`${vatAmount.toLocaleString()}`, pageWidth - 20, yPos, { align: "right" });
+    yPos += 22;
 
     doc.setFontSize(15);
     doc.setFont("helvetica", "bold");
@@ -119,6 +118,8 @@ export const generateBillReceipt = async (order: Order, type: 'bill' | 'receipt'
     doc.text(`${order.total.toLocaleString()}`, pageWidth - 20, yPos, { align: "right" });
     yPos += 30;
   } else {
+    doc.setFontSize(15);
+    doc.setFont("helvetica", "bold");
     doc.text("TOTAL", 20, yPos);
     doc.text(`${order.total.toLocaleString()}`, pageWidth - 20, yPos, { align: "right" });
     yPos += 28;
@@ -142,22 +143,29 @@ export const generateBillReceipt = async (order: Order, type: 'bill' | 'receipt'
 const printDocument = async (order: Order, type: 'bill' | 'receipt', filename: string) => {
   const doc = await generateBillReceipt(order, type);
   const blob = doc.output('blob');
-  
+
   const url = URL.createObjectURL(blob);
-  const printWindow = window.open(url, '_blank');
-  
-  if (printWindow) {
-    printWindow.onload = () => {
-      printWindow.print();
-      URL.revokeObjectURL(url);
-    };
-  } else {
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = filename;
-    link.click();
+
+  const iframe = document.createElement('iframe');
+  iframe.style.display = 'none';
+  iframe.src = url;
+  document.body.appendChild(iframe);
+
+  const cleanup = () => {
+    document.body.removeChild(iframe);
     URL.revokeObjectURL(url);
-  }
+  };
+
+  iframe.onload = () => {
+    iframe.contentWindow?.print();
+    cleanup();
+  };
+
+  setTimeout(() => {
+    if (document.body.contains(iframe)) {
+      cleanup();
+    }
+  }, 1000);
 };
 
 export const printReceipt = async (order: Order) => {
