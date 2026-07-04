@@ -192,8 +192,8 @@ const Staff = () => {
             <TableRow>
               <TableHead>Name</TableHead>
               <TableHead>Contacts</TableHead>
-              <TableHead>Department</TableHead>
               <TableHead>Position</TableHead>
+              <TableHead>Department</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Actions</TableHead>
             </TableRow>

@@ -13,10 +13,9 @@ import { Label } from "@/components/ui/label";
 import { MenuService, MenuItem, Addon, SideDish, OrderItem } from "@/services/menuService";
 import { OrderService } from "@/services/orderService";
 import { TableService } from "@/services/tableService";
+import { staffService, type Staff } from "@/services/staffService";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-
-const waiters = ["Sarah M.", "Mike R.", "James T.", "Emily W."];
 
 export default function OrderNew() {
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
@@ -47,13 +46,19 @@ export default function OrderNew() {
     queryFn: MenuService.getAllMenuSideDishes,
   });
 
-  // Fetch addons
-  const { data: addons, isLoading: isAddonsLoading } = useQuery({
-    queryKey: ['addons'],
-    queryFn: MenuService.getAllMenuAddons,
-  });
+// Fetch addons
+   const { data: addons, isLoading: isAddonsLoading } = useQuery({
+     queryKey: ['addons'],
+     queryFn: MenuService.getAllMenuAddons,
+   });
 
-  // Create order mutation
+   // Fetch waiters from staff with Waiter role
+   const { data: waiters = [], isLoading: isWaitersLoading } = useQuery({
+     queryKey: ['waiters'],
+     queryFn: () => staffService.getWaiters(),
+   });
+
+   // Create order mutation
   const createOrderMutation = useMutation({
     mutationFn: OrderService.createOrder,
     onSuccess: () => {
@@ -217,7 +222,7 @@ export default function OrderNew() {
     return sum + itemTotal;
   }, 0);
 
-  if (isMenuLoading || isSidesLoading || isAddonsLoading || isTablesLoading) {
+  if (isMenuLoading || isSidesLoading || isAddonsLoading || isTablesLoading || isWaitersLoading) {
     return (
       <MainLayout title="New Order" subtitle="Create a new customer order">
         <div className="space-y-6 animate-fade-in">
@@ -417,32 +422,34 @@ export default function OrderNew() {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="table" className="text-xs text-muted-foreground">Table</Label>
-                      <Select value={selectedTable} onValueChange={setSelectedTable}>
-                        <SelectTrigger id="table" className="h-9 text-sm">
-                          <SelectValue placeholder="Select table" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {tables?.map(table => (
-                            <SelectItem key={table.id} value={table.number.toString()}>
-                              Table {table.number} (Capacity: {table.capacity})
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="waiter" className="text-xs text-muted-foreground">Waiter</Label>
-                      <Select value={selectedWaiter} onValueChange={setSelectedWaiter}>
-                        <SelectTrigger id="waiter" className="h-9 text-sm">
-                          <SelectValue placeholder="Select waiter" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {waiters.map(waiter => (
-                            <SelectItem key={waiter} value={waiter}>{waiter}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
+<Select value={selectedTable} onValueChange={setSelectedTable}>
+                         <SelectTrigger id="table" className="h-9 text-sm">
+                           <SelectValue placeholder="Select table" />
+                         </SelectTrigger>
+                         <SelectContent>
+                           {tables?.map(table => (
+                             <SelectItem key={table.id} value={table.number.toString()}>
+                               Table {table.number} (Capacity: {table.capacity})
+                             </SelectItem>
+                           ))}
+                         </SelectContent>
+                       </Select>
+                     </div>
+                     <div className="space-y-2">
+                       <Label htmlFor="waiter" className="text-xs text-muted-foreground">Waiter</Label>
+                       <Select value={selectedWaiter} onValueChange={setSelectedWaiter}>
+                         <SelectTrigger id="waiter" className="h-9 text-sm">
+                           <SelectValue placeholder="Select waiter" />
+                         </SelectTrigger>
+<SelectContent>
+                            {Array.isArray(waiters) && waiters.map((waiter: Staff) => (
+                              <SelectItem key={waiter.id} value={`${waiter.firstName} ${waiter.lastName}`}>
+                                {waiter.firstName} {waiter.lastName}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                     </div>
                   </div>
                 </div>
 

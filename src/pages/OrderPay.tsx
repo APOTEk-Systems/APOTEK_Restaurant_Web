@@ -11,7 +11,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { OrderService, Order } from "@/services/orderService";
 import { PaymentService, PaymentMethod, Payment } from "@/services/paymentService";
-import { printBill } from "@/utils/printBill";
+import { printBill, printReceipt } from "@/utils/printBill";
 
 const paymentMethods: { id: PaymentMethod; name: string; icon: React.ReactNode }[] = [
   { id: "CASH", name: "Cash", icon: <DollarSign className="h-4 w-4" /> },
@@ -192,7 +192,7 @@ export default function OrderPay() {
         description: `Payment of $${amount.toFixed(2)} recorded`,
       });
 
-      await printBill(order);
+      await printReceipt(order);
       navigate("/orders");
     } catch (error: any) {
       toast({
@@ -256,7 +256,7 @@ export default function OrderPay() {
         description: `${payments.length} payment(s) recorded`,
       });
 
-      await printBill(order);
+      await printReceipt(order);
       navigate("/orders");
     } catch (error: any) {
       toast({

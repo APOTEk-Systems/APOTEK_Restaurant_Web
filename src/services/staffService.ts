@@ -55,6 +55,11 @@ export const staffService = {
     return response.data;
   },
 
+  getWaiters: async (): Promise<Staff[]> => {
+    const response = await api.get('/staff/waiters');
+    return response.data;
+  },
+
   getById: async (id: number): Promise<Staff> => {
     const response = await api.get(`/staff/${id}`);
     return response.data;
