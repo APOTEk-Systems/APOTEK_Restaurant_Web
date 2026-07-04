@@ -296,7 +296,7 @@ export default function InventoryNew() {
                       type="number"
                       min="0"
                       placeholder="0"
-                      value={formData.quantity || ""}
+                      value={formData.quantity ?? ""}
                       onChange={(e) => {
                         const val = e.target.value;
                         handleInputChange("quantity", val === "" ? 0 : parseFloat(val) || 0);
@@ -329,7 +329,7 @@ export default function InventoryNew() {
                       min="0"
                       step="0.01"
                       placeholder="0.00"
-                      value={formData.price || ""}
+                      value={formData.price ?? ""}
                       onChange={(e) => {
                         const val = e.target.value;
                         handleInputChange("price", val === "" ? 0 : parseFloat(val) || 0);
@@ -345,7 +345,7 @@ export default function InventoryNew() {
                       type="number"
                       min="0"
                       placeholder="Alert when below this"
-                      value={formData.minStock || ""}
+                      value={formData.minStock ?? ""}
                       onChange={(e) => {
                         const val = e.target.value;
                         handleInputChange("minStock", val === "" ? 0 : parseFloat(val) || 0);
@@ -359,7 +359,7 @@ export default function InventoryNew() {
                       type="number"
                       min="0"
                       placeholder="Maximum capacity"
-                      value={formData.maxStock || ""}
+                      value={formData.maxStock ?? ""}
                       onChange={(e) => {
                         const val = e.target.value;
                         handleInputChange("maxStock", val === "" ? 0 : parseFloat(val) || 0);

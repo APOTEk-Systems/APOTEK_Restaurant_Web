@@ -260,7 +260,7 @@ export default function ReservationNew() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.customerName || !formData.customerEmail || !formData.customerPhone || !formData.date || !formData.time) {
+    if (!formData.customerName || !formData.customerPhone || !formData.date || !formData.time) {
       toast({
         title: "Validation Error",
         description: "Please fill in all required fields.",
@@ -377,18 +377,17 @@ export default function ReservationNew() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="customerEmail" className="text-sm font-medium">
-                    Email *
-                  </Label>
-                  <Input
-                    id="customerEmail"
-                    type="email"
-                    value={formData.customerEmail}
-                    onChange={(e) => handleInputChange("customerEmail", e.target.value)}
-                    placeholder="Enter email address"
-                    required
-                    className="h-9"
-                  />
+<Label htmlFor="customerEmail" className="text-sm font-medium">
+                     Email
+                   </Label>
+                   <Input
+                     id="customerEmail"
+                     type="email"
+                     value={formData.customerEmail}
+                     onChange={(e) => handleInputChange("customerEmail", e.target.value)}
+                     placeholder="Enter email address"
+                     className="h-9"
+                   />
                 </div>
               </div>
 
