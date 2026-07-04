@@ -2,7 +2,8 @@ import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { authService, authUtils } from './authService';
 
 // Live server URL or fallback to localhost
-const API_BASE_URL = 'http://localhost:3001/api';
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api';
 
 // Extend the config interface to include our custom properties
 declare module 'axios' {
