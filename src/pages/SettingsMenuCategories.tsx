@@ -116,7 +116,7 @@ export default function SettingsMenuCategories() {
     setFormData({
       name: category.name,
       description: category.description || "",
-      prepArea: category.prepArea || "kitchen",
+      prepArea: category.prepArea || "KITCHEN",
       isActive: category.isActive,
     });
     setIsDialogOpen(true);
@@ -219,9 +219,9 @@ export default function SettingsMenuCategories() {
                       <SelectValue placeholder="Select prep area" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="kitchen">Kitchen</SelectItem>
-                      <SelectItem value="bar">Bar</SelectItem>
-                      <SelectItem value="both">Both</SelectItem>
+                      <SelectItem value="KITCHEN">Kitchen</SelectItem>
+                      <SelectItem value="BAR">Bar</SelectItem>
+                      {/* <SelectItem value="BOTH">Both</SelectItem> */}
                     </SelectContent>
                   </Select>
                 </div>

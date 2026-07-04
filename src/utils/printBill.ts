@@ -114,7 +114,7 @@ export const generateBillReceipt = async (order: Order, type: 'bill' | 'receipt'
     doc.setFontSize(15);
     doc.setFont("helvetica", "bold");
     doc.text("TOTAL", 20, yPos);
-    doc.text(`${order.total.toLocaleString()}`, pageWidth - 20, yPos, { align: "right" });
+    doc.text(`${(itemSubtotal + vatAmount).toLocaleString()}`, pageWidth - 20, yPos, { align: "right" });
     yPos += 30;
   } else {
     doc.setFontSize(15);
