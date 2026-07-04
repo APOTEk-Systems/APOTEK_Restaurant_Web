@@ -75,6 +75,9 @@ export const exportOrderSummaryPDF = async (
     
   ]);
 
+  // Calculate grand total
+  const grandTotal = data.reduce((sum, item) => sum + item.total, 0);
+
   const headerEndY = await addCompanyHeader(doc, settings);
   const reportInfoEndY = addReportInfo(doc, reportTitle, dateRange, headerEndY);
 
@@ -88,6 +91,12 @@ export const exportOrderSummaryPDF = async (
     }, // Price column
     ...defaultTableStyles,
   });
+
+  // Add grand total
+  const finalY = (doc as any).lastAutoTable.finalY || reportInfoEndY;
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "bold");
+  doc.text(`Grand Total: ${formatCurrency(grandTotal)}`, 14, finalY + 12);
 
   openPDFInNewTab(doc, reportTitle);
 };
@@ -110,6 +119,9 @@ export const exportOrderDetailedPDF = async (
     formatCurrency(item.price)
   ]);
 
+  // Calculate grand total
+  const grandTotal = data.reduce((sum, item) => sum + item.price, 0);
+
   const headerEndY = await addCompanyHeader(doc, settings);
   const reportInfoEndY = addReportInfo(doc, reportTitle, dateRange, headerEndY);
 
@@ -120,6 +132,12 @@ export const exportOrderDetailedPDF = async (
     didParseCell: getDidParseCellHook([3, 4]), // Quantity, Price columns
     ...defaultTableStyles,
   });
+
+  // Add grand total
+  const finalY = (doc as any).lastAutoTable.finalY || reportInfoEndY;
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "bold");
+  doc.text(`Grand Total: ${formatCurrency(grandTotal)}`, 14, finalY + 12);
 
   openPDFInNewTab(doc, reportTitle);
 };
@@ -142,6 +160,9 @@ export const exportPaymentsPDF = async (
     item.waiter
   ]);
 
+  // Calculate grand total
+  const grandTotal = data.reduce((sum, item) => sum + item.amount, 0);
+
   const headerEndY = await addCompanyHeader(doc, settings);
   const reportInfoEndY = addReportInfo(doc, reportTitle, dateRange, headerEndY);
 
@@ -152,6 +173,12 @@ export const exportPaymentsPDF = async (
     didParseCell: getDidParseCellHook([2]), // Amount column
     ...defaultTableStyles,
   });
+
+  // Add grand total
+  const finalY = (doc as any).lastAutoTable.finalY || reportInfoEndY;
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "bold");
+  doc.text(`Grand Total: ${formatCurrency(grandTotal)}`, 14, finalY + 12);
 
   openPDFInNewTab(doc, reportTitle);
 };
@@ -175,6 +202,9 @@ export const exportRefundsPDF = async (
     item.waiter
   ]);
 
+  // Calculate grand total
+  const grandTotal = data.reduce((sum, item) => sum + item.price, 0);
+
   const headerEndY = await addCompanyHeader(doc, settings);
   const reportInfoEndY = addReportInfo(doc, reportTitle, dateRange, headerEndY);
 
@@ -185,6 +215,12 @@ export const exportRefundsPDF = async (
     didParseCell: getDidParseCellHook([3]), // Price column
     ...defaultTableStyles,
   });
+
+  // Add grand total
+  const finalY = (doc as any).lastAutoTable.finalY || reportInfoEndY;
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "bold");
+  doc.text(`Grand Total: ${formatCurrency(grandTotal)}`, 14, finalY + 12);
 
   openPDFInNewTab(doc, reportTitle);
 };

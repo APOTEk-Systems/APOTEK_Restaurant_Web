@@ -229,12 +229,18 @@ export const exportInventoryAdjustmentsPDF = async (
     body,
     didParseCell: getDidParseCellHook([3, 4, 5]),
     columnStyles: {
-      3: { halign: "right" },
-      4: { halign: "right" },
-      5: { halign: "right" },
+     
     },
     ...defaultTableStyles,
   });
+
+  // Add totals
+  const finalY = (doc as any).lastAutoTable.finalY || reportInfoEndY;
+  const totalQty = data.reduce((sum, item) => sum + item.quantity, 0);
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "bold");
+  doc.text(`Total Adjustments: ${data.length}`, 14, finalY + 10);
+  doc.text(`Total Quantity Adjusted: ${totalQty}`, 14, finalY + 16);
 
   openPDFInNewTab(doc, reportTitle);
 };
@@ -285,6 +291,20 @@ export const exportInventoryRequestsPDF = async (
     ...defaultTableStyles,
   });
 
+  // Add totals
+  const finalY = (doc as any).lastAutoTable.finalY || reportInfoEndY;
+  const totalQty = data.reduce((sum, item) => sum + item.quantity, 0);
+  const statusCounts = {
+    PENDING: data.filter(item => item.status === "PENDING").length,
+    APPROVED: data.filter(item => item.status === "APPROVED").length,
+    REJECTED: data.filter(item => item.status === "REJECTED").length,
+  };
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "bold");
+  doc.text(`Total Requests: ${data.length}`, 14, finalY + 10);
+  doc.text(`Total Quantity: ${totalQty}`, 14, finalY + 16);
+  doc.text(`Pending: ${statusCounts.PENDING}, Approved: ${statusCounts.APPROVED}, Rejected: ${statusCounts.REJECTED}`, 14, finalY + 22);
+
   openPDFInNewTab(doc, reportTitle);
 };
 
@@ -323,6 +343,14 @@ export const exportExpiringBatchesPDF = async (
     },
     ...defaultTableStyles,
   });
+
+  // Add totals
+  const finalY = (doc as any).lastAutoTable.finalY || reportInfoEndY;
+  const totalQty = data.reduce((sum, item) => sum + item.quantity, 0);
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "bold");
+  doc.text(`Total Expiring Batches: ${data.length}`, 14, finalY + 10);
+  doc.text(`Total Quantity: ${totalQty}`, 14, finalY + 16);
 
   openPDFInNewTab(doc, reportTitle);
 };

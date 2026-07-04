@@ -99,6 +99,10 @@ export const exportGoodsReceivedPDF = async (
     item.receivedBy,
   ]);
 
+  // Calculate grand total
+  const grandTotal = data.reduce((sum, item) => sum + item.total, 0);
+  const totalQty = data.reduce((sum, item) => sum + item.quantity, 0);
+
   const headerEndY = await addCompanyHeader(doc, settings);
   const reportInfoEndY = addReportInfo(doc, reportTitle, dateRange, headerEndY);
 
@@ -114,6 +118,14 @@ export const exportGoodsReceivedPDF = async (
     },
     ...defaultTableStyles,
   });
+
+  // Add totals
+  const finalY = (doc as any).lastAutoTable.finalY || reportInfoEndY;
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "bold");
+  doc.text(`Total Items Received: ${data.length}`, 14, finalY + 10);
+  doc.text(`Total Quantity: ${totalQty}`, 14, finalY + 16);
+  doc.text(`Grand Total: ${formatCurrency(grandTotal)}`, 14, finalY + 22);
 
   openPDFInNewTab(doc, reportTitle);
 };
@@ -150,6 +162,10 @@ export const exportPurchaseOrderDetailedPDF = async (
     formatCurrency(item.total),
   ]);
 
+  // Calculate grand total
+  const grandTotal = data.reduce((sum, item) => sum + item.total, 0);
+  const totalQty = data.reduce((sum, item) => sum + item.quantity, 0);
+
   const headerEndY = await addCompanyHeader(doc, settings);
   const reportInfoEndY = addReportInfo(doc, reportTitle, dateRange, headerEndY);
 
@@ -164,6 +180,14 @@ export const exportPurchaseOrderDetailedPDF = async (
     },
     ...defaultTableStyles,
   });
+
+  // Add totals
+  const finalY = (doc as any).lastAutoTable.finalY || reportInfoEndY;
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "bold");
+  doc.text(`Total Items: ${data.length}`, 14, finalY + 12);
+  doc.text(`Total Quantity: ${totalQty}`, 14, finalY + 18);
+  doc.text(`Grand Total: ${formatCurrency(grandTotal)}`, 14, finalY + 24);
 
   openPDFInNewTab(doc, reportTitle);
 };
@@ -189,6 +213,14 @@ export const exportPurchaseOrderSummaryPDF = async (
     
   ]);
 
+// Calculate grand total
+  const grandTotal = data.reduce((sum, item) => sum + item.total, 0);
+  const statusCounts = {
+    PENDING: data.filter(item => item.status === "PENDING").length,
+    APPROVED: data.filter(item => item.status === "APPROVED").length,
+    REJECTED: data.filter(item => item.status === "REJECTED").length,
+  };
+
   const headerEndY = await addCompanyHeader(doc, settings);
   const reportInfoEndY = addReportInfo(doc, reportTitle, dateRange, headerEndY);
 
@@ -198,12 +230,20 @@ export const exportPurchaseOrderSummaryPDF = async (
     body,
     didParseCell: getDidParseCellHook([4]), // Total
     columnStyles: {
-     
+    
       4: { halign: "right" },
-     
+    
     },
     ...defaultTableStyles,
   });
+
+  // Add totals
+  const finalY = (doc as any).lastAutoTable.finalY || reportInfoEndY;
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "bold");
+  doc.text(`Total Orders: ${data.length}`, 14, finalY + 12);
+  doc.text(`Grand Total: ${formatCurrency(grandTotal)}`, 14, finalY + 18);
+  doc.text(`Pending: ${statusCounts.PENDING}, Approved: ${statusCounts.APPROVED}, Rejected: ${statusCounts.REJECTED}`, 14, finalY + 24);
 
   openPDFInNewTab(doc, reportTitle);
 };
