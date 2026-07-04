@@ -190,14 +190,14 @@ export default function SettingsStaffRoles() {
                 <div className="space-y-2">
                   <Label htmlFor="department">Department</Label>
                   <Select
-                    value={formData.departmentId?.toString() || ""}
-                    onValueChange={(value) => setFormData({ ...formData, departmentId: value ? parseInt(value) : undefined })}
+                    value={formData.departmentId?.toString() || "none"}
+                    onValueChange={(value) => setFormData({ ...formData, departmentId: value === "none" ? undefined : parseInt(value) })}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select a department (optional)" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">No Department</SelectItem>
+                      <SelectItem value="none">No Department</SelectItem>
                       {departments.filter(d => d.isActive).map((dept) => (
                         <SelectItem key={dept.id} value={dept.id.toString()}>
                           {dept.name}
