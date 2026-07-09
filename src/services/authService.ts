@@ -32,6 +32,13 @@ export interface AuthResponse {
 	permissions: string[];
 }
 
+/**
+ * Determine if a user belongs to the Waiter group.
+ */
+export const isWaiter = (user: AuthUser | null | undefined): boolean => {
+	return user?.userGroupName === 'Waiter';
+};
+
 // Token storage keys
 const TOKEN_KEY = 'token';
 const USER_KEY = 'user';

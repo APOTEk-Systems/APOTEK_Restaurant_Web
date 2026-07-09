@@ -15,8 +15,8 @@ import { printBill, printReceipt } from "@/utils/printBill";
 
 const paymentMethods: { id: PaymentMethod; name: string; icon: React.ReactNode }[] = [
   { id: "CASH", name: "Cash", icon: <DollarSign className="h-4 w-4" /> },
-  { id: "CARD", name: "Card", icon: <CreditCard className="h-4 w-4" /> },
-  { id: "ONLINE", name: "Online", icon: <Receipt className="h-4 w-4" /> },
+  { id: "CRDB", name: "CRDB", icon: <CreditCard className="h-4 w-4" /> },
+  { id: "MPESA", name: "Mpesa", icon: <Receipt className="h-4 w-4" /> },
 ];
 
 interface OrderPaymentSummary {

@@ -22,7 +22,7 @@ export default function OrderNew() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedTable, setSelectedTable] = useState<string>("");
   const [selectedWaiter, setSelectedWaiter] = useState("");
-  const [customerName, setCustomerName] = useState("");
+  const [customerName, setCustomerName] = useState("Customer Order");
   const [showExtrasDialog, setShowExtrasDialog] = useState(false);
   const [currentItemId, setCurrentItemId] = useState<number | null>(null);
   const { toast } = useToast();

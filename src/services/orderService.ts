@@ -1,6 +1,6 @@
 import { api } from './api';
 
-export type PaymentMethod = 'CASH' | 'CARD' | 'ONLINE';
+export type PaymentMethod = 'CASH' | 'CRDB' | 'MPESA';
 export type PaymentStatus = 'PENDING' | 'COMPLETED' | 'FAILED';
 
 export interface Payment {

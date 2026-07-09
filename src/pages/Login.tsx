@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate, Navigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { isWaiter } from "@/services/authService";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,7 +17,7 @@ import { Loader2, UtensilsCrossed } from "lucide-react";
 
 const Login = () => {
   const navigate = useNavigate();
-  const { isLoading, isAuthenticated, login } = useAuth();
+  const { isLoading, isAuthenticated, login, user } = useAuth();
   const { toast } = useToast();
 
   const [email, setEmail] = useState("");
@@ -41,8 +42,8 @@ const Login = () => {
       // Use login from AuthContext to properly update the auth state
       await login(email, password);
 
-      // Navigate to dashboard after successful login
-      navigate("/");
+      // Waiters land on the new order screen, others on the dashboard
+      navigate(isWaiter(user) ? "/orders/new" : "/");
     } catch (error) {
       toast({
         title: "Error",
@@ -67,7 +68,7 @@ const Login = () => {
 
   // Redirect to dashboard if already authenticated
   if (isAuthenticated) {
-    return <Navigate to="/" replace />;
+    return <Navigate to={isWaiter(user) ? "/orders/new" : "/"} replace />;
   }
 
   return (
