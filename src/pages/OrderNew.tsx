@@ -8,12 +8,16 @@ import { ArrowLeft, Plus, Trash2, Search, Edit2, Save, Minus, Plus as PlusIcon, 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Link } from "react-router-dom";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { MenuService } from "@/services/menuService";
 import { OrderService } from "@/services/orderService";
+import type { Order, OrderItem as CreatedOrderItem } from "@/services/orderService";
+import { StaffService } from "@/services/staffService";
 import { TableService, Table } from "@/services/tableService";
+import { PrintService } from "@/services/printService";
+import type { Docket } from "@/services/printService";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 
@@ -30,6 +34,7 @@ interface OrderItem {
   hasAddons?: boolean;
   menuItemId: number;
   category?: string;
+  prepArea?: string;
 }
 
 interface MenuItem {
@@ -88,8 +93,6 @@ interface Addon {
   updatedAt?: string;
 }
 
-const waiters = ["Sarah M.", "Mike R.", "James T.", "Emily W."];
-
 // Helper function to format minutes into hours if exceeding 60 mins
 function formatTimeUntilReservation(minutes: number): string {
   if (minutes < 60) {
@@ -103,12 +106,32 @@ function formatTimeUntilReservation(minutes: number): string {
   return `${hours} hr ${remainingMinutes} min`;
 }
 
+function buildDocket(
+  order: Pick<Order, "orderNumber" | "tableNumber" | "customerName" | "waiter" | "createdAt">,
+  title: string,
+  items: Pick<CreatedOrderItem, "quantity" | "notes" | "menuItem">[]
+): Docket {
+  return {
+    title,
+    orderNumber: order.orderNumber,
+    tableNumber: order.tableNumber,
+    waiter: order.waiter || undefined,
+    customerName: order.customerName || undefined,
+    createdAt: order.createdAt,
+    items: items.map((item) => ({
+      name: item.menuItem.name,
+      quantity: item.quantity,
+      notes: item.notes || undefined,
+    })),
+  };
+}
+
 export default function OrderNew() {
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedTable, setSelectedTable] = useState("");
   const [selectedWaiter, setSelectedWaiter] = useState("");
-  const [customerName, setCustomerName] = useState("");
+  const [customerName, setCustomerName] = useState("Customer Order");
   const [showExtrasDialog, setShowExtrasDialog] = useState(false);
   const [currentItemId, setCurrentItemId] = useState<number | null>(null);
   const { toast } = useToast();
@@ -126,6 +149,11 @@ export default function OrderNew() {
     queryFn: () => TableService.getAvailableTables(),
   });
 
+  const { data: waiters, isLoading: isWaitersLoading } = useQuery({
+    queryKey: ['waiters'],
+    queryFn: StaffService.getWaiters,
+  });
+
   // Fetch side dishes
   const { data: sideDishes, isLoading: isSidesLoading } = useQuery({
     queryKey: ['sideDishes'],
@@ -141,14 +169,27 @@ export default function OrderNew() {
   // Create order mutation
   const createOrderMutation = useMutation({
     mutationFn: OrderService.createOrder,
-    onSuccess: () => {
+    onSuccess: async (order: Order) => {
       toast({
         title: "Order Created",
         description: "The order has been successfully created.",
         variant: "default",
       });
       queryClient.invalidateQueries({ queryKey: ['recentOrders'] });
-      // Reset form
+
+      const kitchenItems = order.orderItems?.filter((item) => item.prepArea === 'KITCHEN' && item.menuItem?.name) || [];
+      if (kitchenItems.length > 0) {
+        const kitchenDocket = buildDocket(order, 'KITCHEN ORDER', kitchenItems);
+        await PrintService.printDocketSilent(kitchenDocket).catch(console.error);
+      }
+
+      const barItems = order.orderItems?.filter((item) => item.prepArea === 'BAR' && item.menuItem?.name) || [];
+      if (barItems.length > 0) {
+        
+        const barDocket = buildDocket(order, 'BAR ORDER', barItems);
+        await PrintService.printDocketSilent(barDocket).catch(console.error);
+      }
+
       setOrderItems([]);
       setSelectedTable("");
       setSelectedWaiter("");
@@ -192,6 +233,7 @@ export default function OrderNew() {
       hasAddons: item.hasAddons,
       menuItemId: item.id,
       category: item.menuCategory?.name || 'General',
+      prepArea: item.prepArea,
     };
 
     setOrderItems(prevItems => [...prevItems, newItem]);
@@ -366,7 +408,7 @@ export default function OrderNew() {
                     >
                       <span className="font-medium text-sm text-foreground">{item.name}</span>
                       <span className="text-xs text-muted-foreground">{item.menuCategory?.name || 'General'}</span>
-                      <span className="text-sm font-semibold text-primary mt-1">${item.price.toLocaleString()}</span>
+                       <span className="text-sm font-semibold text-primary mt-1">{item.price.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
                       {(item.requiresSideDish || item.hasAddons) && (
                         <span className="text-xs text-muted-foreground mt-1">
                           {item.requiresSideDish ? "Includes sides" : "Customizable"}
@@ -395,7 +437,7 @@ export default function OrderNew() {
                         <div className="flex items-start gap-3">
                           <div className="flex-1 min-w-0">
                             <p className="font-medium text-sm text-foreground truncate">{item.name}</p>
-                            <p className="text-sm text-primary">${item.price.toFixed(2)} x {item.quantity}</p>
+                             <p className="text-sm text-primary">{item.price.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} x {item.quantity}</p>
                             {((item.sideDishes && item.sideDishes.length > 0) || (item.addons && item.addons.length > 0)) && (
                               <p className="text-xs text-muted-foreground mt-1">
                                 <Badge variant="secondary" className="text-xs">
@@ -611,12 +653,23 @@ export default function OrderNew() {
                       <Label htmlFor="waiter" className="text-xs text-muted-foreground">Waiter</Label>
                       <Select value={selectedWaiter} onValueChange={setSelectedWaiter}>
                         <SelectTrigger id="waiter" className="h-9 text-sm">
-                          <SelectValue placeholder="Select waiter" />
+                          <SelectValue placeholder={isWaitersLoading ? "Loading waiters..." : "Select waiter"} />
                         </SelectTrigger>
                         <SelectContent>
-                          {waiters.map(waiter => (
-                            <SelectItem key={waiter} value={waiter}>{waiter}</SelectItem>
-                          ))}
+                          {waiters?.map(waiter => {
+                            const waiterName = `${waiter.firstName} ${waiter.lastName}`.trim();
+
+                            return (
+                              <SelectItem key={waiter.id} value={waiterName}>
+                                {waiterName}
+                              </SelectItem>
+                            );
+                          })}
+                          {!isWaitersLoading && (!waiters || waiters.length === 0) && (
+                            <div className="p-2 text-sm text-muted-foreground text-center">
+                              No active waiters found
+                            </div>
+                          )}
                         </SelectContent>
                       </Select>
                     </div>
@@ -626,15 +679,11 @@ export default function OrderNew() {
                 <div className="pt-4 border-t border-border space-y-2">
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Subtotal</span>
-                    <span className="text-foreground">${total.toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Tax (10%)</span>
-                    <span className="text-foreground">${(total * 0.1).toFixed(2)}</span>
+                    <span className="text-foreground">{total.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
                   </div>
                   <div className="flex justify-between text-lg font-semibold pt-2 border-t border-border">
                     <span className="text-foreground">Total</span>
-                    <span className="text-primary">${(total * 1.1).toFixed(2)}</span>
+                     <span className="text-primary">{(total * 1.1).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
                   </div>
                 </div>
 
@@ -673,7 +722,7 @@ export default function OrderNew() {
                 <div className="mb-4 p-3 bg-muted/30 rounded-lg">
                   <h3 className="font-medium text-sm mb-2">Item Details</h3>
                   <p className="text-sm text-foreground">{currentItem.name}</p>
-                  <p className="text-sm text-primary">${currentItem.price.toFixed(2)}</p>
+                   <p className="text-sm text-primary">{currentItem.price.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</p>
                   <p className="text-xs text-muted-foreground mt-1">Base item</p>
                 </div>
 
@@ -714,7 +763,7 @@ export default function OrderNew() {
                             />
                             <div className="flex-1">
                               <p className="text-xs font-medium">{sideDish.name}</p>
-                              <p className="text-xs text-muted-foreground">${sideDish.price.toFixed(2)}</p>
+                               <p className="text-xs text-muted-foreground">{sideDish.price.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</p>
                             </div>
                           </div>
                         );
@@ -752,7 +801,7 @@ export default function OrderNew() {
                             />
                             <div className="flex-1">
                               <p className="text-xs font-medium">{addon.name}</p>
-                              <p className="text-xs text-muted-foreground">${addon.price.toFixed(2)}</p>
+                               <p className="text-xs text-muted-foreground">{addon.price.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</p>
                             </div>
                           </div>
                         );

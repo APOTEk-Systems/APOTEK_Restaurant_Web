@@ -96,25 +96,31 @@ export default function Orders() {
     setIsModalOpen(true);
   };
 
-  const handleStatusUpdate = (orderId: string, newStatus: string) => {
-    const numericOrderId = parseInt(orderId.replace("#", ""));
+  const handleStatusUpdate = (orderId: number, newStatus: string) => {
     console.log(`Updating order ${orderId} to status: ${newStatus}`);
 
     if (newStatus === "paid") {
       // Navigate to payment page for recording payment details
-      window.location.href = `/order/${numericOrderId}/pay`;
+      window.location.href = `/order/${orderId}/pay`;
     } else {
       // Update the order status
-      updateOrderMutation.mutate({ id: numericOrderId, status: newStatus });
+      updateOrderMutation.mutate({ id: orderId, status: newStatus });
     }
     setIsModalOpen(false);
   };
 
-  const handleCancelOrder = (orderId: string) => {
-    const numericOrderId = parseInt(orderId.replace("#", ""));
-    console.log(`Cancelling order ${orderId}`);
-    updateOrderMutation.mutate({ id: numericOrderId, status: "cancelled" });
-    setIsModalOpen(false);
+  const handleCancelOrder = async (order: any) => {
+    console.log(`Cancelling order ${order.id}`);
+
+    try {
+      await updateOrderMutation.mutateAsync({ id: order.id, status: "CANCELLED" });
+      await PrintService.printOrderCancelledDockets(order);
+    } catch (error) {
+      console.error("Order cancellation failed:", error);
+      alert(`Failed to cancel order: ${error}`);
+    } finally {
+      setIsModalOpen(false);
+    }
   };
 
 
@@ -123,13 +129,13 @@ export default function Orders() {
     try {
       console.log("Generating bill for order:", order);
       await PrintService.printBillSilent(order);
-      alert("Bill printed successfully to default printer");
+     // alert("Bill printed successfully to default printer");
     } catch (error) {
       console.error("Print error:", error);
       alert(`Failed to print bill: ${error}`);
     }
   };
-  const getStatusActions = (status: string, orderId: string) => {
+  const getStatusActions = (status: string, orderId: number) => {
     switch (status) {
       case "completed":
         return (
@@ -154,29 +160,51 @@ export default function Orders() {
             </Button>
           </>
         );
-      case "served":
-        return (
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-2"
-            onClick={() => handleStatusUpdate(orderId, "paid")}
-          >
-            <DollarSign className="h-4 w-4" />
-            Record Payment
-          </Button>
-        );
       case "pending":
+        return (
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              onClick={() => handleGenerateBill(selectedOrder)}
+            >
+              <Printer className="h-4 w-4" />
+              Generate Bill
+            </Button>
+            <Button
+              size="sm"
+              disabled={updateOrderMutation.isPending}
+              className="gap-2 bg-red-600 text-white hover:bg-red-700"
+              onClick={() => selectedOrder && handleCancelOrder(selectedOrder)}
+            >
+              {updateOrderMutation.isPending ? (
+                "Cancelling..."
+              ) : (
+                <>
+                  <X className="h-4 w-4" />
+                  Cancel Order
+                </>
+              )}
+            </Button>
+          </>
+        );
       case "preparing":
         return (
           <Button
-            variant="outline"
             size="sm"
-            className="gap-2 text-destructive border-destructive/30 hover:bg-destructive/10"
-            onClick={() => handleCancelOrder(orderId)}
+            disabled={updateOrderMutation.isPending}
+            className="gap-2 bg-red-600 text-white hover:bg-red-700"
+            onClick={() => selectedOrder && handleCancelOrder(selectedOrder)}
           >
-            <X className="h-4 w-4" />
-            Cancel Order
+            {updateOrderMutation.isPending ? (
+              "Cancelling..."
+            ) : (
+              <>
+                <X className="h-4 w-4" />
+                Cancel Order
+              </>
+            )}
           </Button>
         );
       default:
@@ -336,7 +364,7 @@ export default function Orders() {
                         </Badge>
                       </td>
                       <td className="px-6 py-4 font-semibold text-foreground">
-                        ${order.total.toFixed(2)}
+                        {order.total.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center justify-end gap-2">
@@ -354,7 +382,7 @@ export default function Orders() {
                                 <Eye className="h-4 w-4" />
                               </Button>
                             </DialogTrigger>
-                            <DialogContent className="sm:max-w-md">
+                            <DialogContent className="sm:max-w-lg">
                               <DialogHeader>
                                 <DialogTitle>
                                   Order Details - #{selectedOrder?.orderNumber}
@@ -423,9 +451,9 @@ export default function Orders() {
                                             </span>
                                           </div>
                                           <div className="flex items-center">
-                                            <span className="text-sm font-semibold">
-                                              ${item.price.toFixed(2)}
-                                            </span>
+                                             <span className="text-sm font-semibold">
+                                               {item.price.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                                             </span>
                                             {item.status === "PENDING" && (
                                               <Button
                                                 variant="ghost"
@@ -454,14 +482,14 @@ export default function Orders() {
                                     Total
                                   </p>
                                   <p className="font-semibold text-lg">
-                                    ${selectedOrder?.total.toFixed(2)}
+                                    {selectedOrder?.total.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                                   </p>
                                 </div>
                               </div>
                               <DialogFooter className="gap-2">
                                 {getStatusActions(
                                   selectedOrder?.status.toLowerCase(),
-                                  `#${selectedOrder?.orderNumber}`
+                                  selectedOrder?.id
                                 )}
                               </DialogFooter>
                             </DialogContent>

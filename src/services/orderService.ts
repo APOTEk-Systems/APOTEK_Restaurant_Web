@@ -1,6 +1,6 @@
 import { api } from './api';
 
-export type PaymentMethod = 'CASH' | 'CARD' | 'ONLINE';
+export type PaymentMethod = 'CASH' | 'CRDB' | 'MPESA' | 'CARD' | 'ONLINE';
 export type PaymentStatus = 'PENDING' | 'COMPLETED' | 'FAILED';
 
 export interface Payment {
@@ -14,7 +14,7 @@ export interface Payment {
   updatedAt: string;
 }
 
-interface OrderItem {
+export interface OrderItem {
   id: number;
   orderId: number;
   menuItemId: number;
@@ -150,6 +150,7 @@ export interface Order {
 }
 
 interface CreateOrderData {
+  tableId?: number;
   tableNumber: number;
   customerName?: string;
   waiter?: string;

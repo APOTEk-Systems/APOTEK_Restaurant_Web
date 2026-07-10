@@ -5,16 +5,16 @@ import {
   ChefHat,
   Wine,
   Plus,
+  Menu,
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 
 const navItems = [
   { title: "New Order", url: "/orders/new", icon: Plus, color: "bg-primary" },
+  
   { title: "Current Orders", url: "/orders", icon: ClipboardList },
-  { title: "Kitchen Orders", url: "/kitchen/orders", icon: ChefHat, color: "bg-orange-500" },
-  { title: "Bar Orders", url: "/bar/orders", icon: Wine, color: "bg-blue-500" },
-  { title: "Reservations", url: "/reservations", icon: CalendarDays },
+  { title: "Menu", url: "/menu", icon: Menu, color: "bg-green-500" },
 ];
 
 export function BottomNavigation() {

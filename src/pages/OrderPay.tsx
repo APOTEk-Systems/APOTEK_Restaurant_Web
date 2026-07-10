@@ -11,11 +11,12 @@ import { useState, useEffect, useMemo } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { OrderService, Order } from "@/services/orderService";
 import { PaymentService, PaymentMethod, Payment } from "@/services/paymentService";
+import { PrintService } from "@/services/printService";
 
 const paymentMethods: { id: PaymentMethod; name: string; icon: React.ReactNode }[] = [
   { id: "CASH", name: "Cash", icon: <DollarSign className="h-4 w-4" /> },
-  { id: "CARD", name: "Card", icon: <CreditCard className="h-4 w-4" /> },
-  { id: "ONLINE", name: "Online", icon: <Receipt className="h-4 w-4" /> },
+  { id: "CRDB", name: "CRDB", icon: <CreditCard className="h-4 w-4" /> },
+  { id: "MPESA", name: "MPESA", icon: <Receipt className="h-4 w-4" /> },
 ];
 
 interface OrderPaymentSummary {
@@ -35,6 +36,19 @@ interface SplitPayment {
 }
 
 type SplitType = 'method' | 'item';
+
+const formatAmountDisplay = (value: string): string => {
+  if (!value) return value;
+  const numericValue = value.replace(/[^0-9.]/g, '');
+  if (!numericValue) return value;
+  const parts = numericValue.split('.');
+  parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return parts.join('.');
+};
+
+const stripAmountFormatting = (value: string): string => {
+  return value.replace(/,/g, '');
+};
 
 export default function OrderPay() {
   const { id } = useParams<{ id: string }>();
@@ -57,9 +71,11 @@ export default function OrderPay() {
   const [splitPayments, setSplitPayments] = useState<SplitPayment[]>([
     { amount: "", method: "CASH", transactionId: "", itemIds: [] },
   ]);
+  const [focusedSplitIndex, setFocusedSplitIndex] = useState<number | null>(null);
 
   useEffect(() => {
     fetchOrderData();
+    void PrintService.preloadRestaurantInfo();
   }, [id]);
 
   const fetchOrderData = async () => {
@@ -151,7 +167,7 @@ export default function OrderPay() {
     // Check if total payment exceeds order total
     const totalPayment = splitPayments.reduce((sum, payment) => sum + (parseFloat(payment.amount) || 0), 0);
     if (totalPayment > (paymentSummary?.totalAmount || 0)) {
-      errors.push(`Total payments ($${totalPayment.toFixed(2)}) exceed order total ($${(paymentSummary?.totalAmount || 0).toFixed(2)})`);
+      errors.push(`Total payments (${totalPayment.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}) exceed order total (${(paymentSummary?.totalAmount || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })})`);
     }
 
     // Check if total payment is zero
@@ -195,10 +211,24 @@ export default function OrderPay() {
 
       toast({
         title: "Payment Successful",
-        description: `Payment of $${amount.toFixed(2)} recorded`,
+        description: `Payment of ${amount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} recorded`,
       });
 
       navigate("/orders");
+      void PrintService.printReceiptSilent(order)
+        .then(() => {
+          toast({
+            title: "Receipt Printed",
+            description: "Customer receipt printed successfully.",
+          });
+        })
+        .catch((printError: any) => {
+          toast({
+            title: "Receipt Print Failed",
+            description: printError?.message || "Payment was recorded, but receipt printing failed.",
+            variant: "destructive",
+          });
+        });
     } catch (error: any) {
       toast({
         title: "Payment Failed",
@@ -262,6 +292,20 @@ export default function OrderPay() {
       });
 
       navigate("/orders");
+      void PrintService.printReceiptSilent(order)
+        .then(() => {
+          toast({
+            title: "Receipt Printed",
+            description: "Customer receipt printed successfully.",
+          });
+        })
+        .catch((printError: any) => {
+          toast({
+            title: "Receipt Print Failed",
+            description: printError?.message || "Payments were recorded, but receipt printing failed.",
+            variant: "destructive",
+          });
+        });
     } catch (error: any) {
       toast({
         title: "Payment Failed",
@@ -421,7 +465,7 @@ export default function OrderPay() {
           )}
         </div>
         <span className="text-sm font-medium">
-          ${(item.price * item.quantity).toFixed(2)}
+          {(item.price * item.quantity).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
         </span>
       </div>
     );
@@ -448,7 +492,7 @@ export default function OrderPay() {
             isDisabled ? 'line-through text-muted-foreground' : ''
           }`}
         >
-          {item.menuItem?.name || `Item #${item.id}`} - ${item.price.toFixed(2)}
+          {item.menuItem?.name || `Item #${item.id}`} - {item.price.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
           {isDisabled && selectedBy !== null && (
             <span className="text-xs text-muted-foreground ml-1">
               (P{selectedBy + 1})
@@ -510,15 +554,15 @@ export default function OrderPay() {
                 <div className="pt-4 border-t border-border space-y-2">
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Total Amount</span>
-                    <span className="text-foreground">${paymentSummary?.totalAmount.toFixed(2)}</span>
+                    <span className="text-foreground">{paymentSummary?.totalAmount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Amount Paid</span>
-                    <span className="text-foreground">${paymentSummary?.amountPaid.toFixed(2)}</span>
+                    <span className="text-foreground">{paymentSummary?.amountPaid.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
                   </div>
                   <div className="flex justify-between text-lg font-semibold pt-2 border-t border-border">
                     <span className="text-foreground">Remaining</span>
-                    <span className="text-primary">${paymentSummary?.remainingAmount.toFixed(2)}</span>
+                    <span className="text-primary">{paymentSummary?.remainingAmount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
                   </div>
                 </div>
               </CardContent>
@@ -543,7 +587,7 @@ export default function OrderPay() {
                         </div>
                         <div className="flex items-center gap-2">
                           <span className="text-sm font-medium">
-                            ${payment.amount.toFixed(2)}
+                            {payment.amount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                           </span>
                           <span className="text-xs text-muted-foreground">
                             {new Date(payment.createdAt).toLocaleTimeString()}
@@ -616,12 +660,16 @@ export default function OrderPay() {
                       <Label htmlFor="amount-received">Amount Received</Label>
                       <Input
                         id="amount-received"
-                        type="number"
-                        step="0.01"
-                        min={paymentSummary?.remainingAmount}
-                        value={amountReceived}
-                        onChange={(e) => setAmountReceived(e.target.value)}
-                        placeholder={`Minimum $${paymentSummary?.remainingAmount.toFixed(2)}`}
+                        type="text"
+                        inputMode="decimal"
+                        value={formatAmountDisplay(amountReceived)}
+                        onChange={(e) => {
+                          const raw = stripAmountFormatting(e.target.value);
+                          if (raw === '' || /^\d*\.?\d*$/.test(raw)) {
+                            setAmountReceived(raw);
+                          }
+                        }}
+                        placeholder={`Minimum ${paymentSummary?.remainingAmount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`}
                         required
                       />
                     </div>
@@ -641,9 +689,9 @@ export default function OrderPay() {
                     {changeAmount > 0 && (
                       <div className="flex justify-between items-center p-3 rounded-lg bg-green-500/10">
                         <span className="text-sm text-green-600">Change to Return</span>
-                        <span className="font-medium text-green-600">
-                          ${changeAmount.toFixed(2)}
-                        </span>
+                          <span className="font-medium text-green-600">
+                            {changeAmount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                          </span>
                       </div>
                     )}
 
@@ -666,7 +714,7 @@ export default function OrderPay() {
                         ) : (
                           <>
                             <DollarSign className="h-4 w-4 mr-2" />
-                            Record Payment (${paymentSummary?.remainingAmount.toFixed(2)})
+                            Record Payment ({paymentSummary?.remainingAmount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })})
                           </>
                         )}
                       </Button>
@@ -805,13 +853,17 @@ export default function OrderPay() {
                           <div className="space-y-2">
                             <Label>Amount</Label>
                             <Input
-                              type="number"
-                              step="0.01"
-                              min="0"
-                              value={payment.amount}
-                              onChange={(e) =>
-                                updateSplitPayment(index, "amount", e.target.value)
-                              }
+                              type="text"
+                              inputMode="decimal"
+                              value={focusedSplitIndex === index ? payment.amount : formatAmountDisplay(payment.amount)}
+                              onChange={(e) => {
+                                const raw = stripAmountFormatting(e.target.value);
+                                if (raw === '' || /^\d*\.?\d*$/.test(raw)) {
+                                  updateSplitPayment(index, "amount", raw);
+                                }
+                              }}
+                              onFocus={() => setFocusedSplitIndex(index)}
+                              onBlur={() => setFocusedSplitIndex(null)}
                               placeholder="0.00"
                               disabled={splitType === "item" && (payment.itemIds?.length || 0) > 0}
                             />
@@ -848,25 +900,23 @@ export default function OrderPay() {
                     <div className="p-3 bg-muted/30 rounded-lg">
                       <div className="flex justify-between items-center">
                         <span className="text-sm">Total to Pay</span>
-                        <span className="text-lg font-semibold">
-                          ${calculateSplitTotal().toFixed(2)}
-                        </span>
+                          <span className="text-lg font-semibold">
+                            {calculateSplitTotal().toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                          </span>
                       </div>
                       <div className="flex justify-between items-center text-sm text-muted-foreground">
                         <span>Order Total</span>
-                        <span>${paymentSummary?.totalAmount.toFixed(2)}</span>
+                        <span>{paymentSummary?.totalAmount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
                       </div>
                       <div className="flex justify-between items-center text-sm">
                         <span>Remaining After</span>
-                        <span
-                          className={
+                          <span className={
                             calculateSplitTotal() >= (paymentSummary?.totalAmount || 0)
                               ? "text-green-600"
                               : "text-red-600"
-                          }
-                        >
-                          ${(paymentSummary?.totalAmount || 0) - calculateSplitTotal()}
-                        </span>
+                          }>
+                            {(paymentSummary?.totalAmount || 0) - calculateSplitTotal()}
+                          </span>
                       </div>
                     </div>
 

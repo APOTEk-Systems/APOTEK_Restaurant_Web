@@ -1,6 +1,6 @@
 import { api } from './api';
 
-export type PaymentMethod = 'CASH' | 'CARD' | 'ONLINE';
+export type PaymentMethod = 'CASH' | 'CRDB' | 'MPESA' | 'CARD' | 'ONLINE';
 export type PaymentStatus = 'PENDING' | 'COMPLETED' | 'FAILED';
 
 export interface Payment {
@@ -42,7 +42,7 @@ export interface SplitPaymentData {
 export const PaymentService = {
   // Create a single payment
   createPayment: async (paymentData: CreatePaymentData): Promise<Payment> => {
-    const response = await api.post('/payment', paymentData);
+    const response = await api.post('/payments', paymentData);
     return response.data;
   },
 
@@ -51,7 +51,7 @@ export const PaymentService = {
     orderId: number,
     payments: Array<{ amount: number; paymentMethod: PaymentMethod; transactionId?: string }>
   ): Promise<Payment[]> => {
-    const response = await api.post('/payment/split', {
+    const response = await api.post('/payments/split', {
       orderId,
       payments,
     });
@@ -60,31 +60,31 @@ export const PaymentService = {
 
   // Get payment summary for an order
   getOrderPaymentSummary: async (orderId: number): Promise<OrderPaymentSummary> => {
-    const response = await api.get(`/payment/order/${orderId}/summary`);
+    const response = await api.get(`/payments/order/${orderId}/summary`);
     return response.data;
   },
 
   // Get all payments for an order
   getPaymentsByOrderId: async (orderId: number): Promise<Payment[]> => {
-    const response = await api.get(`/payment/order/${orderId}`);
+    const response = await api.get(`/payments/order/${orderId}`);
     return response.data;
   },
 
   // Get all payments
   getAllPayments: async (): Promise<Payment[]> => {
-    const response = await api.get('/payment');
+    const response = await api.get('/payments');
     return response.data;
   },
 
   // Get a single payment by ID
   getPaymentById: async (id: number): Promise<Payment> => {
-    const response = await api.get(`/payment/${id}`);
+    const response = await api.get(`/payments/${id}`);
     return response.data;
   },
 
   // Refund a payment
   refundPayment: async (id: number): Promise<Payment> => {
-    const response = await api.post(`/payment/${id}/refund`);
+    const response = await api.post(`/payments/${id}/refund`);
     return response.data;
   },
 
