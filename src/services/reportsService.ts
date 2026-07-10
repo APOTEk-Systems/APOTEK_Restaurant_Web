@@ -15,6 +15,7 @@ export interface OrderDetailed {
   item: string;
   quantity: number;
   price: number;
+  waiter?: string;
 }
 
 export interface PaymentReport {
@@ -168,6 +169,8 @@ export interface NetProfitReport {
 interface DateRangeParams {
   startDate?: string;
   endDate?: string;
+  waiter?: string;
+  paymentMethod?: string;
 }
 
 export const ReportsService = {

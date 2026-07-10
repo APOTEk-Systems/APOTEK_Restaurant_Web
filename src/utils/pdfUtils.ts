@@ -100,7 +100,7 @@ export const addCompanyHeader = async (doc: jsPDF, settings: RestaurantSettings)
 };
 
 // Function to add report info (date range and printed at) - centered
-export const addReportInfo = (doc: jsPDF, reportTitle: string, dateRange: DateRange, startY: number) => {
+export const addReportInfo = (doc: jsPDF, reportTitle: string, dateRange: DateRange, startY: number, filters?: string) => {
   const pageWidth = doc.internal.pageSize.getWidth();
   const centerX = pageWidth / 2;
   
@@ -120,6 +120,14 @@ export const addReportInfo = (doc: jsPDF, reportTitle: string, dateRange: DateRa
     : "Period: All Time";
   doc.text(dateRangeText, centerX, yPosition, { align: "center" });
   yPosition += 6;
+  
+  // Filters - centered
+  if (filters) {
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "italic");
+    doc.text(`Filters: ${filters}`, centerX, yPosition, { align: "center" });
+    yPosition += 5;
+  }
   
   // Printed at - centered
   const printedAt = `Printed at: ${format(new Date(), 'PPP p')}`;

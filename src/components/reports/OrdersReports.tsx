@@ -8,6 +8,8 @@ import { DateRange } from "@/utils/pdfUtils";
 import { FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { staffService, type Staff } from "@/services/staffService";
+import { useQuery } from "@tanstack/react-query";
 
 interface OrdersReportsProps {
   dateRange: { from: Date | undefined; to: Date | undefined };
@@ -16,8 +18,15 @@ interface OrdersReportsProps {
 
 export default function OrdersReports({ dateRange, onDateRangeChange }: OrdersReportsProps) {
   const [reportType, setReportType] = useState<string>("summary");
+  const [waiter, setWaiter] = useState<string>("all");
+  const [paymentMethod, setPaymentMethod] = useState<string>("all");
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+
+  const { data: waiters = [] } = useQuery({
+    queryKey: ['waiters'],
+    queryFn: () => staffService.getWaiters(),
+  });
 
   const getReportTitle = () => {
     switch (reportType) {
@@ -29,13 +38,23 @@ export default function OrdersReports({ dateRange, onDateRangeChange }: OrdersRe
     }
   };
 
+  const buildFilters = (): string => {
+    const filters: string[] = [];
+    if (waiter && waiter !== "all") filters.push(`Waiter: ${waiter}`);
+    if (paymentMethod && paymentMethod !== "all") filters.push(`Payment Method: ${paymentMethod}`);
+    return filters.join(", ");
+  };
+
   const handleGeneratePDF = async () => {
     setIsLoading(true);
     try {
-      const params = {
+      const params: any = {
         startDate: dateRange.from ? dateRange.from.toISOString() : undefined,
         endDate: dateRange.to ? dateRange.to.toISOString() : undefined,
       };
+
+      if (waiter && waiter !== "all") params.waiter = waiter;
+      if (paymentMethod && paymentMethod !== "all") params.paymentMethod = paymentMethod;
 
       let data: any[] = [];
       
@@ -59,7 +78,8 @@ export default function OrdersReports({ dateRange, onDateRangeChange }: OrdersRe
           from: dateRange.from,
           to: dateRange.to
         };
-        await exportOrderReport(reportType, data, dateRangeObj, getReportTitle());
+        const filters = buildFilters();
+        await exportOrderReport(reportType, data, dateRangeObj, getReportTitle(), filters);
       } else {
         toast({
           title: "No Data Available",
@@ -85,12 +105,12 @@ export default function OrdersReports({ dateRange, onDateRangeChange }: OrdersRe
         <CardDescription>Generate order summary, detailed, payments, and refund reports</CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="flex flex-col sm:flex-row gap-4 mb-6 items-end">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6 items-end">
           {/* Report Type Selector */}
           <div className="flex flex-col gap-1">
             <label className="text-sm font-medium">Report Type</label>
             <Select value={reportType} onValueChange={setReportType}>
-              <SelectTrigger className="w-48 lg:w-96">
+              <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select Report Type" />
               </SelectTrigger>
               <SelectContent>
@@ -98,6 +118,42 @@ export default function OrdersReports({ dateRange, onDateRangeChange }: OrdersRe
                 <SelectItem value="detailed">Order Detailed</SelectItem>
                 <SelectItem value="payments">Payments</SelectItem>
                 <SelectItem value="refunds">Refund</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Waiter Filter */}
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium">Waiter</label>
+            <Select value={waiter} onValueChange={setWaiter}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="All Waiters" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Waiters</SelectItem>
+                {waiters.map((w) => (
+                  <SelectItem key={w.id} value={`${w.firstName} ${w.lastName}`}>
+                    {w.firstName} {w.lastName}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Payment Method Filter */}
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium">Payment Method</label>
+            <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="All Methods" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Methods</SelectItem>
+                <SelectItem value="CASH">Cash</SelectItem>
+                <SelectItem value="CARD">Card</SelectItem>
+                <SelectItem value="ONLINE">Online</SelectItem>
+                <SelectItem value="MPESA">M-Pesa</SelectItem>
+                <SelectItem value="CRDB">CRDB</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -112,13 +168,13 @@ export default function OrdersReports({ dateRange, onDateRangeChange }: OrdersRe
           </div>
 
           {/* Generate Button */}
-          <Button onClick={handleGeneratePDF} disabled={isLoading}>
+          <Button onClick={handleGeneratePDF} disabled={isLoading} className="sm:col-span-2">
             <FileText className="mr-2 h-4 w-4" />
             {isLoading ? "Generating..." : "Generate PDF"}
           </Button>
         </div>
 
-      
+        
       </CardContent>
     </Card>
   );

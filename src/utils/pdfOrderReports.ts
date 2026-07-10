@@ -60,7 +60,8 @@ const getDidParseCellHook = (rightAlignColumns: number[]) => {
 export const exportOrderSummaryPDF = async (
   data: OrderSummary[],
   dateRange: DateRange,
-  reportTitle: string = "Order Summary Report"
+  reportTitle: string = "Order Summary Report",
+  filters?: string
 ) => {
   const settings = await getCompanySettings();
   const doc = new jsPDF();
@@ -79,7 +80,7 @@ export const exportOrderSummaryPDF = async (
   const grandTotal = data.reduce((sum, item) => sum + item.total, 0);
 
   const headerEndY = await addCompanyHeader(doc, settings);
-  const reportInfoEndY = addReportInfo(doc, reportTitle, dateRange, headerEndY);
+  const reportInfoEndY = addReportInfo(doc, reportTitle, dateRange, headerEndY, filters);
 
   autoTable(doc, {
     startY: reportInfoEndY,
@@ -105,7 +106,8 @@ export const exportOrderSummaryPDF = async (
 export const exportOrderDetailedPDF = async (
   data: OrderDetailed[],
   dateRange: DateRange,
-  reportTitle: string = "Order Detailed Report"
+  reportTitle: string = "Order Detailed Report",
+  filters?: string
 ) => {
   const settings = await getCompanySettings();
   const doc = new jsPDF();
@@ -123,7 +125,7 @@ export const exportOrderDetailedPDF = async (
   const grandTotal = data.reduce((sum, item) => sum + item.price, 0);
 
   const headerEndY = await addCompanyHeader(doc, settings);
-  const reportInfoEndY = addReportInfo(doc, reportTitle, dateRange, headerEndY);
+  const reportInfoEndY = addReportInfo(doc, reportTitle, dateRange, headerEndY, filters);
 
   autoTable(doc, {
     startY: reportInfoEndY,
@@ -146,7 +148,8 @@ export const exportOrderDetailedPDF = async (
 export const exportPaymentsPDF = async (
   data: PaymentReport[],
   dateRange: DateRange,
-  reportTitle: string = "Payments Report"
+  reportTitle: string = "Payments Report",
+  filters?: string
 ) => {
   const settings = await getCompanySettings();
   const doc = new jsPDF();
@@ -164,7 +167,7 @@ export const exportPaymentsPDF = async (
   const grandTotal = data.reduce((sum, item) => sum + item.amount, 0);
 
   const headerEndY = await addCompanyHeader(doc, settings);
-  const reportInfoEndY = addReportInfo(doc, reportTitle, dateRange, headerEndY);
+  const reportInfoEndY = addReportInfo(doc, reportTitle, dateRange, headerEndY, filters);
 
   autoTable(doc, {
     startY: reportInfoEndY,
@@ -187,7 +190,8 @@ export const exportPaymentsPDF = async (
 export const exportRefundsPDF = async (
   data: RefundReport[],
   dateRange: DateRange,
-  reportTitle: string = "Refund Report"
+  reportTitle: string = "Refund Report",
+  filters?: string
 ) => {
   const settings = await getCompanySettings();
   const doc = new jsPDF();
@@ -206,7 +210,7 @@ export const exportRefundsPDF = async (
   const grandTotal = data.reduce((sum, item) => sum + item.price, 0);
 
   const headerEndY = await addCompanyHeader(doc, settings);
-  const reportInfoEndY = addReportInfo(doc, reportTitle, dateRange, headerEndY);
+  const reportInfoEndY = addReportInfo(doc, reportTitle, dateRange, headerEndY, filters);
 
   autoTable(doc, {
     startY: reportInfoEndY,
@@ -230,20 +234,21 @@ export const exportOrderReport = async (
   reportType: string,
   data: OrderReportData,
   dateRange: DateRange,
-  reportTitle: string
+  reportTitle: string,
+  filters?: string
 ) => {
   switch (reportType) {
     case "summary":
-      await exportOrderSummaryPDF(data as OrderSummary[], dateRange, reportTitle);
+      await exportOrderSummaryPDF(data as OrderSummary[], dateRange, reportTitle, filters);
       break;
     case "detailed":
-      await exportOrderDetailedPDF(data as OrderDetailed[], dateRange, reportTitle);
+      await exportOrderDetailedPDF(data as OrderDetailed[], dateRange, reportTitle, filters);
       break;
     case "payments":
-      await exportPaymentsPDF(data as PaymentReport[], dateRange, reportTitle);
+      await exportPaymentsPDF(data as PaymentReport[], dateRange, reportTitle, filters);
       break;
     case "refunds":
-      await exportRefundsPDF(data as RefundReport[], dateRange, reportTitle);
+      await exportRefundsPDF(data as RefundReport[], dateRange, reportTitle, filters);
       break;
     default:
       console.error("Unknown report type:", reportType);
