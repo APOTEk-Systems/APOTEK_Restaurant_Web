@@ -30,13 +30,13 @@ const paymentMethodStyles = {
 export default function OrdersHistory() {
   const [searchQuery, setSearchQuery] = useState("");
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
-  const [statusFilter, setStatusFilter] = useState<string>("PAID");
+  const [activeTab, setActiveTab] = useState<"PAID" | "CANCELLED">("PAID");
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
 
   // Fetch orders with date range filter
   const { data: orders = [], isLoading, error } = useQuery({
-    queryKey: ['orders-history', dateRange, statusFilter],
+    queryKey: ['orders-history', dateRange, activeTab],
     queryFn: async () => {
       const params: any = {};
       
@@ -45,8 +45,8 @@ export default function OrdersHistory() {
         params.endDate = dateRange.to.toISOString();
       }
       
-      if (statusFilter !== "all") {
-        params.status = statusFilter;
+      if (activeTab !== "all") {
+        params.status = activeTab;
       }
       
       return OrderService.getAllOrders(params);
@@ -106,32 +106,60 @@ export default function OrdersHistory() {
      
 
       {/* Filters */}
-    
-          <div className="flex flex-col sm:flex-row gap-4 mb-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search by order ID, table, waiter, or customer..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-            <div className="flex gap-2 flex-wrap">
-              <DateRangePicker 
-                dateRange={dateRange}
-                onDateRangeChange={handleDateRangeChange}
-              />
-            
-              
-            </div>
+      <div className="flex flex-col gap-4 mb-4">
+        <div className="flex gap-2 border-b border-border">
+          <button
+            onClick={() => setActiveTab("PAID")}
+            className={cn(
+              "px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors",
+              activeTab === "PAID"
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            )}
+          >
+            Completed
+          </button>
+          <button
+            onClick={() => setActiveTab("CANCELLED")}
+            className={cn(
+              "px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors",
+              activeTab === "CANCELLED"
+                ? "border-destructive text-destructive"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            )}
+          >
+            Cancelled
+          </button>
+        </div>
+
+        <div className="flex flex-col sm:flex-row gap-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search by order ID, table, waiter, or customer..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+            />
           </div>
-        
+          <div className="flex gap-2 flex-wrap">
+            <DateRangePicker 
+              dateRange={dateRange}
+              onDateRangeChange={handleDateRangeChange}
+            />
+          
+            
+          </div>
+        </div>
+      </div>
+
 
       {/* Orders Table */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Completed Orders</CardTitle>
+          <CardTitle className="text-lg">
+            {activeTab === "CANCELLED" ? "Cancelled Orders" : "Completed Orders"}
+          </CardTitle>
         </CardHeader>
         <CardContent>
           {isLoading ? (
@@ -155,6 +183,7 @@ export default function OrdersHistory() {
                   <TableHead>Table</TableHead>
                   <TableHead>Items</TableHead>
                   <TableHead>Waiter</TableHead>
+                  {activeTab === "CANCELLED" && <TableHead>Reason</TableHead>}
                   {/* <TableHead>Payment</TableHead> */}
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Total</TableHead>
@@ -174,6 +203,11 @@ export default function OrdersHistory() {
                     <TableCell>Table {order.tableNumber || 'N/A'}</TableCell>
                     <TableCell>{order.orderItems?.length || 0} items</TableCell>
                     <TableCell>{order.waiter || 'N/A'}</TableCell>
+                    {activeTab === "CANCELLED" && (
+                      <TableCell className="max-w-[200px]">
+                        <span className="text-sm text-destructive">{order.notes || 'No reason provided'}</span>
+                      </TableCell>
+                    )}
                     {/* <TableCell>
                       {order.payments && order.payments.length > 0 ? (
                         <Badge className={cn(paymentMethodStyles[order.payments[0].paymentMethod as keyof typeof paymentMethodStyles] || "bg-muted")}>
@@ -215,6 +249,14 @@ export default function OrdersHistory() {
                           <DialogHeader>
                             <DialogTitle>Payment Details - Order #{selectedOrder?.orderNumber}</DialogTitle>
                           </DialogHeader>
+                          {selectedOrder?.status === "CANCELLED" && (
+                            <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+                              <span className="text-sm text-muted-foreground">Cancellation Reason</span>
+                              <p className="text-sm font-medium text-destructive mt-1">
+                                {selectedOrder.notes || 'No reason provided'}
+                              </p>
+                            </div>
+                          )}
                           {selectedOrder?.payments && selectedOrder.payments.length > 0 ? (
                             <div className="space-y-4">
                               {selectedOrder.payments.map((payment: Payment, index: number) => (

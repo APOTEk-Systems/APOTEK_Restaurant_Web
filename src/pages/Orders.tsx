@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import { Plus, Search, Filter, Eye, MoreHorizontal, Check, DollarSign, X, Ban, CreditCard, Receipt, Printer } from "lucide-react";
+import { Plus, Search, Filter, Eye, MoreHorizontal, Check, DollarSign, X, Ban, CreditCard, Receipt, Printer, Loader2 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { OrderService, Order, Payment, OrderItem } from "@/services/orderService";
@@ -28,6 +28,8 @@ export default function Orders() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [cancelOrderId, setCancelOrderId] = useState<number | null>(null);
+  const [cancelReason, setCancelReason] = useState("");
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -106,9 +108,29 @@ export default function Orders() {
   };
 
   const handleCancelOrder = (orderId: number) => {
-    console.log(`Cancelling order ${orderId}`);
-    updateOrderMutation.mutate({ id: orderId, status: "CANCELLED" });
+    setCancelOrderId(orderId);
+    setCancelReason("");
     setIsModalOpen(false);
+  };
+
+  const confirmCancelOrder = () => {
+    if (cancelOrderId === null) return;
+    updateOrderMutation.mutate(
+      { id: cancelOrderId, status: "CANCELLED", notes: cancelReason.trim() || undefined },
+      {
+        onSuccess: () => {
+          toast({
+            title: "Order Cancelled",
+            description: cancelReason.trim()
+              ? `Reason: ${cancelReason.trim()}`
+              : "The order has been cancelled.",
+            variant: "default",
+          });
+        },
+      }
+    );
+    setCancelOrderId(null);
+    setCancelReason("");
   };
 
   const getStatusActions = (status: string, orderId: number) => {
@@ -158,6 +180,15 @@ export default function Orders() {
     case "preparing":
       return (
         <>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2"
+            onClick={() => handleStatusUpdate(orderId, "paid")}
+          >
+            <DollarSign className="h-4 w-4" />
+            Record Payment
+          </Button>
           <Button
             variant="outline"
             size="sm"
@@ -292,7 +323,7 @@ export default function Orders() {
                                 View
                               </Button>
                             </DialogTrigger>
-                            <DialogContent className="sm:max-w-md">
+                            <DialogContent className="sm:max-w-lg">
                               <DialogHeader>
                                 <DialogTitle>Order Details - #{selectedOrder?.orderNumber}</DialogTitle>
                               </DialogHeader>
@@ -419,6 +450,46 @@ export default function Orders() {
             </table>
           </div>
         </div>
+
+        {/* Cancel Reason Dialog */}
+        <Dialog open={cancelOrderId !== null} onOpenChange={(open) => { if (!open) { setCancelOrderId(null); setCancelReason(""); } }}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Cancel Order</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3 py-2">
+              <p className="text-sm text-muted-foreground">
+                Please provide a reason for cancelling this order. It will be stored in the order notes.
+              </p>
+              <Input
+                placeholder="Cancellation reason..."
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                autoFocus
+              />
+            </div>
+            <DialogFooter className="gap-2">
+              <Button
+                variant="outline"
+                onClick={() => { setCancelOrderId(null); setCancelReason(""); }}
+              >
+                Back
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={confirmCancelOrder}
+                disabled={updateOrderMutation.isPending}
+              >
+                {updateOrderMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Ban className="h-4 w-4" />
+                )}
+                Cancel Order
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </MainLayout>
   );

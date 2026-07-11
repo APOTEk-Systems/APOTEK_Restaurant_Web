@@ -79,6 +79,7 @@ export default function OrderPay() {
         isFullyPaid: totalPaid >= (orderData.total || 0),
         payments: orderData.payments || [],
       });
+      setAmountReceived(remainingAmount > 0 ? remainingAmount.toFixed(2) : "");
     } catch (error: any) {
       toast({
         title: "Error",

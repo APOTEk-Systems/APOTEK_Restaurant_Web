@@ -54,7 +54,7 @@ export default function OrdersReports({ dateRange, onDateRangeChange }: OrdersRe
       };
 
       if (waiter && waiter !== "all") params.waiter = waiter;
-      if (paymentMethod && paymentMethod !== "all") params.paymentMethod = paymentMethod;
+      if (reportType === "payments" && paymentMethod && paymentMethod !== "all") params.paymentMethod = paymentMethod;
 
       let data: any[] = [];
       
@@ -141,22 +141,24 @@ export default function OrdersReports({ dateRange, onDateRangeChange }: OrdersRe
           </div>
 
           {/* Payment Method Filter */}
-          <div className="flex flex-col gap-1">
-            <label className="text-sm font-medium">Payment Method</label>
-            <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="All Methods" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Methods</SelectItem>
-                <SelectItem value="CASH">Cash</SelectItem>
-                <SelectItem value="CARD">Card</SelectItem>
-                <SelectItem value="ONLINE">Online</SelectItem>
-                <SelectItem value="MPESA">M-Pesa</SelectItem>
-                <SelectItem value="CRDB">CRDB</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          {reportType === "payments" && (
+            <div className="flex flex-col gap-1">
+              <label className="text-sm font-medium">Payment Method</label>
+              <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="All Methods" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Methods</SelectItem>
+                  <SelectItem value="CASH">Cash</SelectItem>
+                  <SelectItem value="CARD">Card</SelectItem>
+                  <SelectItem value="ONLINE">Online</SelectItem>
+                  <SelectItem value="MPESA">M-Pesa</SelectItem>
+                  <SelectItem value="CRDB">CRDB</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           {/* Date Range Picker */}
           <div className="flex flex-col gap-1">

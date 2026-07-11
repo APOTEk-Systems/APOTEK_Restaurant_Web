@@ -165,6 +165,7 @@ export interface Order {
   waiter: string | null;
   guestCount: number | null;
   total: number;
+  notes: string | null;
   createdAt: string;
   updatedAt: string;
   orderItems: OrderItem[];
@@ -191,6 +192,7 @@ interface UpdateOrderData {
   waiter?: string;
   guestCount?: number;
   status?: string;
+  notes?: string;
 }
 
 export const OrderService = {

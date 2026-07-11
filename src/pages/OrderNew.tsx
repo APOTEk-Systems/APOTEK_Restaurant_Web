@@ -72,7 +72,7 @@ export default function OrderNew() {
       setOrderItems([]);
       setSelectedTable("");
       setSelectedWaiter("");
-      setCustomerName("");
+      setCustomerName("Customer Order");
     },
     onError: (error) => {
       toast({
